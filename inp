@@ -1,0 +1,14 @@
+100    norbitals
+100    natoms
+100     nelectrons
+0   ncharge
+0 total_Sz
+1   PPP model
+1   spin reversal
+1000 DMRG_subM
+10 DMRG_sweeps
+3 tree tensor blocks
+10 nbonds
+1 3 bond link information
+2 4
+3 5:
