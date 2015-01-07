@@ -169,7 +169,6 @@ Subroutine Renormalization(indexLp1,indexRm1,direction)
 				do i=1,4,1
 				write(105,rec=4*indexLp1+i) rightv(1:subM,i:4*Rrealdim:4)
 				end do
-				write(106,*) singularvalue(1:subM)
 			end if
 		end if
 		if(direction=='i' .or. direction=='r') then
@@ -180,9 +179,10 @@ Subroutine Renormalization(indexLp1,indexRm1,direction)
 				do i=1,4,1
 				write(105,rec=4*(indexRm1-2)+i) leftu((i-1)*Lrealdim+1:i*Lrealdim,1:subM)
 				end do
-				write(106,*) singularvalue(1:subM)
 			end if
 		end if
+		! write singularvalue though only used in finit MPS
+		write(106,*) singularvalue(1:subM)
 		close(105)
 		close(106)
 		
