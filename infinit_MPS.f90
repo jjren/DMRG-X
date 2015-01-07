@@ -20,6 +20,11 @@
 		else
 			nelecs=(isystem+1)*2
 		end if
+	! in the last step we set the total electron to be real nelectrons
+		if(mod(norbs,2)==0 .and. isystem==(norbs/2-1)) then
+			nelecs=realnelecs
+		end if
+
 	!--------------------------
 		nleft=isystem
 		nright=isystem
@@ -64,7 +69,8 @@
 			call Spin_reversalmatR
 		end if
 ! store the operator matrix and the good quantum number
-		call store_operator(nleft+1,norbs-nright)
+		call store_operatorL(nleft+1)
+		call store_operatorR(norbs-nright)
 		if(4*Lrealdim>subM) then
 ! construct the total H(direct method) and davidson diagnalization
 		call hamiltonian('i')
@@ -77,8 +83,29 @@
 
 ! when the norbs is odd. Then in the last process of infinit MPS.
 ! only add 1 orbital in the left space
+! and the nelecs set to the the realnelecs
 	if(MOD(norbs,2)/=0) then
+		nelecs=realnelecs
+		nleft=norbs/2
+		nright=norbs/2-1
+		Lrealdim=subM
+		Rrealdim=subM
+! caution here may be some problem ? because the right space using the
+! last step operamatbig
+		call onesitematrix(nleft+1)
+		call system_bigL
+		call system_constructquantaL
+		if(logical_spinreversal/=0) then
+			call Spin_reversalmatL
+		end if
+		call store_operatorL(nleft+1)
+		call hamiltonian('i')
+		call Renormalization(nleft+1,norbs-nright,'i')
+	end if
 
+
+
+	call MPI_barrier(MPI_COMM_WORLD,ierr)
 
 	return
 	end subroutine infinit_MPS
