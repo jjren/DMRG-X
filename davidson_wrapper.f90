@@ -55,6 +55,7 @@ Subroutine davidson_wrapper(direction,LIM,ILOW,IHIGH,ISELEC,NIV,MBLOCK,&
 		if(direction/='i' .and. NIV==1 ) then
 			call Initialfinit(DavidWORK)
 		else
+		!	call Initialunivector(HDIAG,DavidWORK,NIV)
 			call Initialrandomweight(DavidWORK,NIV)
 		end if
 	end if
