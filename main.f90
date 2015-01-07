@@ -31,9 +31,6 @@
 
 
 
-
-
-
 	endtime=MPI_WTIME()
 	ticktime=MPI_WTICK()
 	call MPI_Barrier(MPI_COMM_WORLD,ierr)

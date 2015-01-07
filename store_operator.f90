@@ -55,6 +55,7 @@ subroutine store_operatorL(index1)
 		write(101,rec=index1) Hbig(:,:,1)
 		close(101)
 !------------------------------write the parity matrix---
+		if(logic_spinreversal/=0) then
 		reclength=2*16*subM*subM
 		inquire(file="paritymat-left.tmp",exist=alive)
 		if(alive) then
@@ -64,6 +65,7 @@ subroutine store_operatorL(index1)
 		end if
 		write(103,rec=index1) adaptedbig(:,:,1)
 		close(103)
+		end if
 !------------------------------write the quantabigL(4*subM,2)---
 		reclength=4*subM*2
 		! quantabigL is  integer(kind=4) so without *2
@@ -119,7 +121,7 @@ subroutine store_operatorR(index2)
 		else
 			operaindex=i/(nprocs-1)+1
 		end if
-! norbs is 1; norbs-1 is 2.....
+! sigmaR index = norbs is 1; norbs-1 is 2.....
 		write(100,rec=norbs+1-i) operamatbig(:,:,3*(operaindex-1)+1:3*operaindex)
 		close(100)
 	end if
@@ -135,10 +137,11 @@ subroutine store_operatorR(index2)
 			open(unit=102,file="0-right.tmp",access="Direct",form="unformatted",recl=reclength,status="replace")
 		end if
 !-----------------------------------------------
-! norbs is 1; norbs-1 is 2
+! sigmaR index =norbs is 1; norbs-1 is 2
 		write(102,rec=norbs+1-index2) Hbig(:,:,2)
 		close(102)
 !------------------------------write the parity matrix---
+		if(logic_spinreversal/=0) then
 		reclength=2*16*subM*subM
 		inquire(file="paritymat-right.tmp",exist=alive)
 		if(alive) then
@@ -148,6 +151,7 @@ subroutine store_operatorR(index2)
 		end if
 		write(104,rec=norbs+1-index2) adaptedbig(:,:,2)
 		close(104)
+		end if
 !------------------------------write the quantabigR(4*subM,2)---
 		reclength=4*subM*2
 		! quantabigR is  integer(kind=4) so without *2

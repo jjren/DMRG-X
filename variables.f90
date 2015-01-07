@@ -52,6 +52,8 @@
 	integer(kind=4) :: Lrealdim,Rrealdim
 
 	integer(kind=4) :: nleft,nright,ngoodstates
+	! nleft is the number of orbs in the L space
+	! without sigmaL
 	integer(kind=4) :: nstate,exscheme
 	real(kind=8),allocatable :: nweight(:)
 	real(kind=8),allocatable :: coeffIF(:,:,:)
