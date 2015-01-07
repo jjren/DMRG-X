@@ -11,14 +11,14 @@ subroutine store_operatorL(index1)
 	character(len=50) :: filename
 	logical :: alive
 
-	! reclength is the length of io
+	! reclength is the length of direct io
 	! ifort use 4byte as 1 by default
 
 	
 	! L+sigmaL space
 	do i=1,index1,1
 	if(myid==orbid(i)) then
-		reclength=2*16*subM*subM*3+4*subM*2
+		reclength=2*(16*subM*subM*3+4*subM*2)
 
 !----------------open a binary file-------------
 		write(filename,'(i5.5,a8)') index1,'left.tmp'
@@ -41,7 +41,7 @@ subroutine store_operatorL(index1)
 	end do
 		
 	if(myid==0) then
-		reclength=2*16*subM*subM+4*subM*2
+		reclength=2*(16*subM*subM+4*subM*2)
 !----------------open a binary file-------------
 		inquire(file="0-left.tmp",exist=alive)
 		if(alive) then
@@ -85,13 +85,13 @@ subroutine store_operatorR(index2)
 	character(len=50) :: filename
 	logical :: alive
 
-	! reclength is the length of io
+	! reclength is the length of direct io
 	! ifort use 4byte as 1 by default
 
 
 	do i=norbs,index2,-1
 	if(myid==orbid(i)) then
-		reclength=2*16*subM*subM*3+4*subM*2
+		reclength=2*(16*subM*subM*3+4*subM*2)
 !----------------open a binary file-------------
 		write(filename,'(i5.5,a9)') index2,'right.tmp'
 		inquire(file=trim(filename),exist=alive)
@@ -113,7 +113,7 @@ subroutine store_operatorR(index2)
 	end do
 		
 	if(myid==0) then
-		reclength=2*16*subM*subM+4*subM*2
+		reclength=2*(16*subM*subM+4*subM*2)
 !----------------open a binary file-------------
 		inquire(file="0-right.tmp",exist=alive)
 		if(alive) then
