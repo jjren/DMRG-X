@@ -182,6 +182,7 @@ Subroutine Renormalization(indexLp1,indexRm1,direction)
 			end if
 		end if
 		! write singularvalue though only used in finit MPS
+		! the singularvalue we use here is the exactly singlarvalue^2
 		write(106,*) singularvalue(1:subM)
 		close(105)
 		close(106)
