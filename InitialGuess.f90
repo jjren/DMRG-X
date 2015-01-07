@@ -73,7 +73,7 @@ MODULE InitialGuess
 		m=1
 		do i=1,4*Rrealdim,1
 		do j=1,4*Lrealdim,1
-			if((quantabigL(j,1)+quantabigR(i,1)==nelecs+ncharges) .and. &
+			if((quantabigL(j,1)+quantabigR(i,1)==nelecs) .and. &
 				quantabigL(j,2)+quantabigR(i,2)==totalSz) then
 				guesscoeff(m)=LRcoeff(j,i)
 				m=m+1

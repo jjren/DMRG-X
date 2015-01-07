@@ -69,7 +69,7 @@ subroutine op(bigdim,smadim,coeff,newcoeff)
 		do k=1,smadim,1
 			do i=1,4*Rrealdim,1
 			do j=1,4*Lrealdim,1
-				if((quantabigL(j,1)+quantabigR(i,1)==nelecs+ncharges) .and. &
+				if((quantabigL(j,1)+quantabigR(i,1)==nelecs) .and. &
 					quantabigL(j,2)+quantabigR(i,2)==totalSz) then
 					LRcoeff(j,i,k)=coeff(m)
 					m=m+1
@@ -106,7 +106,7 @@ subroutine op(bigdim,smadim,coeff,newcoeff)
 			do l=1,smadim,1
 			do i=1,4*Rrealdim,1
 			do j=1,4*Lrealdim,1
-				if((quantabigL(j,1)+quantabigR(i,1)==nelecs+ncharges) .and. &
+				if((quantabigL(j,1)+quantabigR(i,1)==nelecs) .and. &
 					quantabigL(j,2)+quantabigR(i,2)==totalSz) then
 					newcoeff(m)=componentmat(j,i,6,l)+newcoeff(m)
 					m=m+1
@@ -197,7 +197,7 @@ subroutine op(bigdim,smadim,coeff,newcoeff)
 				do l1=1,smadim,1
 				do i1=1,4*Rrealdim,1
 				do j1=1,4*Lrealdim,1
-					if((quantabigL(j1,1)+quantabigR(i1,1)==nelecs+ncharges) .and. &
+					if((quantabigL(j1,1)+quantabigR(i1,1)==nelecs) .and. &
 						quantabigL(j1,2)+quantabigR(i1,2)==totalSz) then
 						newcoeff(m1)=componentmat(j1,i1,6,l1)+newcoeff(m1)
 						m1=m1+1

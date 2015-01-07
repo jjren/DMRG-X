@@ -8,12 +8,18 @@
 	if(myid==0) then 
 		write(*,*) "enter subroutine infinit_MPS"
 	end if
-	
-	realnelecs=nelecs
+
+! realnelecs is the real electrons in the system
+	realnelecs=nelecs+ncharges
 
 	do isystem=1,norbs/2-1,1
-	! half filled orbital
-		nelecs=(isystem+1)*2
+
+	! when doing infinit MPS we use half filled system until arrive the realnelecs
+		if((isystem+1)*2>realnelecs) then
+			nelecs=realnelecs
+		else
+			nelecs=(isystem+1)*2
+		end if
 	!--------------------------
 		nleft=isystem
 		nright=isystem
@@ -66,8 +72,13 @@
 ! Renormalization all the operator matrix
 		call Renormalization(nleft+1,norbs-nright,'i')
 		
-		call MPI_barrier(MPI_COMM_WORLD,ierr)
+!	call MPI_barrier(MPI_COMM_WORLD,ierr)
 	end do
+
+! when the norbs is odd. Then in the last process of infinit MPS.
+! only add 1 orbital in the left space
+	if(MOD(norbs,2)/=0) then
+
 
 	return
 	end subroutine infinit_MPS

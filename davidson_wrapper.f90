@@ -25,7 +25,7 @@ Subroutine davidson_wrapper(direction,LIM,ILOW,IHIGH,ISELEC,NIV,MBLOCK,&
 	N=0
 	do i=1,4*Rrealdim,1
 	do j=1,4*Lrealdim,1
-		if((quantabigL(j,1)+quantabigR(i,1)==nelecs+ncharges) .and. &
+		if((quantabigL(j,1)+quantabigR(i,1)==nelecs) .and. &
 		quantabigL(j,2)+quantabigR(i,2)==totalSz) then
 		N=N+1
 		end if
@@ -102,7 +102,7 @@ Subroutine davidson_wrapper(direction,LIM,ILOW,IHIGH,ISELEC,NIV,MBLOCK,&
 		do k=1,IHIGH,1
 		do i=1,4*Rrealdim,1
 		do j=1,4*Lrealdim,1
-			if((quantabigL(j,1)+quantabigR(i,1)==nelecs+ncharges) .and. &
+			if((quantabigL(j,1)+quantabigR(i,1)==nelecs) .and. &
 				quantabigL(j,2)+quantabigR(i,2)==totalSz) then
 				coeffIF(j,i,k)=DavidWORK(m)
 				m=m+1
@@ -115,7 +115,7 @@ Subroutine davidson_wrapper(direction,LIM,ILOW,IHIGH,ISELEC,NIV,MBLOCK,&
 		do k=1,IHIGH,1
 		do i=1,4*Rrealdim,1
 		do j=1,4*Lrealdim,1
-			if((quantabigL(j,1)+quantabigR(i,1)/=nelecs+ncharges) .or. &
+			if((quantabigL(j,1)+quantabigR(i,1)/=nelecs) .or. &
 				(quantabigL(j,2)+quantabigR(i,2)/=totalSz)) then
 				if(abs(coeffIF(j,i,k))>relazero) then
 					write(*,*) "------------------------------------"
