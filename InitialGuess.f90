@@ -7,7 +7,7 @@ MODULE InitialGuess
 
 	contains
 !===========================================================
-	Subroutine Initialfinit(guesscoeff)
+	Subroutine Initialfinit(guesscoeff,direction)
 	! when nstate=1 then we can use the last stored matrix to
 	! contruct the Initial Guess
 	! only used in the finit MPS and nstate=1
@@ -24,9 +24,10 @@ MODULE InitialGuess
 	logical :: alive
 	integer :: reclength
 	integer :: error,i,j,m
+	character(len=1) :: direction
 
 	if(myid==0) then
-		write(*,*) "enter InitialGuess subroutine"
+		write(*,*) "enter Initialfinit subroutine"
 		! two site dmrg
 		if((nright+nleft+2)/=norbs) then
 			write(*,*) "-----------------------------------"
@@ -47,7 +48,8 @@ MODULE InitialGuess
 		if(alive) then
 			open(unit=105,file="wavefunction.tmp",access="Direct",form="unformatted",recl=reclength,status="old")
 		else
-			open(unit=105,file="wavefunction.tmp",access="Direct",form="unformatted",recl=reclength,status="replace")
+			write(*,*) "wavefunction.tmp doesn't exist"
+			stop
 		end if
 		open(unit=106,file="singularvalue.tmp",status="old")
 		
@@ -59,10 +61,30 @@ MODULE InitialGuess
 		end do
 		read(106,*) singularvalue(1:subM) 
 		singularvalue=sqrt(singularvalue)
-
-		do i=1,subM,1
-			rightv(i,:)=rightv(i,:)*singularvalue(i)
-		end do
+! be careful the finit initial guessvector
+		if((direction=='l' .and. nleft>exactsite) .or.  &
+			(direction=='r' .and. nleft==norbs-exactsite-2)) then
+			if(Lrealdim/=subM) then
+				write(*,*) "-----------------------------------"
+				write(*,*) "guessfinit, Lreadlim/=subM failed!"
+				write(*.*) "-----------------------------------"
+				stop
+			end if
+			do i=1,subM,1
+				lefu(i:4*subM:subM,:)=leftu(i:4*subM:subM,:)*singularvalue(i)
+			end do
+		else if((direction=='r' .and. nright>exactsite) .or.  &
+			(direction=='l' .and. nright==norbs-exactsite-2)) then
+			if(Rrealdim/=subM) then
+				write(*,*) "-----------------------------------"
+				write(*,*) "guessfinit, Rreadlim/=subM failed!"
+				write(*.*) "-----------------------------------"
+				stop
+			end if
+			do i=1,subM,1
+				rightv(:,i:4*subM:subM)=rightv(:,i:4*subM:subM)*singularvalue(i)
+			end do
+		end if
 
 		! recombine the two site sigmaL sigmaR coefficient
 		

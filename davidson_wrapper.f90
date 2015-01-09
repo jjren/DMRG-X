@@ -53,7 +53,7 @@ Subroutine davidson_wrapper(direction,LIM,ILOW,IHIGH,ISELEC,NIV,MBLOCK,&
 ! we can add exscheme=2 and logic_spinreversal=1 later
 	if(myid==0) then
 		if(direction/='i' .and. NIV==1 ) then
-			call Initialfinit(DavidWORK)
+			call Initialfinit(DavidWORK,direction)
 		else
 		!	call Initialunivector(HDIAG,DavidWORK,NIV)
 			call Initialrandomweight(DavidWORK,NIV)
