@@ -14,9 +14,9 @@ subroutine fromleftsweep
 	call system_bigL
 	call enviro_bigR
 	call system_constructquantaL
-	if(logic_spinreversal/=0) then
-		call Spin_reversalmatL
-	end if
+	!if(logic_spinreversal/=0) then
+	!	call Spin_reversalmatL
+	!end if
 	call store_operatorL(nleft+1)
 	call hamiltonian('l')
 	call Renormalization(nleft+1,norbs-nright,'l')

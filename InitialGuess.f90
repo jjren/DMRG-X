@@ -141,6 +141,7 @@ MODULE InitialGuess
 	integer :: num
 	real(kind=8) :: guessvector(num*ngoodstates),randomx,norm
 	integer :: i,j,k
+	logical :: done
 
 	
 	if(myid==0) then
@@ -153,11 +154,40 @@ MODULE InitialGuess
 			call random_number(randomx)
 			guessvector(i)=randomx
 		end do
-		
+
+		if(logic_spinreversal/=0) then
+			do i=1,ngoodstates,1
+				if(quantabigL(symmlinkgood(i,1),2)>0) then
+					done=.false.
+				do j=1,ngoodstates,1
+					if(symmlinkgood(j,1)==abs(symmlinkbig(symmlinkgood(i,1),1,1)) &
+						.and. symmlinkgood(j,2)==abs(symmlinkbig(symmlinkgood(i,2),1,2))) then
+						guessvector(j:num*ngoodstates:ngoodstates)=guessvector(i:num*ngoodstates:ngoodstates)&
+						*sign(1.0D0,symmlinkbig(symmlinkgood(i,1),1,1))*sign(1.0D0,symmlinkbig(symmlinkgood(i,2),1,2))&
+						*DBLE(logic_spinreversal)
+						done=.true.
+						exit
+					end if
+				end do
+					if(done/=.true.) then
+						write(*,*) "-------------------------------------------------"
+						write(*,*) "initialrandomweight spin reversal adapted failed!"
+						write(*,*) "-------------------------------------------------"
+						stop
+					end if
+				else if(quantabigL(symmlinkgood(i,1),2)==0) then
+					if(sign(1,symmlinkbig(symmlinkgood(i,1),1,1))*sign(1,symmlinkbig(symmlinkgood(i,2),1,2))/=logic_spinreversal) then
+						guessvector(i:num*ngoodstates:ngoodstates)=0.0D0
+					end if
+				end if
+			end do
+		end if
 		
 		norm=dot(guessvector(1:ngoodstates),guessvector(1:ngoodstates))
 		if(norm<1.0D-10) then
+			write(*,*) "--------------------------"
 			write(*,*) "norm is < 1.0D-10,caution!"
+			write(*,*) "--------------------------"
 		end if
 		guessvector(1:ngoodstates)=guessvector(1:ngoodstates)/sqrt(norm)
 		

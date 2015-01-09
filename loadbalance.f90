@@ -58,9 +58,13 @@
 	end if
 
 	if(myid==0 .and. logic_spinreversal/=0) then
-		allocate(adaptedsma(subM,subM,2),stat=error)
+		!allocate(adaptedsma(subM,subM,2),stat=error)
+		!if(error/=0) stop
+		!allocate(adaptedbig(4*subM,4*subM,2),stat=error)
+		!if(error/=0) stop
+		allocate(symmlinksma(subM,1,2),stat=error)
 		if(error/=0) stop
-		allocate(adaptedbig(4*subM,4*subM,2),stat=error)
+		allocate(symmlinkbig(4*subM,1,2),stat=error)
 		if(error/=0) stop
 	end if
 

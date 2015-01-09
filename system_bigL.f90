@@ -136,6 +136,16 @@ Subroutine system_bigL
 !		write(*,'(16F5.1)') Hbig(i,1:Lrealdim*4,1)
 !	end do
 	
+		if(logic_spinreversal/=0) then
+			symmlinkbig(1:Lreaddim,1,1)=symmlinksma(1:Lrealdim,1,1)
+			symmlinkbig(Lreaddim+1:2*Lreaddim,1,1)=(abs(symmlinksma(1:Lrealdim,1,1))+2*&
+				Lrealdim)*(symmlinksma(1:Lrealdim,1,1)/abs(symmlinksma(1:Lrealdim,1,1)))
+			symmlinkbig(2*Lreadlim+1:3*Lreaddim,1,1)=(abs(symmlinksma(1:Lrealdim,1,1))+&
+				Lrealdim)*(symmlinksma(1:Lrealdim,1,1)/abs(symmlinksma(1:Lrealdim,1,1)))
+			symmlinkbig(3*Lreadlim+1:4*Lreaddim,1,1)=(abs(symmlinksma(1:Lrealdim,1,1))+3*&
+				Lrealdim)*(symmlinksma(1:Lrealdim,1,1)/abs(symmlinksma(1:Lrealdim,1,1)))*(-1)
+		end if
+
 	deallocate(Hbuffer)
 	deallocate(operabuffer)
 	end if

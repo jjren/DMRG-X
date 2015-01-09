@@ -22,6 +22,8 @@ Subroutine davidson_wrapper(direction,LIM,ILOW,IHIGH,ISELEC,NIV,MBLOCK,&
 ! check how many states fullfill good quantum number
 ! every process do it
 ! N is the number of good quantum number states
+
+
 	N=0
 	do i=1,4*Rrealdim,1
 	do j=1,4*Lrealdim,1
@@ -32,6 +34,29 @@ Subroutine davidson_wrapper(direction,LIM,ILOW,IHIGH,ISELEC,NIV,MBLOCK,&
 	end do
 	end do
 	ngoodstates=N
+	
+	if(myid==0 .and. logic_spinreversal/=0) then
+	allocate(symmlinkgood(ngoodstates,2),stat=error)
+	if(error/=0) stop
+
+	m=1
+	do i=1,4*Rrealdim,1
+	do j=1,4*Lrealdim,1
+		if((quantabigL(j,1)+quantabigR(i,1)==nelecs) .and. &
+		quantabigL(j,2)+quantabigR(i,2)==totalSz) then
+		symmlinkgood(m,1)=j
+		symmlinkgood(m,2)=i
+		m=m+1
+		end if
+	end do
+	end do
+		if(m-1/=ngoodstates) then
+			write(*,*) "-----------------------------"
+			write(*,*) "symmlinkgood m-1/=ngoodstates"
+			write(*,*) "-----------------------------"
+		end if
+	end if
+
 !-----------------------------------------------------
 	!IWRSZ=2*N*LIM+LIM*LIM+(nstate+10)*LIM+nstate
 	IWRSZ=LIM*(2*N+LIM+9)+LIM*(LIM+1)/2+nstate+100
@@ -113,20 +138,20 @@ Subroutine davidson_wrapper(direction,LIM,ILOW,IHIGH,ISELEC,NIV,MBLOCK,&
 		end do
 
 ! check if the good quantum number Sz and nelecs if fullfilled
-		do k=1,IHIGH,1
-		do i=1,4*Rrealdim,1
-		do j=1,4*Lrealdim,1
-			if((quantabigL(j,1)+quantabigR(i,1)/=nelecs) .or. &
-				(quantabigL(j,2)+quantabigR(i,2)/=totalSz)) then
-				if(abs(coeffIF(j,i,k))>relazero) then
-					write(*,*) "------------------------------------"
-					write(*,*) "did not fullfill good quantum number",coeffIF(j,i,k)
-					write(*,*) "------------------------------------"
-				end if
-			end if
-		end do
-		end do
-		end do
+!		do k=1,IHIGH,1
+!		do i=1,4*Rrealdim,1
+!		do j=1,4*Lrealdim,1
+!			if((quantabigL(j,1)+quantabigR(i,1)/=nelecs) .or. &
+!				(quantabigL(j,2)+quantabigR(i,2)/=totalSz)) then
+!				if(abs(coeffIF(j,i,k))>relazero) then
+!					write(*,*) "------------------------------------"
+!					write(*,*) "did not fullfill good quantum number",coeffIF(j,i,k)
+!					write(*,*) "------------------------------------"
+!				end if
+!			end if
+!		end do
+!		end do
+!		end do
 !--------------------------------------------------------------
 
 		write(*,*) "low state energy"
@@ -144,6 +169,7 @@ Subroutine davidson_wrapper(direction,LIM,ILOW,IHIGH,ISELEC,NIV,MBLOCK,&
 
 		deallocate(HDIAG)
 		deallocate(DavidWORK)
+		deallocate(symmlinkgood)
 	end if
 return
 end subroutine

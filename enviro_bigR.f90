@@ -52,17 +52,17 @@ Subroutine enviro_bigR
 ! norbs is 1; norbs-1 is 2
 		read(102,rec=nright+1) Hbig(:,:,2)
 		close(102)
-!------------------------------read the parity matrix---
+!------------------------------read the symmlink---
 		if(logic_spinreversal/=0) then
-		reclength=2*16*subM*subM
-		inquire(file="paritymat-right.tmp",exist=alive)
+		reclength=2*subM
+		inquire(file="symmlink-right.tmp",exist=alive)
 		if(alive) then
-			open(unit=104,file="paritymat-right.tmp",access="Direct",form="unformatted",recl=reclength,status="old")
+			open(unit=104,file="symmlink-right.tmp",access="Direct",form="unformatted",recl=reclength,status="old")
 		else
-			write(*,*) "paritymat-right doesn't exist!"
+			write(*,*) "symmlink-right doesn't exist!"
 			stop
 		end if
-		read(104,rec=nright+1) adaptedbig(:,:,2)
+		read(104,rec=nright+1) symmlinkbig(:,1,2)
 		close(104)
 		end if
 	end if

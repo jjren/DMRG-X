@@ -26,6 +26,7 @@ subroutine op(bigdim,smadim,coeff,newcoeff)
 	integer :: status(MPI_STATUS_SIZE)
 	real(kind=8),allocatable :: LRcoeff(:,:,:)
 	real(kind=8),allocatable :: componentmat(:,:,:,:),buffermat(:,:)
+	logical :: done
 !
 !   transform the 1-array to 4M*4M form 
 	allocate(LRcoeff(4*Lrealdim,4*Rrealdim,smadim),stat=error) 
@@ -55,12 +56,6 @@ subroutine op(bigdim,smadim,coeff,newcoeff)
 			stop
 		end if
 
-		!if(logic_spinreversal/=0) then
-		!	write(*,*) "spinreversal symmetry. first do S*C, then do H*(SC), at last S(+)*(HSC)"
-			! call S*C subroutine
-		!else
-		!	write(*,*) "do H*C"
-		!end if
 !-----------------------------------------------------------------------------
 !to transform the 16M*M coeff to 4M*4M(L*R) format coeff(16M^2,n) to coeff(4M,4M,n) 
 ! since the input coeff is ngoodstates and other nongoodstates sets to 0
@@ -205,6 +200,7 @@ subroutine op(bigdim,smadim,coeff,newcoeff)
 				end do
 				end do
 				end do
+
 			end if
 		end do
 	end do
@@ -219,6 +215,36 @@ subroutine op(bigdim,smadim,coeff,newcoeff)
 	!		end do
 	!	end do
 	!end if
+
+	if(myid==0 .and. logic_spinreversal/=0) then
+			do i=1,ngoodstates,1
+				if(quantabigL(symmlinkgood(i,1),2)>0) then
+					done=.false.
+				do j=1,ngoodstates,1
+					if(symmlinkgood(j,1)==abs(symmlinkbig(symmlinkgood(i,1),1,1)) &
+						.and. symmlinkgood(j,2)==abs(symmlinkbig(symmlinkgood(i,2),1,2))) then
+						newcoeff(j:smadim*ngoodstates:ngoodstates)=newcoeff(i:smadim*ngoodstates:ngoodstates)&
+						*sign(1.0D0,symmlinkbig(symmlinkgood(i,1),1,1))*sign(1.0D0,symmlinkbig(symmlinkgood(i,2),1,2))&
+						*DBLE(logic_spinreversal)
+						done=.true.
+						exit
+					end if
+				end do
+					if(done/=.true.) then
+						write(*,*) "-------------------------------------------------"
+						write(*,*) "initialrandomweight spin reversal adapted failed!"
+						write(*,*) "-------------------------------------------------"
+						stop
+					end if
+				else if(quantabigL(symmlinkgood(i,1),2)==0) then
+					if(sign(1,symmlinkbig(symmlinkgood(i,1),1,1))*sign(1,symmlinkbig(symmlinkgood(i,2),1,2))/=logic_spinreversal) then
+						newcoeff(i:smadim*ngoodstates:ngoodstates)=0.0D0
+					end if
+				end if
+			end do
+		end if
+	end if
+
 
 
 deallocate(componentmat)

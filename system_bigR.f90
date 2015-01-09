@@ -126,6 +126,18 @@ Subroutine system_bigR
 !		write(*,'(16F5.1)') Hbig(i,1:Rrealdim*4,2)
 !	end do
 	
+		if(logic_spinreversal/=0) then
+			do i=1,Rrealdim,1
+				symmlinkbig((i-1)*4+1,1,2)=((abs(symmlinksma(i,1,2))-1)*4+1)*&
+				(abs(symmlinksma(i,1,2))/symmlinksma(i,1,2))
+				symmlinkbig((i-1)*4+2,1,2)=((abs(symmlinksma(i,1,2))-1)*4+3)*&
+				(abs(symmlinksma(i,1,2))/symmlinksma(i,1,2))
+				symmlinkbig((i-1)*4+3,1,2)=((abs(symmlinksma(i,1,2))-1)*4+2)*&
+				(abs(symmlinksma(i,1,2))/symmlinksma(i,1,2))
+				symmlinkbig((i-1)*4+4,1,2)=((abs(symmlinksma(i,1,2))-1)*4+4)*&
+				(abs(symmlinksma(i,1,2))/symmlinksma(i,1,2))*(-1)
+			end do
+		end if
 	deallocate(Hbuffer)
 	deallocate(operabuffer)
 	end if

@@ -16,6 +16,8 @@
 	! read file even unit
 	! write file odd unit
 
+! default value
+	exscheme=0
 	if(myid==0) then
 		write(*,*) "enter in readinput subroutine"
 	end if
@@ -48,9 +50,9 @@
 
 	! if logic_spinreversal/=0 and totalsz/=0 then stop
 	if (logic_spinreversal/=0 .and. totalsz/=0 .and. myid==0) then
-		write(*,*) "--------------------------------"
+		write(*,*) "---------------------------------"
 		write(*,*) "spin reversal needs Sz=0, failed!"
-		write(*,*) "--------------------------------"
+		write(*,*) "---------------------------------"
 	end if
 
 
@@ -149,6 +151,8 @@
 	end if
 
 	close(10)
+
+
 !-----------------------------------------------------
 	if(myid==0) then
 		write(*,*) "----------the input information---------"
@@ -178,6 +182,7 @@
 		write(*,*) pppV
 		write(*,*) "-------------------------"
 	end if
+
 !------------------------------------------------------
 ! allocate the quanta of every many body basis
 ! 1 means the total electron; 2 means the total Sz

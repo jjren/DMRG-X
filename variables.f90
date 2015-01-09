@@ -24,9 +24,17 @@
 
 	real(kind=8),allocatable :: coord(:,:)
 	integer,allocatable :: bondlink(:,:)
-	
+
+! we use a new schema to include symmetry
+! logic_spinreversal=+-1
 	integer :: logic_spinreversal
-	real(kind=8),allocatable :: adaptedsma(:,:,:),adaptedbig(:,:,:)
+! symmetrylink represent the symmetry link of every state
+! the first variables means the states
+! the second means different symmetry
+! the third is the L and R space
+	integer(kind=2),allocatable :: symmlinksma(:,:,:),symmlinkbig(:,:,:),symmlinkgood(:,:)
+	!real(kind=8),allocatable :: adaptedsma(:,:,:),adaptedbig(:,:,:)
+
 	! this is the onesite spin_reversal operator matrix
 	real(kind=8) :: parityonesitemat(4,4)
 	

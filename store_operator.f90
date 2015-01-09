@@ -56,14 +56,14 @@ subroutine store_operatorL(index1)
 		close(101)
 !------------------------------write the parity matrix---
 		if(logic_spinreversal/=0) then
-		reclength=2*16*subM*subM
-		inquire(file="paritymat-left.tmp",exist=alive)
+		reclength=2*subM
+		inquire(file="symmlink-left.tmp",exist=alive)
 		if(alive) then
-			open(unit=103,file="paritymat-left.tmp",access="Direct",form="unformatted",recl=reclength,status="old")
+			open(unit=103,file="symmlink-left.tmp",access="Direct",form="unformatted",recl=reclength,status="old")
 		else
-			open(unit=103,file="paritymat-left.tmp",access="Direct",form="unformatted",recl=reclength,status="replace")
+			open(unit=103,file="symmlink-left.tmp",access="Direct",form="unformatted",recl=reclength,status="replace")
 		end if
-		write(103,rec=index1) adaptedbig(:,:,1)
+		write(103,rec=index1) symmlinkbig(:,1,1)
 		close(103)
 		end if
 !------------------------------write the quantabigL(4*subM,2)---
@@ -142,14 +142,14 @@ subroutine store_operatorR(index2)
 		close(102)
 !------------------------------write the parity matrix---
 		if(logic_spinreversal/=0) then
-		reclength=2*16*subM*subM
-		inquire(file="paritymat-right.tmp",exist=alive)
+		reclength=2*subM
+		inquire(file="symmlink-right.tmp",exist=alive)
 		if(alive) then
-			open(unit=104,file="paritymat-right.tmp",access="Direct",form="unformatted",recl=reclength,status="old")
+			open(unit=104,file="symmlink-right.tmp",access="Direct",form="unformatted",recl=reclength,status="old")
 		else
-			open(unit=104,file="paritymat-right.tmp",access="Direct",form="unformatted",recl=reclength,status="replace")
+			open(unit=104,file="symmlink-right.tmp",access="Direct",form="unformatted",recl=reclength,status="replace")
 		end if
-		write(104,rec=norbs+1-index2) adaptedbig(:,:,2)
+		write(104,rec=norbs+1-index2) symmlinkbig(:,1,2)
 		close(104)
 		end if
 !------------------------------write the quantabigR(4*subM,2)---

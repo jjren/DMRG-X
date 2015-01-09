@@ -17,10 +17,10 @@ Subroutine Renormalization(indexLp1,indexRm1,direction)
 	implicit none
 	
 	integer :: i,error,info,j,k
-	integer :: operaindex,mindim
+	integer :: operaindex
 	! mindim is the SVD minimun dimension
-	real(kind=8),allocatable ::  leftu(:,:),singularvalue(:),rightv(:,:),ww(:),valueL(:),valueR(:),coeffbufferL(:,:,:)&
-	,coeffbufferR(:,:,:),leftubuffer(:,:),rightvbuffer(:,:),dummymat(:,:)
+	real(kind=8),allocatable ::  leftu(:,:),rightv(:,:),ww(:)&
+	singularvalue(:),leftubuffer(:,:),rightvbuffer(:,:),dummymat(:,:)
 	! leftu is the left transfer unitary matrix
 	! rightv is the right transfer unitary matrix
 	! be careful that leftu is column like,U(+)U=1
@@ -29,7 +29,7 @@ Subroutine Renormalization(indexLp1,indexRm1,direction)
 	character(len=1) :: direction 
 	integer :: reclength,indexLp1,indexRm1
 	logical :: alive
-	real(kind=8) :: discard,norm
+	real(kind=8) :: norm
 
 
 	if(myid==0)  then
@@ -40,70 +40,71 @@ Subroutine Renormalization(indexLp1,indexRm1,direction)
 	if(4*Lrealdim>subM .or. 4*Rrealdim>subM) then
 	if(myid==0) then
 ! when nstate=1, we use SVD method to renormalize the 4M basis
-		if(nstate==1) then
-			mindim=min(4*Lrealdim,4*Rrealdim)
-			allocate(leftu(4*Lrealdim,mindim),stat=error)
-			if(error/=0) stop
-			allocate(singularvalue(mindim),stat=error)
-			if(error/=0) stop
-			allocate(rightv(mindim,4*Rrealdim),stat=error)
-			if(error/=0) stop
-			allocate(ww(mindim-1),stat=error)
-			if(error/=0) stop
-			! gesvd sigular value is the descending order
-			call gesvd(coeffIF(1:4*Lrealdim,1:4*Rrealdim,1),singularvalue,leftu,rightv,ww,'N',info)
-			if(info/=0) then
-				write(*,*) "SVD failed!",indexLp1,indexRm1,info
-				stop
-			end if
+		!if(nstate==1) then
+		!	mindim=min(4*Lrealdim,4*Rrealdim)
+		!	allocate(leftu(4*Lrealdim,mindim),stat=error)
+		!	if(error/=0) stop
+		!	allocate(singularvalue(mindim),stat=error)
+		!	if(error/=0) stop
+		!	allocate(rightv(mindim,4*Rrealdim),stat=error)
+		!	if(error/=0) stop
+		!	allocate(ww(mindim-1),stat=error)
+		!	if(error/=0) stop
+		!	! gesvd sigular value is the descending order
+		!	call gesvd(coeffIF(1:4*Lrealdim,1:4*Rrealdim,1),singularvalue,leftu,rightv,ww,'N',info)
+		!	if(info/=0) then
+		!		write(*,*) "SVD failed!",indexLp1,indexRm1,info
+		!		stop
+		!	end if
 ! the reduced density matrix diagnal element is singular value^2
-			singularvalue=singularvalue*singularvalue
+		!	singularvalue=singularvalue*singularvalue
 ! when nstate/=1, two different scheme to target the excited states
 ! average method
-		else if(exscheme==1) then
+		if(nstate==1 .or. exscheme==1) then
 			allocate(singularvalue(subM),stat=error)
 			if(error/=0) stop
 !---------------left transfer unitary matrix-------
 			allocate(leftu(4*Lrealdim,subM),stat=error)
 			if(error/=0) stop
-			allocate(valueL(4*Lrealdim),stat=error)
-			if(error/=0) stop
-			allocate(coeffbufferL(4*Lrealdim,4*Lrealdim,nstate+1),stat=error)
-			if(error/=0) stop
-			coeffbufferL(:,:,nstate+1)=0.0D0
-			do i=1,nstate,1
-			call gemm(coeffIF(1:4*Lrealdim,1:4*Rrealdim,i),coeffIF(1:4*Lrealdim,1:4*Rrealdim,i),coeffbufferL(:,:,i),'N','T',1.0D0,0.0D0)
-			coeffbufferL(:,:,nstate+1)=coeffbufferL(:,:,nstate+1)+coeffbufferL(:,:,i)*nweight(i)
-			end do
+			!allocate(valueL(4*Lrealdim),stat=error)
+			!if(error/=0) stop
+			!allocate(coeffbufferL(4*Lrealdim,4*Lrealdim,nstate+1),stat=error)
+			!if(error/=0) stop
+			!coeffbufferL(:,:,nstate+1)=0.0D0
+			!do i=1,nstate,1
+			!call gemm(coeffIF(1:4*Lrealdim,1:4*Rrealdim,i),coeffIF(1:4*Lrealdim,1:4*Rrealdim,i),coeffbufferL(:,:,i),'N','T',1.0D0,0.0D0)
+			!coeffbufferL(:,:,nstate+1)=coeffbufferL(:,:,nstate+1)+coeffbufferL(:,:,i)*nweight(i)
+			!end do
 			! syevd eigenvalue is the ascending order
-			call syevd(coeffbufferL(:,:,nstate+1),valueL,'V','U',info)
-			if(info/=0) then
-				write(*,*) "left diagnolization failed!",indexLp1,info
-				stop
-			end if
-			leftu=coeffbufferL(:,4*Lrealdim-subM+1:4*Lrealdim,nstate+1)
-			singularvalue=valueL(4*Lrealdim-subM+1:4*Lrealdim)
+			!call syevd(coeffbufferL(:,:,nstate+1),valueL,'V','U',info)
+			!if(info/=0) then
+			!	write(*,*) "left diagnolization failed!",indexLp1,info
+			!	stop
+			!end if
+			!leftu=coeffbufferL(:,4*Lrealdim-subM+1:4*Lrealdim,nstate+1)
+			!singularvalue=valueL(4*Lrealdim-subM+1:4*Lrealdim)
 !---------------right transfer unitary matrix-------
 			allocate(rightv(subM,4*Rrealdim),stat=error)
 			if(error/=0) stop
-			allocate(valueR(4*Rrealdim),stat=error)
-			if(error/=0) stop
-			allocate(coeffbufferR(4*Rrealdim,4*Rrealdim,nstate+1),stat=error)
-			if(error/=0) stop
-			coeffbufferR(:,:,nstate+1)=0.0D0
-			do i=1,nstate,1
-			call gemm(coeffIF(1:4*Lrealdim,1:4*Rrealdim,i),coeffIF(1:4*Lrealdim,1:4*Rrealdim,i),coeffbufferR(:,:,i),'T','N',1.0D0,0.0D0)
-			coeffbufferR(:,:,nstate+1)=coeffbufferR(:,:,nstate+1)+coeffbufferR(:,:,i)*nweight(i)
-			end do
+			!allocate(valueR(4*Rrealdim),stat=error)
+			!if(error/=0) stop
+			!allocate(coeffbufferR(4*Rrealdim,4*Rrealdim,nstate+1),stat=error)
+			!if(error/=0) stop
+			!coeffbufferR(:,:,nstate+1)=0.0D0
+			!do i=1,nstate,1
+			!call gemm(coeffIF(1:4*Lrealdim,1:4*Rrealdim,i),coeffIF(1:4*Lrealdim,1:4*Rrealdim,i),coeffbufferR(:,:,i),'T','N',1.0D0,0.0D0)
+			!coeffbufferR(:,:,nstate+1)=coeffbufferR(:,:,nstate+1)+coeffbufferR(:,:,i)*nweight(i)
+			!end do
 			! syevd eigenvalue is the ascending order
-			call syevd(coeffbufferR(:,:,nstate+1),valueR,'V','U',info)
-			if(info/=0) then
-				write(*,*) "right diagnolization failed!",indexRm1,info
-				stop
-			end if
-		
-			rightv=transpose(coeffbufferR(:,4*Rrealdim-subM+1:4*Rrealdim,nstate+1))
-			singularvalue=valueR(4*Rrealdim-subM+1:4*Rrealdim)
+			!call syevd(coeffbufferR(:,:,nstate+1),valueR,'V','U',info)
+			!if(info/=0) then
+			!	write(*,*) "right diagnolization failed!",indexRm1,info
+			!	stop
+			!end if
+			call splitsvdL(singularvalue,leftu,1,nstate,indexlp1)
+			call splitsvdR(singularvalue,rightv,1,nstate,indexRm1)
+			!rightv=transpose(coeffbufferR(:,4*Rrealdim-subM+1:4*Rrealdim,nstate+1))
+			!singularvalue=valueR(4*Rrealdim-subM+1:4*Rrealdim)
 
 !--------------------------------------------------
 		else if(exscheme==2) then
@@ -113,42 +114,42 @@ Subroutine Renormalization(indexLp1,indexRm1,direction)
 ! there are some numerical inaccuracy when we do svd or diagonalizaiton and this
 ! will make different good quantum number stat to mix. This is wrong. So we need
 ! to Reconstruct the transfer matrix leftu and rightv
-		do i=1,subM,1
-			do j=1,4*Lrealdim,1
-				if(leftu(j,i)>quantaconst) then
-					do k=1,4*Lrealdim,1
-						if(quantabigL(k,1)/=quantabigL(j,1) .or. &
-						quantabigL(k,2)/=quantabigL(j,2)) then
-						leftu(k,i)=0.0D0
-						end if
-					end do
-					exit
-				end if
-			end do
-			norm=dot(leftu(:,i),leftu(:,i))
-			if(norm<1.0D-10) then
-				write(*,*) "-------------------------------------"
-				write(*,*) "Renormalizaiton norm<1.0D-10 caution!"
-				write(*,*) "-------------------------------------"
-			end if
-			leftu(:,i)=leftu(:,i)/sqrt(norm)
-		end do
+	!	do i=1,subM,1
+	!		do j=1,4*Lrealdim,1
+	!			if(leftu(j,i)>quantaconst) then
+	!				do k=1,4*Lrealdim,1
+	!					if(quantabigL(k,1)/=quantabigL(j,1) .or. &
+	!					quantabigL(k,2)/=quantabigL(j,2)) then
+	!					leftu(k,i)=0.0D0
+	!					end if
+	!				end do
+	!				exit
+	!			end if
+	!		end do
+	!		norm=dot(leftu(:,i),leftu(:,i))
+	!		if(norm<1.0D-10) then
+	!			write(*,*) "-------------------------------------"
+	!			write(*,*) "Renormalizaiton norm<1.0D-10 caution!"
+	!			write(*,*) "-------------------------------------"
+	!		end if
+	!		leftu(:,i)=leftu(:,i)/sqrt(norm)
+	!	end do
 		
-		do i=1,subM,1
-			do j=1,4*Rrealdim,1
-				if(rightv(i,j)>quantaconst) then
-					do k=1,4*Rrealdim,1
-						if(quantabigL(k,1)/=quantabigL(j,1) .or. &
-						quantabigL(k,2)/=quantabigL(j,2)) then
-						rightv(i,k)=0.0D0
-						end if
-					end do
-					exit
-				end if
-			end do
-			norm=dot(rightv(i,:),rightv(i,:))
-			rightv(i,:)=rightv(i,:)/sqrt(norm)
-		end do
+	!	do i=1,subM,1
+	!		do j=1,4*Rrealdim,1
+	!			if(rightv(i,j)>quantaconst) then
+	!				do k=1,4*Rrealdim,1
+	!					if(quantabigL(k,1)/=quantabigL(j,1) .or. &
+	!					quantabigL(k,2)/=quantabigL(j,2)) then
+	!					rightv(i,k)=0.0D0
+	!					end if
+	!				end do
+	!				exit
+	!			end if
+	!		end do
+	!		norm=dot(rightv(i,:),rightv(i,:))
+	!		rightv(i,:)=rightv(i,:)/sqrt(norm)
+	!	end do
 
 !--------------------------------------------------
 ! write the wavefunction matrix---------------------------------------
@@ -187,9 +188,6 @@ Subroutine Renormalization(indexLp1,indexRm1,direction)
 		close(105)
 		close(106)
 		
-!   the total discard weight between site indexLp1,indexRm1
-		discard=1.0D0-sum(singularvalue(1:subM))
-		write(*,'(A20,2I4,D12.5)') "totaldiscard=",indexLp1,indexRm1,discard
 	end if
 !------------------------------------------------------------
 	
@@ -198,7 +196,7 @@ Subroutine Renormalization(indexLp1,indexRm1,direction)
 		allocate(dummymat(subM,4*subM),stat=error)
 		if(error/=0) stop
 		
-		if(direction=='i' .or. direction=='l') then
+	if(direction=='i' .or. direction=='l') then
 		
 		allocate(leftubuffer(4*Lrealdim,subM),stat=error)
 		if(error/=0) stop
@@ -232,17 +230,17 @@ Subroutine Renormalization(indexLp1,indexRm1,direction)
 			end if
 		end if
 ! good quantum number renormalization
-		do i=1,subM,1
-			do j=1,4*Lrealdim,1
-				if (leftubuffer(j,i)>=quantaconst) then
-					quantasmaL(i,:)=quantabigL(j,:)
-					exit
-				end if
-			end do
-		end do
-		end if
+!		do i=1,subM,1
+!			do j=1,4*Lrealdim,1
+!				if (leftubuffer(j,i)>=quantaconst) then
+!					quantasmaL(i,:)=quantabigL(j,:)
+!					exit
+!				end if
+!			end do
+!		end do
+	end if
 ! right space
-		if(direction=='i' .or. direction=='r') then
+	if(direction=='i' .or. direction=='r') then
 		
 		allocate(rightvbuffer(subM,4*Rrealdim),stat=error)
 		if(error/=0) stop
@@ -274,14 +272,14 @@ Subroutine Renormalization(indexLp1,indexRm1,direction)
 				call gemm(dummymat(:,1:4*Rrealdim),rightvbuffer,adaptedsma(:,:,2),'N','T',1.0D0,0.0D0)
 			end if
 		end if
-		do i=1,subM,1
-			do j=1,4*Rrealdim,1
-				if (rightvbuffer(i,j)>=quantaconst) then
-					quantasmaR(i,:)=quantabigR(j,:)
-					exit
-				end if
-			end do
-		end do
+	!	do i=1,subM,1
+	!		do j=1,4*Rrealdim,1
+	!			if (rightvbuffer(i,j)>=quantaconst) then
+	!				quantasmaR(i,:)=quantabigR(j,:)
+	!				exit
+	!			end if
+	!		end do
+	!	end do
 		end if
 	end if
 

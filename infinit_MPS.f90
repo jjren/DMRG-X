@@ -64,10 +64,10 @@
 		call system_constructquantaL
 		call system_constructquantaR
 ! construct the spin_reversal adapted matrix
-		if(logic_spinreversal/=0) then
-			call Spin_reversalmatL
-			call Spin_reversalmatR
-		end if
+	!	if(logic_spinreversal/=0) then
+	!		call Spin_reversalmatL
+	!		call Spin_reversalmatR
+	!	end if
 ! store the operator matrix and the good quantum number
 		call store_operatorL(nleft+1)
 		call store_operatorR(norbs-nright)
@@ -95,9 +95,9 @@
 		call onesitematrix(nleft+1)
 		call system_bigL
 		call system_constructquantaL
-		if(logical_spinreversal/=0) then
-			call Spin_reversalmatL
-		end if
+		!if(logical_spinreversal/=0) then
+		!	call Spin_reversalmatL
+		!end if
 		call store_operatorL(nleft+1)
 		call hamiltonian('i')
 		call Renormalization(nleft+1,norbs-nright,'i')

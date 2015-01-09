@@ -54,17 +54,17 @@ Subroutine enviro_bigL
 !-----------------------------------------------
 		read(101,rec=nleft+1) Hbig(:,:,1)
 		close(101)
-!------------------------------read the parity matrix---
+!------------------------------read the symmlink---
 		if(logic_spinreversal/=0) then
-		reclength=2*16*subM*subM
-		inquire(file="paritymat-left.tmp",exist=alive)
+		reclength=2*subM
+		inquire(file="symmlink-left.tmp",exist=alive)
 		if(alive) then
-			open(unit=103,file="paritymat-left.tmp",access="Direct",form="unformatted",recl=reclength,status="old")
+			open(unit=103,file="symmlink-left.tmp",access="Direct",form="unformatted",recl=reclength,status="old")
 		else
-			write(*,*) "paritymat-left.tmp doesn't exist!"
+			write(*,*) "symmlink-left.tmp doesn't exist!"
 			stop
 		end if
-		read(103,rec=nleft+1) adaptedbig(:,:,1)
+		read(103,rec=nleft+1) symmlinkbig(:,1,1)
 		close(103)
 		end if
 	end if
