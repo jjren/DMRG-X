@@ -8,6 +8,8 @@ subroutine splitsvdL(singularvalue,leftu,statebegin,stateend,indexlp1)
 	use lapack95
 	USE F95_PRECISION
 
+	implicit none
+
 	real(kind=8) :: leftu(4*Lrealdim,subM),singularvalue(subM),discard
 	integer :: statebegin,stateend,indexlp1
 	real(kind=8),allocatable :: valuework(:),coeffwork(:,:),coeffbuffer(:,:)&
@@ -36,12 +38,12 @@ subroutine splitsvdL(singularvalue,leftu,statebegin,stateend,indexlp1)
 	coeffresult=0.0D0
 
 	write(*,*) "coeffIF"
-	write(*,*) coeffIF(1:4*Lrealidm,1:4*Rrealdim,:)
+	write(*,*) coeffIF(1:4*Lrealdim,1:4*Rrealdim,:)
 
 ! the L+sigmaL space reduced density matrix
 	do i=statebegin,stateend,1
 		call gemm(coeffIF(1:4*Lrealdim,1:4*Rrealdim,i),coeffIF(1:4*Lrealdim,1:4*Rrealdim,i),&
-		coeffbuffer(1:4*Lreadlim,1:4*Lrealdim),'N','T',1.0D0,0.0D0)
+		coeffbuffer(1:4*Lrealdim,1:4*Lrealdim),'N','T',1.0D0,0.0D0)
 		if(exscheme==1) then
 			coeffwork=coeffwork+coeffbuffer*nweight(i)
 		else
@@ -55,6 +57,7 @@ subroutine splitsvdL(singularvalue,leftu,statebegin,stateend,indexlp1)
 	
 	allocate(valuework(4*subM),stat=error)
 	if(error/=0) stop
+	valuework=0.0D0
 	allocate(valueindex(subM),stat=error)
 	if(error/=0) stop
 	allocate(quantabigLbuffer(4*subM,2),stat=error)
@@ -93,7 +96,7 @@ subroutine splitsvdL(singularvalue,leftu,statebegin,stateend,indexlp1)
 
 		
 			n=m
-			coeffwork=coeffbufer
+			coeffwork=coeffbuffer
 ! n is the last total m
 			if(symm1==1) then
 				do k=1,4*Lrealdim,1
