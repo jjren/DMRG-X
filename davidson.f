@@ -1100,7 +1100,6 @@ C
       DIMENSION X(3*mk),EIG(MK),VEC(MK,MK)
       DATA IFAIL/0/
       include "mpif.h"
-      include "mkl_lapack.h"
       include "mkl_lapack.fi"
 C
 C     NAG HOUSEHOLDER - QL DIAGONALIZATION  (

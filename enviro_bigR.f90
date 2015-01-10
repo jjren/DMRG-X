@@ -23,7 +23,7 @@ Subroutine enviro_bigR
 		if(alive) then
 			open(unit=100,file=trim(filename),access="Direct",form="unformatted",recl=reclength,status="old")
 		else
-			write(*,*) trim(filname),"doesn't exist!"
+			write(*,*) trim(filename),"doesn't exist!"
 			stop
 		end if
 !-----------------------------------------------

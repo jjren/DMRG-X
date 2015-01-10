@@ -70,7 +70,7 @@ MODULE InitialGuess
 			if(Lrealdim/=subM) then
 				write(*,*) "-----------------------------------"
 				write(*,*) "guessfinit, Lreadlim/=subM failed!"
-				write(*.*) "-----------------------------------"
+				write(*,*) "-----------------------------------"
 				stop
 			end if
 			do i=1,subM,1
@@ -81,7 +81,7 @@ MODULE InitialGuess
 			if(Rrealdim/=subM) then
 				write(*,*) "-----------------------------------"
 				write(*,*) "guessfinit, Rreadlim/=subM failed!"
-				write(*.*) "-----------------------------------"
+				write(*,*) "-----------------------------------"
 				stop
 			end if
 			do i=1,subM,1
@@ -163,13 +163,13 @@ MODULE InitialGuess
 ! spin parity. Then set others to zero
 		if(logic_spinreversal/=0) then
 			do i=1,ngoodstates,1
-				if(quantabigL(symmlinkgood(i,1),2)>0) then
+				if(quantabigL(symmlinkgood(i,1),2)>=0 .and. abs(symmlinkbig(symmlinkgood(i,1),1,1))/=symmlinkgood(i,1)) then
 					done=.false.
 				do j=1,ngoodstates,1
 					if(symmlinkgood(j,1)==abs(symmlinkbig(symmlinkgood(i,1),1,1)) &
 						.and. symmlinkgood(j,2)==abs(symmlinkbig(symmlinkgood(i,2),1,2))) then
 						guessvector(j:num*ngoodstates:ngoodstates)=guessvector(i:num*ngoodstates:ngoodstates)&
-						*sign(1.0D0,symmlinkbig(symmlinkgood(i,1),1,1))*sign(1.0D0,symmlinkbig(symmlinkgood(i,2),1,2))&
+						*DBLE(sign(1,symmlinkbig(symmlinkgood(i,1),1,1))*sign(1,symmlinkbig(symmlinkgood(i,2),1,2)))&
 						*DBLE(logic_spinreversal)
 						done=.true.
 						exit
@@ -181,7 +181,8 @@ MODULE InitialGuess
 						write(*,*) "-------------------------------------------------"
 						stop
 					end if
-				else if(quantabigL(symmlinkgood(i,1),2)==0) then
+				else if(quantabigL(symmlinkgood(i,1),2)==0 .and. &
+				abs(symmlinkbig(symmlinkgood(i,1),1,1))==symmlinkgood(i,1)) then
 					if(sign(1,symmlinkbig(symmlinkgood(i,1),1,1))*sign(1,symmlinkbig(symmlinkgood(i,2),1,2))/=logic_spinreversal) then
 						guessvector(i:num*ngoodstates:ngoodstates)=0.0D0
 					end if

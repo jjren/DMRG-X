@@ -218,13 +218,13 @@ subroutine op(bigdim,smadim,coeff,newcoeff)
 
 	if(myid==0 .and. logic_spinreversal/=0) then
 			do i=1,ngoodstates,1
-				if(quantabigL(symmlinkgood(i,1),2)>0) then
+				if(quantabigL(symmlinkgood(i,1),2)>=0 .and. abs(symmlinkbig(symmlinkgood(i,1),1,1))/=symmlinkgood(i,1)) then
 					done=.false.
 				do j=1,ngoodstates,1
 					if(symmlinkgood(j,1)==abs(symmlinkbig(symmlinkgood(i,1),1,1)) &
 						.and. symmlinkgood(j,2)==abs(symmlinkbig(symmlinkgood(i,2),1,2))) then
 						newcoeff(j:smadim*ngoodstates:ngoodstates)=newcoeff(i:smadim*ngoodstates:ngoodstates)&
-						*sign(1.0D0,symmlinkbig(symmlinkgood(i,1),1,1))*sign(1.0D0,symmlinkbig(symmlinkgood(i,2),1,2))&
+						*DBLE(sign(1,symmlinkbig(symmlinkgood(i,1),1,1))*sign(1,symmlinkbig(symmlinkgood(i,2),1,2)))&
 						*DBLE(logic_spinreversal)
 						done=.true.
 						exit
@@ -236,13 +236,13 @@ subroutine op(bigdim,smadim,coeff,newcoeff)
 						write(*,*) "-------------------------------------------------"
 						stop
 					end if
-				else if(quantabigL(symmlinkgood(i,1),2)==0) then
+				else if(quantabigL(symmlinkgood(i,1),2)==0 .and. &
+				abs(symmlinkbig(symmlinkgood(i,1),1,1))==symmlinkgood(i,1)) then
 					if(sign(1,symmlinkbig(symmlinkgood(i,1),1,1))*sign(1,symmlinkbig(symmlinkgood(i,2),1,2))/=logic_spinreversal) then
 						newcoeff(i:smadim*ngoodstates:ngoodstates)=0.0D0
 					end if
 				end if
 			end do
-		end if
 	end if
 
 

@@ -21,8 +21,7 @@ Subroutine Renormalization(indexLp1,indexRm1,direction)
 	! integer :: mindim
 	! mindim is the SVD minimun dimension
 	real(kind=8),allocatable ::  leftu(:,:),rightv(:,:),singularvalue(:),&
-	dummymat(:,:)
-	!ww(:),leftubuffer(:,:),rightvbuffer(:,:)
+	dummymat(:,:),leftubuffer(:,:),rightvbuffer(:,:)
 	! leftu is the left transfer unitary matrix
 	! rightv is the right transfer unitary matrix
 	! be careful that leftu is column like,U(+)U=1
@@ -338,9 +337,9 @@ end if
 if(4*Lrealdim>subM .and. 4*Rrealdim>subM) then
 if(myid==0) then
 	deallocate(singularvalue)
-	deallocate(valueL)
-	deallocate(valueR)
 	deallocate(coeffIF)
+	deallocate(leftu)
+	deallocate(rightv)
 end if
 	if(direction=='i' .or. direction=='l') then
 	deallocate(leftubuffer)
