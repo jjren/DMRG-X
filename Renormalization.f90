@@ -322,8 +322,11 @@ if(4*Lrealdim<=subM .and. 4*Rrealdim<=subM) then
 		Hsma(1:4*Lrealdim,1:4*Lrealdim,1)=Hbig(1:4*Lrealdim,1:4*Lrealdim,1)
 		Hsma(1:4*Rrealdim,1:4*Rrealdim,2)=Hbig(1:4*Rrealdim,1:4*Rrealdim,2)
 		if(logic_spinreversal/=0) then
-			adaptedsma(1:4*Lrealdim,1:4*Lrealdim,1)=adaptedbig(1:4*Lrealdim,1:4*Lrealdim,1)
-			adaptedsma(1:4*Rrealdim,1:4*Rrealdim,2)=adaptedbig(1:4*Rrealdim,1:4*Rrealdim,2)
+		!	adaptedsma(1:4*Lrealdim,1:4*Lrealdim,1)=adaptedbig(1:4*Lrealdim,1:4*Lrealdim,1)
+		!	adaptedsma(1:4*Rrealdim,1:4*Rrealdim,2)=adaptedbig(1:4*Rrealdim,1:4*Rrealdim,2)
+			symmlinksma(1:4*Lrealdim,1,1)=symmlinkbig(1:4*Lrealdim,1,1)
+			symmlinksma(1:4*Rrealdim,1,2)=symmlinkbig(1:4*Rrealdim,1,2)
+
 		end if
 	end if
 
