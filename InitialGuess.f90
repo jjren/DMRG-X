@@ -33,6 +33,7 @@ MODULE InitialGuess
 			write(*,*) "-----------------------------------"
 			write(*,*) "two site dmrg nright+nleft+2/=norbs"
 			write(*,*) "-----------------------------------"
+			stop
 		end if
 
 		allocate(leftu(4*Lrealdim,subM),stat=error)
@@ -51,7 +52,6 @@ MODULE InitialGuess
 			write(*,*) "wavefunction.tmp doesn't exist"
 			stop
 		end if
-		open(unit=106,file="singularvalue.tmp",status="old")
 		
 		do i=1,4,1
 		read(105,rec=4*nleft+i) leftu((i-1)*Lrealdim+1:i*Lrealdim,1:subM)
@@ -59,8 +59,11 @@ MODULE InitialGuess
 		do i=1,4,1
 		read(105,rec=4*(norbs-nright-1)+i) rightv(1:subM,i:4*Rrealdim:4)
 		end do
+
+		open(unit=106,file="singularvalue.tmp",status="old")
 		read(106,*) singularvalue(1:subM) 
 		singularvalue=sqrt(singularvalue)
+
 ! be careful the finit initial guessvector
 		if((direction=='l' .and. nleft>exactsite) .or.  &
 			(direction=='r' .and. nleft==norbs-exactsite-2)) then
@@ -71,7 +74,7 @@ MODULE InitialGuess
 				stop
 			end if
 			do i=1,subM,1
-				lefu(i:4*subM:subM,:)=leftu(i:4*subM:subM,:)*singularvalue(i)
+				leftu(i:4*subM:subM,:)=leftu(i:4*subM:subM,:)*singularvalue(i)
 			end do
 		else if((direction=='r' .and. nright>exactsite) .or.  &
 			(direction=='l' .and. nright==norbs-exactsite-2)) then
@@ -155,6 +158,9 @@ MODULE InitialGuess
 			guessvector(i)=randomx
 		end do
 
+! when L space Sz>0 then we need to make the symmetry pair using some coefficient
+! when L space Sz=0 then we need to make the L+R space basis to have the specfic 
+! spin parity. Then set others to zero
 		if(logic_spinreversal/=0) then
 			do i=1,ngoodstates,1
 				if(quantabigL(symmlinkgood(i,1),2)>0) then

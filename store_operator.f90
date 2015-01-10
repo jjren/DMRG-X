@@ -14,7 +14,10 @@ subroutine store_operatorL(index1)
 
 	! reclength is the length of direct io
 	! ifort use 4byte as 1 by default
-
+	
+	if(myid==0) then
+		write(*,*) "enter in store_operatorL subroutine"
+	end if
 	
 	! L+sigmaL space
 	do i=1,index1,1
@@ -57,6 +60,7 @@ subroutine store_operatorL(index1)
 !------------------------------write the parity matrix---
 		if(logic_spinreversal/=0) then
 		reclength=2*subM
+		! we use integer kind=2 in this symmlink matrix
 		inquire(file="symmlink-left.tmp",exist=alive)
 		if(alive) then
 			open(unit=103,file="symmlink-left.tmp",access="Direct",form="unformatted",recl=reclength,status="old")
@@ -99,6 +103,10 @@ subroutine store_operatorR(index2)
 	integer :: i,reclength,operaindex
 	character(len=50) :: filename
 	logical :: alive
+
+	if(myid==0) then
+		write(*,*) "enter in store_operatorR subroutine"
+	end if
 
 	! reclength is the length of direct io
 	! ifort use 4byte as 1 by default

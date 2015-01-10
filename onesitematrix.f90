@@ -14,6 +14,10 @@ subroutine onesitematrix(i)
 	! x=3 means occpuation operator-nulcearQ
 	! x=4 means a up
 	! x=5 means a down
+	if(myid==0) then
+		write(*,*) "enter subroutine onesitematrix"
+	end if
+
 	onesitemat=0.0D0
 	onesitemat(2,1,1)=1.0D0
 	onesitemat(4,3,1)=1.0D0

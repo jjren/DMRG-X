@@ -53,6 +53,7 @@
 		write(*,*) "---------------------------------"
 		write(*,*) "spin reversal needs Sz=0, failed!"
 		write(*,*) "---------------------------------"
+		stop
 	end if
 
 
@@ -133,10 +134,11 @@
 		
 		pppV=0.0D0
 		call ohno_potential
+		! here can add many different potentials in Module PPP term
 	else
 		write(*,*) "--------------------------------------------------"
 		write(*,*) "in the QC-DMRG case readin the FCIDUMP integrals"
-		write(*,*) "--------------------------------------------------"	
+		write(*,*) "--------------------------------------------------"
 	end if  
 	close(14)
 	
@@ -180,21 +182,9 @@
 		write(*,*) t
 		write(*,*) "pppV="
 		write(*,*) pppV
-		write(*,*) "-------------------------"
+		write(*,*) "----------------------------------------"
 	end if
 
-!------------------------------------------------------
-! allocate the quanta of every many body basis
-! 1 means the total electron; 2 means the total Sz
-	allocate(quantasmaL(subM,2),stat=error)
-	if(error/=0) stop
-	allocate(quantasmaR(subM,2),stat=error)
-	if(error/=0) stop
-	allocate(quantabigL(4*subM,2),stat=error)
-	if(error/=0) stop
-	allocate(quantabigR(4*subM,2),stat=error)
-	if(error/=0) stop
-!------------------------------------------------------
 	return
 
 	end Subroutine

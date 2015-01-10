@@ -9,10 +9,11 @@
 		write(*,*) "enter subroutine infinit_MPS"
 	end if
 
-! realnelecs is the real electrons in the system
+! realnelecs is the real electrons in the system 
 	realnelecs=nelecs+ncharges
 
 	do isystem=1,norbs/2-1,1
+! be careful that the norbs may be odd
 
 	! when doing infinit MPS we use half filled system until arrive the realnelecs
 		if((isystem+1)*2>realnelecs) then
@@ -43,6 +44,7 @@
 			write(*,*) "---------------------------------------"
 			write(*,*) "infinit DMRG Lrealdim/=Rrealdim failed!"
 			write(*,*) "---------------------------------------"
+			stop
 		end if
 ! sigmaL subspace operator matrix
 		call onesitematrix(nleft+1)

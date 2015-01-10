@@ -10,12 +10,11 @@
 
 
 	! system part
-	integer(kind=4) :: norbs,nelecs,natoms,ncharges,blocks,realnelecs
+	integer(kind=4) :: norbs,nelecs,natoms,ncharges,blocks,realnelecs,totalSz
 	integer(kind=4),allocatable :: orbid(:)
 	real(kind=8),allocatable :: nuclQ(:)
 	! the orbid(:) is the process id every orbital
-
-	real(kind=8) :: totalSz
+	! totalSz is the up nelecs - down nelecs
 
 	integer :: logic_PPP,nbonds
 
@@ -30,13 +29,14 @@
 	integer :: logic_spinreversal
 ! symmetrylink represent the symmetry link of every state
 ! the first variables means the states
-! the second means different symmetry
+! the second means different symmetry spin_reversal electron-hole
 ! the third is the L and R space
+! symmlinkgood means the good quantum number states symmetry link information
 	integer(kind=2),allocatable :: symmlinksma(:,:,:),symmlinkbig(:,:,:),symmlinkgood(:,:)
 	!real(kind=8),allocatable :: adaptedsma(:,:,:),adaptedbig(:,:,:)
 
 	! this is the onesite spin_reversal operator matrix
-	real(kind=8) :: parityonesitemat(4,4)
+	!real(kind=8) :: parityonesitemat(4,4)
 	
 	
 
@@ -51,8 +51,6 @@
 
 	real(kind=8),allocatable :: operamatbig(:,:,:),Hbig(:,:,:)
 	real(kind=8),allocatable :: operamatsma(:,:,:),Hsma(:,:,:)
-	integer(kind=4) :: operanum
-	! operanum is the max site operator every process have
 	integer(kind=4),allocatable :: quantasmaL(:,:),quantasmaR(:,:),quantabigL(:,:),quantabigR(:,:)
 	! quanta is the good quantum number such as number of electron and number
 	! of Sz
@@ -68,7 +66,7 @@
 	! coeffIF is the inital and final coefficient 
 
 ! constant
-	real(kind=8),parameter :: quantaconst=0.1
+	!real(kind=8),parameter :: quantaconst=0.1
 	real(kind=8),parameter :: relazero=1.0D-8
 
 

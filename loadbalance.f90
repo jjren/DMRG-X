@@ -10,6 +10,8 @@
 	implicit none
 
 	integer :: i,j,error
+	integer(kind=4) :: operanum
+	! operanum is the max site operator every process have
 	
 	
 	if(myid==0) then
@@ -34,6 +36,7 @@
 	end do 
 	
 	if(myid==0) then
+		write(*,*) "operator distribute"
 		write(*,*) "orbid=",orbid
 	end if
 	
@@ -56,6 +59,7 @@
 		allocate(Hsma(subM,subM,2),stat=error)
 		if(error/=0) stop
 	end if
+	! 2 means the R space ;1 means the L space
 
 	if(myid==0 .and. logic_spinreversal/=0) then
 		!allocate(adaptedsma(subM,subM,2),stat=error)
@@ -69,6 +73,19 @@
 	end if
 
 		
+!------------------------------------------------------
+! allocate the quanta of every many body basis
+! 1 means the total electron; 2 means the total Sz
+	allocate(quantasmaL(subM,2),stat=error)
+	if(error/=0) stop
+	allocate(quantasmaR(subM,2),stat=error)
+	if(error/=0) stop
+	allocate(quantabigL(4*subM,2),stat=error)
+	if(error/=0) stop
+	allocate(quantabigR(4*subM,2),stat=error)
+	if(error/=0) stop
+!------------------------------------------------------
+
 	return
 	end Subroutine loadbalance
 

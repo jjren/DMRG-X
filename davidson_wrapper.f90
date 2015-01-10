@@ -23,6 +23,9 @@ Subroutine davidson_wrapper(direction,LIM,ILOW,IHIGH,ISELEC,NIV,MBLOCK,&
 ! every process do it
 ! N is the number of good quantum number states
 
+	if(myid==0) then
+		write(*,*) "enter in davidson diagonalization subroutine"
+	end if
 
 	N=0
 	do i=1,4*Rrealdim,1
@@ -35,9 +38,13 @@ Subroutine davidson_wrapper(direction,LIM,ILOW,IHIGH,ISELEC,NIV,MBLOCK,&
 	end do
 	ngoodstates=N
 	
-	if(myid==0 .and. logic_spinreversal/=0) then
+if(myid==0 .and. logic_spinreversal/=0) then
 	allocate(symmlinkgood(ngoodstates,2),stat=error)
 	if(error/=0) stop
+! in the good quantum number states space
+! get the symmetry link information
+! symmlinkgood(m,1) means the left space index in 4M basis
+! symmlinkgood(m,2) means the right space index in 4M basis
 
 	m=1
 	do i=1,4*Rrealdim,1
@@ -54,8 +61,9 @@ Subroutine davidson_wrapper(direction,LIM,ILOW,IHIGH,ISELEC,NIV,MBLOCK,&
 			write(*,*) "-----------------------------"
 			write(*,*) "symmlinkgood m-1/=ngoodstates"
 			write(*,*) "-----------------------------"
+			stop
 		end if
-	end if
+end if
 
 !-----------------------------------------------------
 	!IWRSZ=2*N*LIM+LIM*LIM+(nstate+10)*LIM+nstate
@@ -75,7 +83,7 @@ Subroutine davidson_wrapper(direction,LIM,ILOW,IHIGH,ISELEC,NIV,MBLOCK,&
 ! 1. nstate=1 finit
 ! 2. nstate>1 finit exscheme=1
 ! 3  infinit
-! we can add exscheme=2 and logic_spinreversal=1 later
+! we can add exscheme=2 and later
 	if(myid==0) then
 		if(direction/='i' .and. NIV==1 ) then
 			call Initialfinit(DavidWORK,direction)
@@ -169,7 +177,9 @@ Subroutine davidson_wrapper(direction,LIM,ILOW,IHIGH,ISELEC,NIV,MBLOCK,&
 
 		deallocate(HDIAG)
 		deallocate(DavidWORK)
-		deallocate(symmlinkgood)
+		if(logic_spinreversal/=0) then
+			deallocate(symmlinkgood)
+		end if
 	end if
 return
 end subroutine

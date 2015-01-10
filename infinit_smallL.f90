@@ -24,6 +24,8 @@ Subroutine infinit_smallL
 		quantasmaL(4,2)=0
 		if(myid==orbid(1)) then
 			operamatsma(:,:,1:3)=0.0D0
+			! here only this matrix is set to zero
+			! do not touch other matrix
 			operamatsma(2,1,1)=1.0D0
 			operamatsma(4,3,1)=1.0D0
 			operamatsma(3,1,2)=1.0D0

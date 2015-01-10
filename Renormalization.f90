@@ -18,9 +18,11 @@ Subroutine Renormalization(indexLp1,indexRm1,direction)
 	
 	integer :: i,error,info,j,k
 	integer :: operaindex
+	! integer :: mindim
 	! mindim is the SVD minimun dimension
-	real(kind=8),allocatable ::  leftu(:,:),rightv(:,:),ww(:)&
-	singularvalue(:),leftubuffer(:,:),rightvbuffer(:,:),dummymat(:,:)
+	real(kind=8),allocatable ::  leftu(:,:),rightv(:,:),singularvalue(:),&
+	dummymat(:,:)
+	!ww(:),leftubuffer(:,:),rightvbuffer(:,:)
 	! leftu is the left transfer unitary matrix
 	! rightv is the right transfer unitary matrix
 	! be careful that leftu is column like,U(+)U=1
@@ -224,10 +226,10 @@ Subroutine Renormalization(indexLp1,indexRm1,direction)
 		if(myid==0) then
 			call gemm(leftubuffer,Hbig(1:4*Lrealdim,1:4*Lrealdim,1),dummymat(:,1:4*Lrealdim),'T','N',1.0D0,0.0D0)
 			call gemm(dummymat(:,1:4*Lrealdim),leftubuffer,Hsma(:,:,1),'N','N',1.0D0,0.0D0)
-			if(logic_spinreversal/=0) then
-				call gemm(leftubuffer,adaptedbig(1:4*Lrealdim,1:4*Lrealdim,1),dummymat(:,1:4*Lrealdim),'T','N',1.0D0,0.0D0)
-				call gemm(dummymat(:,1:4*Lrealdim),leftubuffer,adaptedsma(:,:,1),'N','N',1.0D0,0.0D0)
-			end if
+			!if(logic_spinreversal/=0) then
+			!	call gemm(leftubuffer,adaptedbig(1:4*Lrealdim,1:4*Lrealdim,1),dummymat(:,1:4*Lrealdim),'T','N',1.0D0,0.0D0)
+			!	call gemm(dummymat(:,1:4*Lrealdim),leftubuffer,adaptedsma(:,:,1),'N','N',1.0D0,0.0D0)
+			!end if
 		end if
 ! good quantum number renormalization
 !		do i=1,subM,1
@@ -267,10 +269,10 @@ Subroutine Renormalization(indexLp1,indexRm1,direction)
 		if(myid==0) then
 			call gemm(rightvbuffer,Hbig(1:4*Rrealdim,1:4*Rrealdim,2),dummymat(:,1:4*Rrealdim),'N','N',1.0D0,0.0D0)
 			call gemm(dummymat(:,1:4*Rrealdim),rightvbuffer,Hsma(:,:,2),'N','T',1.0D0,0.0D0)
-			if(logic_spinreversal/=0) then
-				call gemm(rightvbuffer,adaptedbig(1:4*Rrealdim,1:4*Rrealdim,2),dummymat(:,1:4*Rrealdim),'N','N',1.0D0,0.0D0)
-				call gemm(dummymat(:,1:4*Rrealdim),rightvbuffer,adaptedsma(:,:,2),'N','T',1.0D0,0.0D0)
-			end if
+			!if(logic_spinreversal/=0) then
+			!	call gemm(rightvbuffer,adaptedbig(1:4*Rrealdim,1:4*Rrealdim,2),dummymat(:,1:4*Rrealdim),'N','N',1.0D0,0.0D0)
+			!	call gemm(dummymat(:,1:4*Rrealdim),rightvbuffer,adaptedsma(:,:,2),'N','T',1.0D0,0.0D0)
+			!end if
 		end if
 	!	do i=1,subM,1
 	!		do j=1,4*Rrealdim,1
@@ -288,6 +290,7 @@ Subroutine Renormalization(indexLp1,indexRm1,direction)
 ! operamatbig -> operamatsma 
 ! Hbig -> Hsma
 ! adaptedbig -> adaptedsma
+! symmlinkbig -> symmlinksma
 ! only in the infinit MPS process
 if(4*Lrealdim<=subM .and. 4*Rrealdim<=subM) then
 	do i=1,indexLp1,1
@@ -335,20 +338,10 @@ end if
 if(4*Lrealdim>subM .and. 4*Rrealdim>subM) then
 if(myid==0) then
 	deallocate(singularvalue)
-	deallocate(leftu)
-	deallocate(rightv)
-	if(nstate==1) then
-	deallocate(ww)
-	end if
-	if(nstate>1 .and. exscheme==1) then
 	deallocate(valueL)
 	deallocate(valueR)
-	deallocate(coeffbufferL)
-	deallocate(coeffbufferR)
-	end if
 	deallocate(coeffIF)
 end if
-
 	if(direction=='i' .or. direction=='l') then
 	deallocate(leftubuffer)
 	end if
@@ -356,7 +349,6 @@ end if
 	deallocate(rightvbuffer)
 	end if
 	deallocate(dummymat)
-
 end if
 
 return

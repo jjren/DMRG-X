@@ -11,13 +11,16 @@ Subroutine system_bigR
 	real(kind=8),allocatable :: Hbuffer(:,:),operabuffer(:,:,:)
 	integer :: status(MPI_STATUS_SIZE)
 	real(kind=8) :: I1(4,4),Im(subM,subM)
-	integer(kind=4) :: phase(4*subM,4*subM)
+	integer(kind=4),allocatable :: phase(:,:)
 	
 
 	if(myid==0) then
 		write(*,*) "enter in subroutine system_bigR"
 	end if
 	
+	allocate(phase(4*subM,4*subM),stat=error)
+	if(error/=0) stop
+
 	! construct the unit matrix
 	I1=0.0D0
 	do i=1,4,1
@@ -49,9 +52,9 @@ Subroutine system_bigR
 			call directproduct(I1,4,operamatsma(1:Rrealdim,1:Rrealdim,3*(operaindex-1)+j),Rrealdim,operamatbig(1:Rrealdim*4,1:Rrealdim*4,3*(operaindex-1)+j))
 		end if
 		end do
-		write(*,*) "myid=",myid,"i will send operamatsmaR"
+	!	write(*,*) "myid=",myid,"i will send operamatsmaR"
 		call MPI_SEND(operamatsma(:,:,3*(operaindex-1)+1:3*(operaindex-1)+3),3*subM*subM,mpi_real8,0,i,MPI_COMM_WORLD,ierr)
-		write(*,*) "myid=",myid,"i have send operamatsmaR"
+	!	write(*,*) "myid=",myid,"i have send operamatsmaR"
 	end if
 	end do
 
@@ -84,9 +87,9 @@ Subroutine system_bigR
 		if(error/=0) stop
 
 		do i=norbs,norbs-nright+1,-1
-			write(*,*) "myid",myid,"i will recv operamatsmaR",orbid(i)
+		!	write(*,*) "myid",myid,"i will recv operamatsmaR",orbid(i)
 			call MPI_RECV(operabuffer,3*subM*subM,mpi_real8,orbid(i),i,MPI_COMM_WORLD,status,ierr)
-		      write(*,*) "myid",myid,"i have recv operamatsmaR",orbid(i)
+		 !     write(*,*) "myid",myid,"i have recv operamatsmaR",orbid(i)
 			
 			!     transfer integral term
 			if(bondlink(i,norbs-nright)==1) then
@@ -129,18 +132,20 @@ Subroutine system_bigR
 		if(logic_spinreversal/=0) then
 			do i=1,Rrealdim,1
 				symmlinkbig((i-1)*4+1,1,2)=((abs(symmlinksma(i,1,2))-1)*4+1)*&
-				(abs(symmlinksma(i,1,2))/symmlinksma(i,1,2))
+				sign(1,symmlinksma(i,1,2))
 				symmlinkbig((i-1)*4+2,1,2)=((abs(symmlinksma(i,1,2))-1)*4+3)*&
-				(abs(symmlinksma(i,1,2))/symmlinksma(i,1,2))
+				sign(1,symmlinksma(i,1,2))
 				symmlinkbig((i-1)*4+3,1,2)=((abs(symmlinksma(i,1,2))-1)*4+2)*&
-				(abs(symmlinksma(i,1,2))/symmlinksma(i,1,2))
+				sign(1,symmlinksma(i,1,2))
 				symmlinkbig((i-1)*4+4,1,2)=((abs(symmlinksma(i,1,2))-1)*4+4)*&
-				(abs(symmlinksma(i,1,2))/symmlinksma(i,1,2))*(-1)
+				sign(1,symmlinksma(i,1,2))*(-1)
 			end do
 		end if
 	deallocate(Hbuffer)
 	deallocate(operabuffer)
 	end if
+
+	deallocate(phase)
 	
 	return
 end subroutine system_bigR
