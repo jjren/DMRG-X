@@ -11,7 +11,7 @@ integer :: i,error,j
 ! creat the bondlink information
 	open(unit=10,file="inp",status="replace")
 ! for example polyacene
-	nrings=3
+	nrings=2
 	do i=1,6,1
 		atomindex(i)=i
 	end do
