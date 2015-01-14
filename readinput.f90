@@ -10,6 +10,7 @@
 	!link1 and link2 is the bondlink atom information
 
 	integer :: junk_natoms  
+	character(len=2) :: symbol 
 	! to compare if the natoms is right 
 
 	! read the input file
@@ -92,7 +93,7 @@
   
 	  read(12,*)
 	  do i=1,natoms,1   
-	    read(12,*) coord(1:3,i),nuclQ(i)
+	    read(12,*) symbol,coord(1:3,i),nuclQ(i)
 	  end do
 	  close(12)
 	end if

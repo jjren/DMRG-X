@@ -162,30 +162,50 @@ MODULE InitialGuess
 ! when L space Sz=0 then we need to make the L+R space basis to have the specfic 
 ! spin parity. Then set others to zero
 		if(logic_spinreversal/=0) then
+		!	do i=1,ngoodstates,1
+		!		if(quantabigL(symmlinkgood(i,1),2)>=0 .and. abs(symmlinkbig(symmlinkgood(i,1),1,1))/=symmlinkgood(i,1)) then
+		!			done=.false.
+		!		do j=1,ngoodstates,1
+		!			if(symmlinkgood(j,1)==abs(symmlinkbig(symmlinkgood(i,1),1,1)) &
+		!				.and. symmlinkgood(j,2)==abs(symmlinkbig(symmlinkgood(i,2),1,2))) then
+		!				guessvector(j:num*ngoodstates:ngoodstates)=guessvector(i:num*ngoodstates:ngoodstates)&
+		!				*DBLE(sign(1,symmlinkbig(symmlinkgood(i,1),1,1))*sign(1,symmlinkbig(symmlinkgood(i,2),1,2)))&
+		!				*DBLE(logic_spinreversal)
+		!				done=.true.
+		!				exit
+		!			end if
+		!		end do
+		!			if(done/=.true.) then
+		!				write(*,*) "-------------------------------------------------"
+		!				write(*,*) "initialrandomweight spin reversal adapted failed!"
+		!				write(*,*) "-------------------------------------------------"
+		!				stop
+		!			end if
+		!		else if(quantabigL(symmlinkgood(i,1),2)==0 .and. &
+		!		abs(symmlinkbig(symmlinkgood(i,1),1,1))==symmlinkgood(i,1)) then
+		!			if(sign(1,symmlinkbig(symmlinkgood(i,1),1,1))*sign(1,symmlinkbig(symmlinkgood(i,2),1,2))/=logic_spinreversal) then
+		!				guessvector(i:num*ngoodstates:ngoodstates)=0.0D0
+		!			end if
+		!		end if
+		!	end do
 			do i=1,ngoodstates,1
-				if(quantabigL(symmlinkgood(i,1),2)>=0 .and. abs(symmlinkbig(symmlinkgood(i,1),1,1))/=symmlinkgood(i,1)) then
-					done=.false.
-				do j=1,ngoodstates,1
-					if(symmlinkgood(j,1)==abs(symmlinkbig(symmlinkgood(i,1),1,1)) &
-						.and. symmlinkgood(j,2)==abs(symmlinkbig(symmlinkgood(i,2),1,2))) then
-						guessvector(j:num*ngoodstates:ngoodstates)=guessvector(i:num*ngoodstates:ngoodstates)&
-						*DBLE(sign(1,symmlinkbig(symmlinkgood(i,1),1,1))*sign(1,symmlinkbig(symmlinkgood(i,2),1,2)))&
-						*DBLE(logic_spinreversal)
-						done=.true.
-						exit
-					end if
-				end do
-					if(done/=.true.) then
-						write(*,*) "-------------------------------------------------"
-						write(*,*) "initialrandomweight spin reversal adapted failed!"
-						write(*,*) "-------------------------------------------------"
-						stop
-					end if
-				else if(quantabigL(symmlinkgood(i,1),2)==0 .and. &
-				abs(symmlinkbig(symmlinkgood(i,1),1,1))==symmlinkgood(i,1)) then
-					if(sign(1,symmlinkbig(symmlinkgood(i,1),1,1))*sign(1,symmlinkbig(symmlinkgood(i,2),1,2))/=logic_spinreversal) then
+				if(abs(symmlinkbig(symmlinkgood(i,1),1,1))==symmlinkgood(i,1) .and. &
+				abs(symmlinkbig(symmlinkgood(i,2),1,2))==symmlinkgood(i,2)) then
+					if(sign(1,symmlinkbig(symmlinkgood(i,1),1,1))*sign(1,symmlinkbig(symmlinkgood(i,2),1,2))&
+					/=logic_spinreversal) then
 						guessvector(i:num*ngoodstates:ngoodstates)=0.0D0
 					end if
+				else if(abs(symmlinkbig(symmlinkgood(i,1),1,1))/=symmlinkgood(i,1) .or. &
+				abs(symmlinkbig(symmlinkgood(i,2),1,2))/=symmlinkgood(i,2)) then
+					do j=1,ngoodstates,1
+						if(abs(symmlinkbig(symmlinkgood(i,1),1,1))==symmlinkgood(j,1) .and. &
+						abs(symmlinkbig(symmlinkgood(i,2),1,2))==symmlinkgood(j,2)) then
+							guessvector(j:num*ngoodstates:ngoodstates)=guessvector(i:num*ngoodstates:ngoodstates)&
+							*DBLE(sign(1,symmlinkbig(symmlinkgood(i,1),1,1))*sign(1,symmlinkbig(symmlinkgood(i,2),1,2)))&
+							*DBLE(logic_spinreversal)
+							exit
+						end if
+					end do
 				end if
 			end do
 		end if

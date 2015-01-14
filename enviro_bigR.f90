@@ -13,6 +13,9 @@ Subroutine enviro_bigR
 
 	! reclength is the length of direct io
 	! ifort use 4 byte as 1 by default
+	if(myid==0) then
+		write(*,*) "enter in subroutine enviro_bigR"
+	end if
 
 	do i=norbs,norbs-nright,-1
 	if(myid==orbid(i)) then
@@ -35,6 +38,10 @@ Subroutine enviro_bigR
 ! norbs is 1; norbs-1 is 2.....
 		read(100,rec=norbs+1-i) operamatbig(:,:,3*(operaindex-1)+1:3*operaindex)
 		close(100)
+		!if(nright==1 .and. i==norbs-1) then
+		!	write(*,*) operamatbig(:,:,3*(operaindex-1)+1:3*operaindex)
+		!	stop
+		!end if
 	end if
 	end do
 

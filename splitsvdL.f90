@@ -34,11 +34,12 @@ subroutine splitsvdL(singularvalue,leftu,statebegin,stateend,indexlp1)
 	allocate(coeffresult(4*subM,4*subM),stat=error)
 	if(error/=0) stop
 	
+	coeffwork=0.0D0
 	coeffbuffer=0.0D0
 	coeffresult=0.0D0
 
-	write(*,*) "coeffIF"
-	write(*,*) coeffIF(1:4*Lrealdim,1:4*Rrealdim,:)
+!	write(*,*) "coeffIF"
+!	write(*,*) coeffIF(1:4*Lrealdim,1:4*Rrealdim,:)
 
 ! the L+sigmaL space reduced density matrix
 	do i=statebegin,stateend,1
@@ -50,8 +51,8 @@ subroutine splitsvdL(singularvalue,leftu,statebegin,stateend,indexlp1)
 			coeffwork=coeffwork+coeffbuffer
 		end if
 	end do
-	write(*,*) "coeffwork"
-	write(*,*) coeffwork
+	!write(*,*) "coeffwork"
+	!write(*,*) coeffwork
 ! split the reduced density matrix to different good quantum
 ! number subspace
 	
@@ -66,14 +67,14 @@ subroutine splitsvdL(singularvalue,leftu,statebegin,stateend,indexlp1)
 	if(logic_spinreversal/=0) then
 	allocate(szzeroindex(4*subM),stat=error)
 	if(error/=0) stop
-	szzeroindex=0
 	end if
 	
 	coeffbuffer=coeffwork
-	m=0
 ! m is the number of good quantum state so far
 ! j is Sz
 ! i is nelecs
+	n=0
+	! n is the total number of states
 	do j=nleft+1,-nleft-1,-1
 		
 		if(logic_spinreversal/=0 .and. j<0) then
@@ -95,7 +96,7 @@ subroutine splitsvdL(singularvalue,leftu,statebegin,stateend,indexlp1)
 		do i=0,2*(nleft+1),1
 
 		
-			n=m
+			m=0
 			coeffwork=coeffbuffer
 ! n is the last total m
 			if(symm1==1) then
@@ -108,6 +109,7 @@ subroutine splitsvdL(singularvalue,leftu,statebegin,stateend,indexlp1)
 				end do
 			!	write(*,*) m
 			else if(symm1==3 .and. i1==1) then
+				szzeroindex=0
 				do k=1,4*Lrealdim,1
 					if(quantabigL(k,1)==i .and. quantabigL(k,2)==j .and. abs(symmlinkbig(k,1,1))/=k) then
 						done2=.true.
@@ -148,66 +150,65 @@ subroutine splitsvdL(singularvalue,leftu,statebegin,stateend,indexlp1)
 			!	write(*,*) m
 			end if
 
-			if(m/=n) then
-				call syevd(coeffwork(n+1:m,n+1:m),valuework(n+1:m),'V','U',info)
+			if(m/=0) then
+			!	write(*,*) i,j,i1,m
+			!	write(*,*) coeffwork(1:m,1:m)
+				call syevd(coeffwork(1:m,1:m),valuework(n+1:n+m),'V','U',info)
 				if(info/=0) then
 					write(*,*) "left diagnolization failed!"
 					stop
 				end if
-				coeffresult(n+1:m,n+1:m)=coeffwork(n+1:m,n+1:m)
 				
-			p=n+1
+			p=0
 			if(symm1==1) then
 				do k=1,4*Lrealdim,1
 					if(quantabigL(k,1)==i .and. quantabigL(k,2)==j) then
-						call copy(coeffresult(p,n+1:m),coeffresult(k,n+1:m))
-						coeffresult(p,n+1:m)=0.0D0
 						p=p+1
+						call copy(coeffwork(p,1:m),coeffresult(k,n+1:n+m))
 					end if
 				end do
 			else if(symm1==3 .and. i1==1) then
-					do p1=1,4*Lrealdim
+					do p1=1,4*Lrealdim,1
 						if(szzeroindex(p1)/=0) then
-							call copy(coeffresult(p,n+1:m),coeffresult(szzeroindex(p1),n+1:m))
-							coeffresult(p,n+1:m)=0.0D0
+							call copy(coeffwork(p,n+1:m),coeffresult(szzeroindex(p1),n+1:m))
 							p=p+1
 						end if
 					end do
 			else if(symm1==3 .and. i1==2) then
 				do k=1,4*Lrealdim,1
 					if(quantabigL(k,1)==i .and. quantabigL(k,2)==j .and. symmlinkbig(k,1,1)==k) then
-						call copy(coeffresult(p,n+1:m),coeffresult(k,n+1:m))
-						coeffresult(p,n+1:m)=0.0D0
+						call copy(coeffwork(p,n+1:m),coeffresult(k,n+1:m))
 						p=p+1
 					end if
 				end do
 			else if(symm1==3 .and. i1==3) then
 				do k=1,4*Lrealdim,1
 					if(quantabigL(k,1)==i .and. quantabigL(k,2)==j .and. symmlinkbig(k,1,1)==-k) then
-						call copy(coeffresult(p,n+1:m),coeffresult(k,n+1:m))
-						coeffresult(p,n+1:m)=0.0D0
+						call copy(coeffwork(p,n+1:m),coeffresult(k,n+1:m))
 						p=p+1
 					end if
 				end do
 			end if
 
-				if(p-1/=m) then
-					write(*,*) "p-1/=m-n failed!",p-1,m-n
+				if(p/=m) then
+					write(*,*) "p/=m failed!",p,m
 					stop
 				end if
-				quantabigLbuffer(n+1:m,1)=i
-				quantabigLbuffer(n+1:m,2)=j
+				quantabigLbuffer(n+1:n+m,1)=i
+				quantabigLbuffer(n+1:n+m,2)=j
 			end if
+		n=m+n
+
 		end do
-		
+
 		if(j>0) then
-			szl0=m
+			szl0=n
 		else if(j==0 .and. i1==1 .and. logic_spinreversal/=0) then
-			pair1=m
+			pair1=n
 		else if(j==0 .and. i1==2 .and. logic_spinreversal/=0) then
-			szzero1=m-pair1
+			szzero1=n-pair1
 		else if(j==0 .and. i1==3 .and. logic_spinreversal/=0) then
-			szzero=m-pair1
+			szzero=n-pair1
 		end if
 
 		end do
@@ -215,10 +216,18 @@ subroutine splitsvdL(singularvalue,leftu,statebegin,stateend,indexlp1)
 	end do
 	
 	if(logic_spinreversal/=0) then
-	if((pair1*2+szzero)/=4*Lrealdim) then
-		write(*,*) "(pair1*2+szzero)/=4*Lrealdim failed!","pair1=",pair1,"szzero",szzero
-		stop
-	end if
+		write(*,*) "pair1=",pair1,"szl0=",szl0,"szzero1=",szzero1,"szzero=",szzero
+		if((pair1*2+szzero)/=4*Lrealdim) then
+			write(*,*) "(pair1*2+szzero)/=4*Lrealdim failed!","pair1=",pair1,"szzero",szzero
+			stop
+		end if
+	else
+		if(n/=4*Lrealdim) then
+			write(*,*) "------------------------"
+			write(*,*) "n/=4*Lrealdim,failed!",n
+			write(*,*) "------------------------"
+			stop
+		end if
 	end if
 	
 
@@ -237,7 +246,8 @@ subroutine splitsvdL(singularvalue,leftu,statebegin,stateend,indexlp1)
 					DBLE(sign(1,symmlinkbig(szzeroindex(p1),1,1)))
 				end if
 			end do
-		quantabigLbuffer(pair1+szzero+1:4*Lrealdim,:)=quantabigLbuffer(1:pair1,:)
+		quantabigLbuffer(pair1+szzero+1:4*Lrealdim,1)=quantabigLbuffer(1:pair1,1)
+		quantabigLbuffer(pair1+szzero+1:4*Lrealdim,2)=-1*quantabigLbuffer(1:pair1,2)
 	end if
 
 	singularvalue=0.0D0
@@ -265,18 +275,25 @@ subroutine splitsvdL(singularvalue,leftu,statebegin,stateend,indexlp1)
 						singularvalue(j+2:subM)=singularvalue(j:subM-2)
 						singularvalue(j)=valuework(i)
 						singularvalue(j+1)=valuework(i)
+						exit
 					else
 						valueindex(j+1:subM)=valueindex(j:subM-1)
 						singularvalue(j+1:subM)=singularvalue(j:subM-1)
 						valueindex(j)=i
 						singularvalue(j)=valuework(i)
+						exit
 					end if
 				end if
 			end do
 		end do
 
-		if(abs(symmlinkbig(valueindex(subM),1,1))/=symmlinkbig(valueindex(subM),1,1) .or. &
-		abs(symmlinkbig(valueindex(subM),1,1))/=symmlinkbig(valueindex(subM-1),1,1)) then
+		!write(*,*) valuework
+		!write(*,*) singularvalue
+		!write(*,*) valueindex
+		!write(*,*) "symmlinkbig"
+		!write(*,*) symmlinkbig(:,1,1)
+		
+		if(valueindex(subM)<=pair1) then
 			do i=pair1+szzero,pair1+1,-1
 			
 			do j=1,subM,1
@@ -313,9 +330,9 @@ subroutine splitsvdL(singularvalue,leftu,statebegin,stateend,indexlp1)
 			end if
 		end if
 	end do
-		write(*,*) valuework
-		write(*,*) singularvalue
-		write(*,*) valueindex
+	!	write(*,*) "valuework",valuework
+	!	write(*,*) "singularvalue",singularvalue
+	!	write(*,*) "valueindex",valueindex
 !   the total discard weight between site indexLp1,indexRm1
 		discard=1.0D0-sum(singularvalue(1:subM))
 		write(*,'(A20,I4,D12.5)') "totaldiscardL=",indexLp1,discard

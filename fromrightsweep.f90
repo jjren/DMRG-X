@@ -9,15 +9,20 @@ subroutine fromrightsweep
 	if(myid==0) then
 		write(*,*) "enter in subroutine fromrightsweep"
 	end if
-
-	call onesitematrix(norbs-nright)
-	call system_bigR
+	
+	if(nright/=exactsite) then
+		call onesitematrix(norbs-nright)
+		call system_bigR
+		call system_constructquantaR
+		call store_operatorR(norbs-nright)
+	else
+		call enviro_bigR
+	end if
 	call enviro_bigL
-	call system_constructquantaR
 	!if(logic_spinreversal/=0) then
 	!	call Spin_reversalmatR
 	!end if
-	call store_operatorL(norbs-nright)
+!	call fullmat
 	call hamiltonian('r')
 	call Renormalization(nleft+1,norbs-nright,'r')
 

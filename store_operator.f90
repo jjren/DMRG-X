@@ -77,7 +77,7 @@ subroutine store_operatorL(index1)
 		if(alive) then
 			open(unit=107,file="quantabigL.tmp",access="Direct",form="unformatted",recl=reclength,status="old")
 		else
-			open(unit=107,file="qunatabigL.tmp",access="Direct",form="unformatted",recl=reclength,status="replace")
+			open(unit=107,file="quantabigL.tmp",access="Direct",form="unformatted",recl=reclength,status="replace")
 		end if
 		write(107,rec=index1) quantabigL
 		close(107)
@@ -167,7 +167,7 @@ subroutine store_operatorR(index2)
 		if(alive) then
 			open(unit=108,file="quantabigR.tmp",access="Direct",form="unformatted",recl=reclength,status="old")
 		else
-			open(unit=108,file="qunatabigR.tmp",access="Direct",form="unformatted",recl=reclength,status="replace")
+			open(unit=108,file="quantabigR.tmp",access="Direct",form="unformatted",recl=reclength,status="replace")
 		end if
 		write(108,rec=norbs+1-index2) quantabigR
 		close(108)

@@ -17,6 +17,7 @@ Subroutine finit_MPS
 		if(4**exactsite<=subM) then
 			exactsite=exactsite+1
 		else
+			exactsite=exactsite-1
 			exit
 		end if
 	end do
@@ -26,7 +27,8 @@ Subroutine finit_MPS
 	else
 		ibegin=norbs/2+1
 	end if
-
+	
+	nelecs=realnelecs
 	if(myid==0) then
 		if(ibegin/=nleft+1) then
 			write(*,*) "-----------------------------------------------------------"
@@ -36,7 +38,7 @@ Subroutine finit_MPS
 	end if
 
 	do isweep=1,sweeps,1
-		do isystem=ibegin,norbs-exactsite-3,1
+		do isystem=ibegin,norbs-exactsite-2,1
 			nleft=isystem
 			nright=norbs-isystem-2
 			if(4**nleft<subM) then
@@ -45,14 +47,14 @@ Subroutine finit_MPS
 				Lrealdim=subM
 			end if
 			if(4**nright<subM) then
-				Rrealdim=4**nleft
+				Rrealdim=4**nright
 			else
 				Rrealdim=subM
 			end if
 			call fromleftsweep
 		end do
 		
-		do isystem=exactsite,norbs-exactsite-3,1
+		do isystem=exactsite,norbs-exactsite-2,1
 			nleft=norbs-isystem-2
 			nright=isystem
 			if(4**nleft<subM) then
@@ -61,7 +63,7 @@ Subroutine finit_MPS
 				Lrealdim=subM
 			end if
 			if(4**nright<subM) then
-				Rrealdim=4**nleft
+				Rrealdim=4**nright
 			else
 				Rrealdim=subM
 			end if
@@ -77,7 +79,7 @@ Subroutine finit_MPS
 				Lrealdim=subM
 			end if
 			if(4**nright<subM) then
-				Rrealdim=4**nleft
+				Rrealdim=4**nright
 			else
 				Rrealdim=subM
 			end if

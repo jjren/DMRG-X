@@ -32,6 +32,12 @@ Subroutine Renormalization(indexLp1,indexRm1,direction)
 	logical :: alive
 	real(kind=8) :: norm
 
+! debug
+!	integer :: mindim
+!	real(kind=8),allocatable :: ww(:)
+!	real(kind=8),allocatable :: coeffbuffer(:,:)
+	
+
 
 	if(myid==0)  then
 		write(*,*) "enter Renormalization subroutine"
@@ -51,12 +57,24 @@ Subroutine Renormalization(indexLp1,indexRm1,direction)
 		!	if(error/=0) stop
 		!	allocate(ww(mindim-1),stat=error)
 		!	if(error/=0) stop
+		!	allocate(coeffbuffer(4*Lrealdim,4*Rrealdim),stat=error)
+		!	if(error/=0) stop
+		!	coeffbuffer=coeffIF(1:4*Lrealdim,1:4*Rrealdim,1)
 		!	! gesvd sigular value is the descending order
-		!	call gesvd(coeffIF(1:4*Lrealdim,1:4*Rrealdim,1),singularvalue,leftu,rightv,ww,'N',info)
+		!	call gesvd(coeffbuffer(1:4*Lrealdim,1:4*Rrealdim),singularvalue,leftu,rightv,ww,'N',info)
 		!	if(info/=0) then
 		!		write(*,*) "SVD failed!",indexLp1,indexRm1,info
 		!		stop
 		!	end if
+		!	write(*,*) singularvalue
+		!	write(*,*) leftu
+		!	write(*,*) rightv
+		!	deallocate(singularvalue)
+		!	deallocate(leftu)
+		!	deallocate(rightv)
+		!	deallocate(ww)
+		!	deallocate(coeffbuffer)
+
 ! the reduced density matrix diagnal element is singular value^2
 		!	singularvalue=singularvalue*singularvalue
 ! when nstate/=1, two different scheme to target the excited states
@@ -106,6 +124,12 @@ Subroutine Renormalization(indexLp1,indexRm1,direction)
 			call splitsvdR(singularvalue,rightv,1,nstate,indexRm1)
 			!rightv=transpose(coeffbufferR(:,4*Rrealdim-subM+1:4*Rrealdim,nstate+1))
 			!singularvalue=valueR(4*Rrealdim-subM+1:4*Rrealdim)
+			write(*,*) "quanta"
+			write(*,*) quantasmaL
+			write(*,*) quantasmaR
+			write(*,*) symmlinksma(:,:,1)
+			write(*,*) symmlinksma(:,:,2)
+			
 
 !--------------------------------------------------
 		else if(exscheme==2) then
@@ -190,6 +214,9 @@ Subroutine Renormalization(indexLp1,indexRm1,direction)
 		close(106)
 		
 	end if
+
+	call MPI_bcast(quantasmaL(:,:),subM*2,MPI_integer4,0,MPI_COMM_WORLD,ierr)
+	call MPI_bcast(quantasmaR(:,:),subM*2,MPI_integer4,0,MPI_COMM_WORLD,ierr)
 !------------------------------------------------------------
 	
 !   the two buffer are used to transfer the unitary matrix to other process

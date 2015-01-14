@@ -10,17 +10,17 @@ FC=mpif90
 DMRG-X:$(object) 
 	$(FC) -o DMRG-X $(object) -I$(mklinc) -I$(mklinc1)-L$(MKLLIB) $(FCCFLAG)
 #op.o: 
-#	$(FC) -c op.f90 -I$(mklinc) -L$(MKLLIB) $(FCCFLAG)
+#	$(FC) -c -g op.f90 -I$(mklinc) -L$(MKLLIB) $(FCCFLAG)
 #Renormalization.o: 
-#	$(FC) -c Renormalization.f90 -I$(mklinc) -L$(MKLLIB) $(FCCFLAG)
+#	$(FC) -c -g Renormalization.f90 -I$(mklinc) -L$(MKLLIB) $(FCCFLAG)
 #InitialGuess.o: 
-#	$(FC) -c InitialGuess.f90 -I$(mklinc) -L$(MKLLIB) $(FCCFLAG)
-#fullmat.o: 
-#	$(FC) -c fullmat.f90 -I$(mklinc) -L$(MKLLIB) $(FCCFLAG)
-splitsvdL.o: 
-	$(FC) -c splitsvdL.f90 -I$(mklinc) -L$(MKLLIB) $(FCCFLAG)
+#	$(FC) -c -g InitialGuess.f90 -I$(mklinc) -L$(MKLLIB) $(FCCFLAG)
+fullmat.o: 
+	$(FC) -c -g fullmat.f90 -I$(mklinc) -L$(MKLLIB) $(FCCFLAG)
+#splitsvdL.o: 
+#	$(FC) -c -g splitsvdL.f90 -I$(mklinc) -L$(MKLLIB) $(FCCFLAG)
 splitsvdR.o: 
-	$(FC) -c splitsvdR.f90 -I$(mklinc) -L$(MKLLIB) $(FCCFLAG)
+	$(FC) -c -g splitsvdR.f90 -I$(mklinc) -L$(MKLLIB) $(FCCFLAG)
 
 object = contructquanta.o davidson.o davidson_wrapper.o GetHDiag.o \
 	   hamiltonian.o infinit_MPS.o infinit_smallL.o infinit_smallR.o \
@@ -28,4 +28,4 @@ object = contructquanta.o davidson.o davidson_wrapper.o GetHDiag.o \
 	   mathlib.o onesitematrix.o op.o PPP_term.o readinput.o Renormalization.o \
 	    store_operator.o system_bigL.o system_bigR.o variables.o \
 	   enviro_bigL.o enviro_bigR.o finit_MPS.o fromleftsweep.o \
-	   fromrightsweep.o splitsvdL.o splitsvdR.o \
+	   fromrightsweep.o splitsvdL.o splitsvdR.o fullmat.o \

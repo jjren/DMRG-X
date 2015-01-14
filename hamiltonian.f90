@@ -23,10 +23,10 @@ subroutine hamiltonian(direction)
 	lim=nstate+20
 	niv=nstate
 	mblock=nstate
-	crite=1.0D-9
-	critc=1.0D-9
-	critr=1.0D-9
-	ortho=1.0D-8
+	crite=1.0D-12
+	critc=1.0D-12
+	critr=1.0D-12
+	ortho=1.0D-11
 	maxiter=400
 	allocate(iselec(lim),stat=error)
 	if(error/=0) stop

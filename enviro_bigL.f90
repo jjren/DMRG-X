@@ -13,6 +13,9 @@ Subroutine enviro_bigL
 
 	! reclength is the length of direct io
 	! ifort use 4 byte as 1 by default
+	if(myid==0) then
+		write(*,*) "enter in subroutine enviro_bigL"
+	end if
 
 	! L+sigmaL space
 	do i=1,nleft+1,1

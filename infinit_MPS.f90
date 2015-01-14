@@ -73,6 +73,9 @@
 ! store the operator matrix and the good quantum number
 		call store_operatorL(nleft+1)
 		call store_operatorR(norbs-nright)
+! direct diagonalization
+!		call fullmat
+
 		if(4*Lrealdim>subM) then
 ! construct the total H(direct method) and davidson diagnalization
 		call hamiltonian('i')
