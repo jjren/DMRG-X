@@ -3,12 +3,14 @@
 	USE Variables
 	USE MPI
 	
+	implicit none
 	integer :: isystem,i,j
 
 	if(myid==0) then 
 		write(*,*) "enter subroutine infinit_MPS"
 	end if
-
+! isweep means the initial finit-MPS stage
+	isweep=0
 ! realnelecs is the real electrons in the system 
 	realnelecs=nelecs+ncharges
 
