@@ -67,7 +67,7 @@ Subroutine system_bigL
 				if(mod(j,Lrealdim)==0) then
 					k=Lrealdim
 				else
-					k=mod(j,4)
+					k=mod(j,Lrealdim)
 				end if
 				phase(:,j)=(-1)**(mod(quantasmaL(k,1),2))
 			end do
@@ -106,7 +106,7 @@ Subroutine system_bigL
 					if(mod(k,Lrealdim)==0) then
 						l=Lrealdim
 					else
-						l=mod(k,4)
+						l=mod(k,Lrealdim)
 					end if
 					phase(:,k)=(-1)**(mod(quantasmaL(l,1),2))
 				end do
