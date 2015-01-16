@@ -18,6 +18,7 @@ subroutine splitsvdR(singularvalue,rightv,statebegin,stateend,indexRm1)
 	integer :: i,error,j,k,l,m,n,info,i1,symm1,p,p1
 	integer :: szzero,pair1,szzero1,szl0
 	logical :: done,done2
+	integer,allocatable :: subspacenum(:)
 !	integer :: tmp
 ! szl0 means the number of sz>0 states
 ! szzero means the number of sz=0 state including spin parity=+-1
@@ -63,6 +64,9 @@ subroutine splitsvdR(singularvalue,rightv,statebegin,stateend,indexRm1)
 	if(error/=0) stop
 	allocate(quantabigRbuffer(4*subM,2),stat=error)
 	if(error/=0) stop
+	allocate(subspacenum((2*(nright+1)+1)**2+1),stat=error)
+	if(error/=0) stop
+	subspacenum=0
 	
 	if(logic_spinreversal/=0) then
 		allocate(szzeroindex(4*subM),stat=error)
@@ -113,7 +117,7 @@ subroutine splitsvdR(singularvalue,rightv,statebegin,stateend,indexRm1)
 				do k=1,4*Rrealdim,1
 					if(quantabigR(k,1)==i .and. quantabigR(k,2)==j .and. abs(symmlinkbig(k,1,2))/=k) then
 						done2=.true.
-						do p1=n+1,m,1
+						do p1=1,m,1
 							if(abs(symmlinkbig(k,1,2))/=szzeroindex(p1)) then
 								done2=.true.
 							else
@@ -170,22 +174,24 @@ subroutine splitsvdR(singularvalue,rightv,statebegin,stateend,indexRm1)
 			else if(symm1==3 .and. i1==1) then
 					do p1=1,4*Rrealdim
 						if(szzeroindex(p1)/=0) then
-							call copy(coeffwork(p,n+1:m),coeffresult(szzeroindex(p1),n+1:m))
 							p=p+1
+							call copy(coeffwork(p,n+1:m),coeffresult(szzeroindex(p1),n+1:m+n))
+						else
+							exit
 						end if
 					end do
 			else if(symm1==3 .and. i1==2) then
 				do k=1,4*Rrealdim,1
 					if(quantabigR(k,1)==i .and. quantabigR(k,2)==j .and. symmlinkbig(k,1,2)==k) then
-						call copy(coeffwork(p,n+1:m),coeffresult(k,n+1:m))
 						p=p+1
+						call copy(coeffwork(p,n+1:m),coeffresult(k,n+1:m+n))
 					end if
 				end do
 			else if(symm1==3 .and. i1==3) then
 				do k=1,4*Rrealdim,1
 					if(quantabigR(k,1)==i .and. quantabigR(k,2)==j .and. symmlinkbig(k,1,2)==-k) then
-						call copy(coeffwork(p,n+1:m),coeffresult(k,n+1:m))
 						p=p+1
+						call copy(coeffwork(p,n+1:m),coeffresult(k,n+1:m+n))
 					end if
 				end do
 			end if
@@ -196,6 +202,9 @@ subroutine splitsvdR(singularvalue,rightv,statebegin,stateend,indexRm1)
 				end if
 				quantabigRbuffer(n+1:n+m,1)=i
 				quantabigRbuffer(n+1:n+m,2)=j
+				
+				subspacenum(1)=subspacenum(1)+1
+				subspacenum(subspacenum(1)+1)=m
 			end if
 
 		n=n+m
@@ -222,11 +231,23 @@ subroutine splitsvdR(singularvalue,rightv,statebegin,stateend,indexRm1)
 			write(*,*) "(pair1*2+szzero)/=4Rrealdim failed!","pair1=",pair1,"szzero",szzero
 			stop
 		end if
+		if(sum(subspacenum(2:subspacenum(1)+1))/=pair1+szzero) then
+			write(*,*) "------------------------"
+			write(*,*) "subspacenum=pair1+szzero,failed!",subspacenum
+			write(*,*) "------------------------"
+			stop
+		end if
 	else 
 		if(n/=4*Rrealdim) then
 			write(*,*) "------------------------"
 			write(*,*) "n/=4*Rrealdim,failed!",n
 			write(*,*) "quantabigR",quantabigR(:,:)
+			write(*,*) "------------------------"
+			stop
+		end if
+		if(sum(subspacenum(2:subspacenum(1)+1))/=4*Rrealdim) then
+			write(*,*) "------------------------"
+			write(*,*) "subspacenum=4*Rrealdim,failed!",subspacenum
 			write(*,*) "------------------------"
 			stop
 		end if
@@ -251,68 +272,10 @@ subroutine splitsvdR(singularvalue,rightv,statebegin,stateend,indexRm1)
 		quantabigRbuffer(pair1+szzero+1:4*Rrealdim,1)=quantabigRbuffer(1:pair1,1)
 		quantabigRbuffer(pair1+szzero+1:4*Rrealdim,2)=-1*quantabigRbuffer(1:pair1,2)
 	end if
-
-	singularvalue=0.0D0
-	valueindex=0
 	if(logic_spinreversal==0) then
-		do i=1,4*Rrealdim,1
-			do j=1,subM,1
-				if(valuework(i)>singularvalue(j)) then
-					valueindex(j+1:subM)=valueindex(j:subM-1)
-					singularvalue(j+1:subM)=singularvalue(j:subM-1)
-					valueindex(j)=i
-					singularvalue(j)=valuework(i)
-					exit
-				end if
-			end do
-		end do
+		call selectstates(valuework,4*Rrealdim,valueindex,singularvalue,subspacenum,nright)
 	else
-		do i=1,szzero+pair1,1
-			do j=1,subM,1
-				if(valuework(i)>singularvalue(j)) then
-					if(i<=pair1) then
-						valueindex(j+2:subM)=valueindex(j:subM-2)
-						valueindex(j)=i
-						valueindex(j+1)=pair1+szzero+i
-						singularvalue(j+2:subM)=singularvalue(j:subM-2)
-						singularvalue(j)=valuework(i)
-						singularvalue(j+1)=valuework(i)
-						exit
-					else
-						valueindex(j+1:subM)=valueindex(j:subM-1)
-						singularvalue(j+1:subM)=singularvalue(j:subM-1)
-						valueindex(j)=i
-						singularvalue(j)=valuework(i)
-						exit
-					end if
-				end if
-			end do
-		end do
-
-		!write(*,*) valuework
-		!write(*,*) singularvalue
-		!write(*,*) valueindex
-		!write(*,*) "symmlinkbig"
-		!write(*,*) symmlinkbig(:,1,1)
-		
-		if(valueindex(subM)<=pair1) then
-			do i=pair1+szzero,pair1+1,-1
-			
-			do j=1,subM,1
-				if(valueindex(j)==i) then
-					done=.false.
-					exit
-				else
-					done=.true.
-				end if
-			end do
-				if(done==.true.) then
-				valueindex(subM)=i
-				singularvalue(subM)=valuework(i)
-				exit
-				end if
-			end do
-		end if
+		call selectstates(valuework,4*Rrealdim,valueindex,singularvalue,subspacenum,nright,szzero,pair1)
 	end if
 
 	do i=1,subM,1
@@ -346,6 +309,7 @@ deallocate(quantabigRbuffer)
 deallocate(valueindex)
 deallocate(coeffbuffer)
 deallocate(coeffresult)
+deallocate(subspacenum)
 if(logic_spinreversal/=0) then
 	deallocate(szzeroindex)
 end if

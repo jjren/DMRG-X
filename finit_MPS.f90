@@ -4,7 +4,7 @@ Subroutine finit_MPS
 
 	implicit none
 
-	integer :: isweep,isystem,ibegin
+	integer :: isystem,ibegin
 
 
 	if(myid==0) then
