@@ -100,7 +100,7 @@ Subroutine system_bigR
 				phase(:,3:4*Rrealdim:4)=-1
 				phase(:,4:4*Rrealdim:4)=1
 				call directproduct(onesitemat(:,:,j+3),4,operabuffer(1:Rrealdim,1:Rrealdim,j),Rrealdim,Hbuffer(1:4*Rrealdim,1:4*Rrealdim),phase(1:4*Rrealdim,1:4*Rrealdim))
-				Hbig(1:4*Rrealdim,1:4*Rrealdim,2)=Hbig(1:4*Rrealdim,1:4*Rrealdim,2)+Hbuffer(1:4*Rrealdim,1:4*Rrealdim)*(-1.0D0)*t(i,norbs-nright)
+				Hbig(1:4*Rrealdim,1:4*Rrealdim,2)=Hbig(1:4*Rrealdim,1:4*Rrealdim,2)+(Hbuffer(1:4*Rrealdim,1:4*Rrealdim)+transpose(Hbuffer(1:4*Rrealdim,1:4*Rrealdim)))*(-1.0D0)*t(i,norbs-nright)
 				! here the -1.0D0 transfer from ai*aj^+ to aj^+*ai
 			end do
 			end if
@@ -120,11 +120,11 @@ Subroutine system_bigR
 		Hbig(1:4*Rrealdim,1:4*Rrealdim,2)=Hbuffer(1:4*Rrealdim,1:4*Rrealdim)+Hbig(1:4*Rrealdim,1:4*Rrealdim,2)
 !-------------------------------------------------------------------
 		! using Hamiltonian is hermian
-		do i=1,4*Rrealdim,1
-			do j=i+1,4*Rrealdim,1
-				Hbig(i,j,2)=Hbig(j,i,2)
-			end do
-		end do
+	!	do i=1,4*Rrealdim-1,1
+	!		do j=i+1,4*Rrealdim,1
+	!			Hbig(i,j,2)=Hbig(j,i,2)
+	!		end do
+	!	end do
 !	do i=1,16,1
 !		write(*,'(16F5.1)') Hbig(i,1:Rrealdim*4,2)
 !	end do
