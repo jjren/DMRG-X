@@ -5,8 +5,8 @@
 	
 	implicit none
 	integer :: isystem,i,j,error
-	real(kind=8) :: treal(:,:)
-	integer(kind=4) :: bondlinkreal(:,:)
+	real(kind=8),allocatable :: treal(:,:)
+	integer(kind=4),allocatable :: bondlinkreal(:,:)
 
 	if(myid==0) then 
 		write(*,*) "enter subroutine infinit_MPS"
