@@ -44,36 +44,38 @@ Subroutine Renormalization(indexLp1,indexRm1,direction)
 	end if
 
 
-	if(4*Lrealdim>subM .or. 4*Rrealdim>subM) then
+	if(4*Lrealdim>subM .or. 4*Rrealdim>subM .or. (mode=='d' .and. &
+	modeindex==1) ) then
 	if(myid==0) then
 ! when nstate=1, we use SVD method to renormalize the 4M basis
 		!if(nstate==1) then
-		!	mindim=min(4*Lrealdim,4*Rrealdim)
-		!	allocate(leftu(4*Lrealdim,mindim),stat=error)
-		!	if(error/=0) stop
-		!	allocate(singularvalue(mindim),stat=error)
-		!	if(error/=0) stop
-		!	allocate(rightv(mindim,4*Rrealdim),stat=error)
-		!	if(error/=0) stop
-		!	allocate(ww(mindim-1),stat=error)
-		!	if(error/=0) stop
-		!	allocate(coeffbuffer(4*Lrealdim,4*Rrealdim),stat=error)
-		!	if(error/=0) stop
-		!	coeffbuffer=coeffIF(1:4*Lrealdim,1:4*Rrealdim,1)
-		!	! gesvd sigular value is the descending order
-		!	call gesvd(coeffbuffer(1:4*Lrealdim,1:4*Rrealdim),singularvalue,leftu,rightv,ww,'N',info)
-		!	if(info/=0) then
-		!		write(*,*) "SVD failed!",indexLp1,indexRm1,info
-		!		stop
-		!	end if
-		!	write(*,*) singularvalue
+!			mindim=min(4*Lrealdim,4*Rrealdim)
+!			allocate(leftu(4*Lrealdim,mindim),stat=error)
+!			if(error/=0) stop
+!			allocate(singularvalue(mindim),stat=error)
+!			if(error/=0) stop
+!			allocate(rightv(mindim,4*Rrealdim),stat=error)
+!			if(error/=0) stop
+!			allocate(ww(mindim-1),stat=error)
+!			if(error/=0) stop
+!			allocate(coeffbuffer(4*Lrealdim,4*Rrealdim),stat=error)
+!			if(error/=0) stop
+!			coeffbuffer=coeffIF(1:4*Lrealdim,1:4*Rrealdim,1)
+			! gesvd sigular value is the descending order
+!			call gesvd(coeffbuffer(1:4*Lrealdim,1:4*Rrealdim),singularvalue,leftu,rightv,ww,'N',info)
+!			if(info/=0) then
+!				write(*,*) "SVD failed!",indexLp1,indexRm1,info
+!			stop
+!			end if
+!			write(*,*) "singularvalue"
+!			write(*,*) singularvalue
 		!	write(*,*) leftu
 		!	write(*,*) rightv
-		!	deallocate(singularvalue)
-		!	deallocate(leftu)
-		!	deallocate(rightv)
-		!	deallocate(ww)
-		!	deallocate(coeffbuffer)
+!			deallocate(singularvalue)
+!			deallocate(leftu)
+!			deallocate(rightv)
+!			deallocate(ww)
+!			deallocate(coeffbuffer)
 
 ! the reduced density matrix diagnal element is singular value^2
 		!	singularvalue=singularvalue*singularvalue
@@ -178,6 +180,7 @@ Subroutine Renormalization(indexLp1,indexRm1,direction)
 
 !--------------------------------------------------
 ! write the wavefunction matrix---------------------------------------
+		if(modeindex/=1) then
 		reclength=2*subM*subM
 		inquire(file="wavefunction.tmp",exist=alive)
 		if(alive) then
@@ -212,6 +215,7 @@ Subroutine Renormalization(indexLp1,indexRm1,direction)
 		write(106,*) singularvalue(1:subM)
 		close(105)
 		close(106)
+		end if
 		
 	end if
 
@@ -318,7 +322,7 @@ Subroutine Renormalization(indexLp1,indexRm1,direction)
 ! adaptedbig -> adaptedsma
 ! symmlinkbig -> symmlinksma
 ! only in the infinit MPS process
-if(4*Lrealdim<=subM .and. 4*Rrealdim<=subM) then
+if(4*Lrealdim<=subM .and. 4*Rrealdim<=subM .and. mode/='d') then
 	do i=1,indexLp1,1
 		if(myid==orbid(i)) then
 			if(mod(i,nprocs-1)==0) then
@@ -361,7 +365,8 @@ if(4*Lrealdim<=subM .and. 4*Rrealdim<=subM) then
 
 end if
 
-if(4*Lrealdim>subM .and. 4*Rrealdim>subM) then
+if(4*Lrealdim>subM .or. 4*Rrealdim>subM .or. (mode=='d' .and. &
+modeindex==1)) then
 if(myid==0) then
 	deallocate(singularvalue)
 	deallocate(coeffIF)
@@ -376,6 +381,10 @@ end if
 	end if
 	deallocate(dummymat)
 end if
+
+!if(myid==0) then
+!	deallocate(coeffIF)
+!end if
 
 return
 
