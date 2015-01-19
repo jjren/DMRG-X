@@ -26,6 +26,8 @@
 	bondlinkreal=bondlink
 
 	do isystem=1,norbs/2-1,1
+		t=treal
+		bondlink=bondlinkreal
 ! be careful that the norbs may be odd
 
 	! when doing infinit MPS we use half filled system until arrive the realnelecs
@@ -53,14 +55,12 @@
 			Rrealdim=subM
 		end if
 ! add the quasi link between the left and right small space
-		if(nleft+1<norbs/2 .or. mod(norbs,2)/=0) then 
-		t=treal
-		bondlink=bondlinkreal
-		bondlink(nleft+1,norbs-nright)=1
-		bondlink(norbs-nright,nleft+1)=1
-		t(nleft+1,norbs-nright)=-2.4D0
-		t(norbs-nright,nleft+1)=-2.4D0
-		end if
+!		if(nleft+1<norbs/2 .or. mod(norbs,2)/=0) then 
+!		bondlink(nleft+1,norbs-nright)=1
+!		bondlink(norbs-nright,nleft+1)=1
+!		t(nleft+1,norbs-nright)=-2.4D0
+!		t(norbs-nright,nleft+1)=-2.4D0
+!		end if
 
 
 		if(Lrealdim/=Rrealdim .and. myid==0) then

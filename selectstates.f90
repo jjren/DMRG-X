@@ -19,7 +19,7 @@ subroutine selectstates(valuework,dim1,valueindex,singularvalue,&
 	singularvalue=0.0D0
 	valueindex=0
 	write(*,*) "dim1=",dim1
-	write(*,*) valuework
+!	write(*,*) valuework
 	if(logic_spinreversal==0) then
 		do i=1,dim1,1
 			do j=1,subM,1
@@ -32,7 +32,7 @@ subroutine selectstates(valuework,dim1,valueindex,singularvalue,&
 				end if
 			end do
 		end do
-	write(*,*) valueindex
+!	write(*,*) valueindex
 		percent=2.0+DBLE(isweep)*0.1
 	!	write(*,*) subspacenum
 		if(percent<1.0D0) then
@@ -60,7 +60,7 @@ subroutine selectstates(valuework,dim1,valueindex,singularvalue,&
 			end do
 			end do
 		end if
-		write(*,*) "valueindex",valueindex
+!		write(*,*) "valueindex",valueindex
 !	else
 !		do i=1,szzero+pair1,1
 !			do j=1,subM,1

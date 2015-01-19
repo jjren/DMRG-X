@@ -23,10 +23,24 @@ subroutine hamiltonian(direction)
 	lim=nstate+20
 	niv=nstate
 	mblock=nstate
-	crite=1.0D-12
-	critc=1.0D-12
-	critr=1.0D-12
-	ortho=1.0D-11
+!	if(isweep==0) then
+		crite=1.0D-10
+		critc=1.0D-10
+		critr=1.0D-10
+		ortho=1.0D-9
+!	else if(isweep>=1 .and. isweep<=5)
+!		crite=crite*0.1D0
+!		critc=critc*0.1D0
+!		critr=critr*0.1D0
+!		ortho=ortho*0.1D0
+!	end if
+	if(isweep==sweeps) then
+		crite=1.0D-12
+		critc=1.0D-12
+		critr=1.0D-12
+		ortho=1.0D-11
+	end if
+
 	maxiter=400
 	allocate(iselec(lim),stat=error)
 	if(error/=0) stop

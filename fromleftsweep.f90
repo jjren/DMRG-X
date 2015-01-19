@@ -27,7 +27,7 @@ subroutine fromleftsweep
 	!if(logic_spinreversal/=0) then
 	!	call Spin_reversalmatL
 	!end if
-!	call fullmat
+	!call fullmat
 	call hamiltonian('l')
 	call Renormalization(nleft+1,norbs-nright,'l')
 

@@ -53,14 +53,14 @@ subroutine splitsvdL(singularvalue,leftu,statebegin,stateend,indexlp1)
 		end if
 	end do
 ! debug
-	write(*,*) "coeffwork"
-	do i=1,4*Lrealdim,1
-	do j=1,4*Lrealdim,1
-	if(abs(coeffwork(j,i))>1.0D-8) then
-	write(*,*) coeffwork(j,i),j,i
-	end if
-	end do
-	end do
+!	write(*,*) "coeffwork"
+!	do i=1,4*Lrealdim,1
+!	do j=1,4*Lrealdim,1
+!	if(abs(coeffwork(j,i))>1.0D-8) then
+!	write(*,*) coeffwork(j,i),j,i
+!	end if
+!	end do
+!	end do
 ! split the reduced density matrix to different good quantum
 ! number subspace
 	
@@ -162,8 +162,8 @@ subroutine splitsvdL(singularvalue,leftu,statebegin,stateend,indexlp1)
 			end if
 
 			if(m/=0) then
-				write(*,*) i,j,i1,m
-				write(*,*) coeffwork(1:m,1:m)
+			!	write(*,*) i,j,i1,m
+			!	write(*,*) coeffwork(1:m,1:m)
 				call syevd(coeffwork(1:m,1:m),valuework(n+1:n+m),'V','U',info)
 				if(info/=0) then
 					write(*,*) "left diagnolization failed!"

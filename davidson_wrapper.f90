@@ -164,7 +164,7 @@ end if
 
 		write(*,*) "low state energy"
 		do i=1,IHIGH,1
-		write(*,*) DavidWORK((i-1)*ngoodstates+1:i*ngoodstates)
+!		write(*,*) DavidWORK((i-1)*ngoodstates+1:i*ngoodstates)
 		write(*,*) nleft+1,norbs-nright,i,"th energy=",DavidWORK(IHIGH*ngoodstates+i)
 		end do
 		write(*,*) "energy converge:",DavidWORK(IHIGH*ngoodstates+IHIGH+1)
