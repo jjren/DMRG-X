@@ -19,9 +19,9 @@
 ! right space to link together and simulate the real condition
 
 	allocate(treal(norbs,norbs),stat=error)
-	if(error/0) stop
+	if(error/=0) stop
 	allocate(bondlinkreal(norbs,norbs),stat=error)
-	if(error/0) stop
+	if(error/=0) stop
 	treal=t
 	bondlinkreal=bondlink
 
