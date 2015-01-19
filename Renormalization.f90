@@ -282,7 +282,7 @@ Subroutine Renormalization(indexLp1,indexRm1,direction)
 		
 		call MPI_BCAST(rightvbuffer,4*Rrealdim*subM,mpi_real8,0,MPI_COMM_WORLD,ierr)
 ! right space operator
-		do i=norbs,indexRm1,1
+		do i=norbs,indexRm1,-1
 			if(myid==orbid(i)) then
 				if(mod(i,nprocs-1)==0) then
 					operaindex=i/(nprocs-1)
