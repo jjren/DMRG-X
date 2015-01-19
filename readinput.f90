@@ -1,5 +1,6 @@
 	Subroutine READINPUT
 ! this subroutine is to read in the input parameters
+! process 0 read the input file and distribute to other process
 
 	USE variables
 	USE PPP_term
@@ -10,19 +11,23 @@
 	!link1 and link2 is the bondlink atom information
 
 	integer :: junk_natoms  
-	character(len=2) :: symbol 
+	character(len=2) :: symbol
+	character(len=1),allocatable :: packbuf(:)
+	integer(kind=4) :: position1
+	integer(kind=4) :: packsize
 	! to compare if the natoms is right 
 
 	! read the input file
 	! read file even unit
 	! write file odd unit
 
-! default value
-	exscheme=0
 	if(myid==0) then
 		write(*,*) "enter in readinput subroutine"
-	end if
 !------------------------------------------------------------
+	! default value
+	exscheme=0
+	blocks=2
+
 	open(unit= 10,file="inp",status="old")
 	read(10,*) norbs     !how many orbitals
 	read(10,*) junk_natoms   !how many atoms
@@ -35,11 +40,15 @@
 	read(10,*) subM  ! DMRG SUB M
 	read(10,*) sweeps ! DMRG how many sweeps
 	read(10,*) nstate ! how many state wanted to get
+	
+	allocate(nweight(nstate),stat=error)
+	if(error/=0) stop
+	!default value
+	nweight=1.0D0
+	
 	if(nstate/=1) then
 	  read(10,*) exscheme ! exschemem=1 average method =2 my new method
 	  if(exscheme==1) then
-	  	allocate(nweight(nstate),stat=error)
-	  	if(error/=0) stop
 	  	read(10,*) nweight(1:nstate) ! nweight is the average DMRG excited state
 	  end if
 	end if
@@ -109,8 +118,6 @@
 		end if
 		allocate(hubbardU(norbs),stat=error)
 		if(error/=0) stop
-		allocate(pppV(norbs,norbs),stat=error)
-		if(error/=0) stop
 		allocate(t(norbs,norbs),stat=error)
 		if(error/=0) stop
 	! be careful about the structure of the integral formatted
@@ -133,9 +140,6 @@
 			read(14,*) hubbardU(i)  ! read in every hubbard U
 		end do
 		
-		pppV=0.0D0
-		call ohno_potential
-		! here can add many different potentials in Module PPP term
 	else
 		write(*,*) "--------------------------------------------------"
 		write(*,*) "in the QC-DMRG case readin the FCIDUMP integrals"
@@ -154,7 +158,98 @@
 	end if
 
 	close(10)
+	end if
 
+
+
+	packsize=3500000
+	allocate(packbuf(packsize),stat=error)
+	if(error/=0) stop
+
+	if(myid==0) then
+		position1=0
+		call MPI_PACK(norbs,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
+		call MPI_PACK(natoms,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
+		call MPI_PACK(nelecs,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
+		call MPI_PACK(ncharges,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
+		call MPI_PACK(totalSz,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
+		call MPI_PACK(logic_PPP,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
+		call MPI_PACK(logic_spinreversal,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
+		call MPI_PACK(logic_tree,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
+		call MPI_PACK(subM,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
+		call MPI_PACK(sweeps,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
+		call MPI_PACK(nstate,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
+		call MPI_PACK(exscheme,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
+		call MPI_PACK(nweight(1:nstate),nstate,MPI_real8,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
+		call MPI_PACK(blocks,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
+		call MPI_PACK(nbonds,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
+		do i=1,norbs,1
+		call MPI_PACK(bondlink(:,i),norbs,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
+		end do
+		call MPI_PACK(nuclQ,natoms,MPI_real8,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
+		do i=1,natoms,1
+		call MPI_PACK(coord(:,i),3,MPI_real8,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
+		end do
+		do i=1,norbs,1
+		call MPI_PACK(t(:,i),norbs,MPI_real8,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
+		end do
+		call MPI_PACK(hubbardU,norbs,MPI_real8,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
+		write(*,*) "packbufsize=",position1
+	end if
+	
+	call MPI_bcast(packbuf,packsize,MPI_PACKED,0,MPI_COMM_WORLD,ierr)
+
+	if(myid/=0) then
+		position1=0
+		call MPI_UNPACK(packbuf,packsize,position1,norbs,1,MPI_integer4,MPI_COMM_WORLD,ierr)
+		call MPI_UNPACK(packbuf,packsize,position1,natoms,1,MPI_integer4,MPI_COMM_WORLD,ierr)
+		call MPI_UNPACK(packbuf,packsize,position1,nelecs,1,MPI_integer4,MPI_COMM_WORLD,ierr)
+		call MPI_UNPACK(packbuf,packsize,position1,ncharges,1,MPI_integer4,MPI_COMM_WORLD,ierr)
+		call MPI_UNPACK(packbuf,packsize,position1,totalSz,1,MPI_integer4,MPI_COMM_WORLD,ierr)
+		call MPI_UNPACK(packbuf,packsize,position1,logic_PPP,1,MPI_integer4,MPI_COMM_WORLD,ierr)
+		call MPI_UNPACK(packbuf,packsize,position1,logic_spinreversal,1,MPI_integer4,MPI_COMM_WORLD,ierr)
+		call MPI_UNPACK(packbuf,packsize,position1,logic_tree,1,MPI_integer4,MPI_COMM_WORLD,ierr)
+		call MPI_UNPACK(packbuf,packsize,position1,subM,1,MPI_integer4,MPI_COMM_WORLD,ierr)
+		call MPI_UNPACK(packbuf,packsize,position1,sweeps,1,MPI_integer4,MPI_COMM_WORLD,ierr)
+		call MPI_UNPACK(packbuf,packsize,position1,nstate,1,MPI_integer4,MPI_COMM_WORLD,ierr)
+		call MPI_UNPACK(packbuf,packsize,position1,exscheme,1,MPI_integer4,MPI_COMM_WORLD,ierr)
+		
+		allocate(nweight(nstate),stat=error)
+		if(error/=0) stop
+		call MPI_UNPACK(packbuf,packsize,position1,nweight,nstate,MPI_real8,MPI_COMM_WORLD,ierr)
+		call MPI_UNPACK(packbuf,packsize,position1,blocks,1,MPI_integer4,MPI_COMM_WORLD,ierr)
+		call MPI_UNPACK(packbuf,packsize,position1,nbonds,1,MPI_integer4,MPI_COMM_WORLD,ierr)
+		allocate(bondlink(norbs,norbs),stat=error)
+		if(error/=0) stop
+		allocate(nuclQ(natoms),stat=error)
+		if(error/=0) stop
+		allocate(coord(3,natoms),stat=error)
+		if(error/=0) stop
+		allocate(hubbardU(norbs),stat=error)
+		if(error/=0) stop
+		allocate(t(norbs,norbs),stat=error)
+		if(error/=0) stop
+		do i=1,norbs,1
+		call MPI_UNPACK(packbuf,packsize,position1,bondlink(:,i),norbs,MPI_integer4,MPI_COMM_WORLD,ierr)
+		end do
+		call MPI_UNPACK(packbuf,packsize,position1,nuclQ,natoms,MPI_real8,MPI_COMM_WORLD,ierr)
+		do i=1,natoms,1
+		call MPI_UNPACK(packbuf,packsize,position1,coord(:,i),3,MPI_real8,MPI_COMM_WORLD,ierr)
+		end do
+		do i=1,norbs,1
+		call MPI_UNPACK(packbuf,packsize,position1,t(:,i),norbs,MPI_real8,MPI_COMM_WORLD,ierr)
+		end do
+		call MPI_UNPACK(packbuf,packsize,position1,hubbardU,norbs,MPI_real8,MPI_COMM_WORLD,ierr)
+		
+		write(*,*) myid,"getpacksize=",position1
+	end if
+
+
+	allocate(pppV(norbs,norbs),stat=error)
+	if(error/=0) stop
+	pppV=0.0D0
+	call ohno_potential
+	! here can add many different potentials in Module PPP term
 
 !-----------------------------------------------------
 	if(myid==0) then
@@ -186,7 +281,7 @@
 		write(*,*) "----------------------------------------"
 	end if
 
+	deallocate(packbuf)
 	return
-
+	
 	end Subroutine
-

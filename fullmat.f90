@@ -217,8 +217,15 @@ subroutine fullmat
 	!write(*,*) "fullH",fullH(1:m,1:m)
 	!call syevr(fullH(1:m,1:m),eigenvalue)
 	!write(*,*) "syevr,direct diagonalizaiton result,E=",eigenvalue
-	!write(*,*) "fullH"
-	!write(*,*) fullH(1:m,1:m)
+write(*,*) "fullH"
+!write(*,*) fullH(1:m,1:m)
+do i=1,m,1
+do j=1,m,1
+	if(abs(fullH(j,i))>1.0D-7) then
+		write(*,*) fullH(j,i),j,i
+	end if
+end do
+end do
 call syevd(fullH(1:m,1:m),eigenvalue,'V','U',info)
 	!'U',z,vl,vu,1,1,m,isuppz,abstol,info)
 write(*,*) "info",info

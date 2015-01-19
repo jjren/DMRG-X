@@ -10,40 +10,56 @@ Subroutine enviro_bigR
 	integer :: reclength,operaindex
 	logical :: alive
 	character(len=50) :: filename
+	integer :: thefile,status(MPI_STATUS_SIZE)
+	integer(kind=MPI_OFFSET_KIND) ::offset
 
 	! reclength is the length of direct io
 	! ifort use 4 byte as 1 by default
 	if(myid==0) then
 		write(*,*) "enter in subroutine enviro_bigR"
 	end if
+!	do i=norbs,norbs-nright,-1
+!	if(myid==orbid(i)) then
+!		reclength=2*16*subM*subM*3
+!----------------open a binary file-------------
+!		write(filename,'(i5.5,a9)') norbs-nright,'right.tmp'
+!		inquire(file=trim(filename),exist=alive)
+!		if(alive) then
+!			open(unit=100,file=trim(filename),access="Direct",form="unformatted",recl=reclength,status="old")
+!		else
+!			write(*,*) trim(filename),"doesn't exist!"
+!			stop
+!		end if
+!-----------------------------------------------
+!		if(mod(i,nprocs-1)==0) then
+!			operaindex=i/(nprocs-1)
+!		else
+!			operaindex=i/(nprocs-1)+1
+!		end if
+! norbs is 1; norbs-1 is 2.....
+!		read(100,rec=norbs+1-i) operamatbig(:,:,3*(operaindex-1)+1:3*operaindex)
+!		close(100)
+		!if(nright==1 .and. i==norbs-1) then
+		!	write(*,*) operamatbig(:,:,3*(operaindex-1)+1:3*operaindex)
+		!	stop
+		!end if
+!	end if
+!	end do
 
+	write(filename,'(i5.5,a9)') norbs-nright,'right.tmp'
+	call MPI_FILE_OPEN(MPI_COMM_WORLD,trim(filename),MPI_MODE_RDONLY,MPI_INFO_NULL,thefile,ierr)
 	do i=norbs,norbs-nright,-1
 	if(myid==orbid(i)) then
-		reclength=2*16*subM*subM*3
-!----------------open a binary file-------------
-		write(filename,'(i5.5,a9)') norbs-nright,'right.tmp'
-		inquire(file=trim(filename),exist=alive)
-		if(alive) then
-			open(unit=100,file=trim(filename),access="Direct",form="unformatted",recl=reclength,status="old")
-		else
-			write(*,*) trim(filename),"doesn't exist!"
-			stop
-		end if
-!-----------------------------------------------
 		if(mod(i,nprocs-1)==0) then
 			operaindex=i/(nprocs-1)
 		else
 			operaindex=i/(nprocs-1)+1
 		end if
-! norbs is 1; norbs-1 is 2.....
-		read(100,rec=norbs+1-i) operamatbig(:,:,3*(operaindex-1)+1:3*operaindex)
-		close(100)
-		!if(nright==1 .and. i==norbs-1) then
-		!	write(*,*) operamatbig(:,:,3*(operaindex-1)+1:3*operaindex)
-		!	stop
-		!end if
+		offset=(norbs-i)*16*subM*subM*3*8
+		call MPI_FILE_READ_AT(thefile,offset,operamatbig(:,:,3*(operaindex-1)+1:3*operaindex),16*subM*subM*3,mpi_real8,status,ierr)
 	end if
 	end do
+	call MPI_FILE_CLOSE(thefile,ierr)
 
 	if(myid==0) then
 		reclength=2*16*subM*subM
@@ -72,7 +88,6 @@ Subroutine enviro_bigR
 		read(104,rec=nright+1) symmlinkbig(:,1,2)
 		close(104)
 		end if
-	end if
 !------------------------------read the quantabigR(4*subM,2)---
 ! every process need to read quantabigR
 
@@ -87,7 +102,9 @@ Subroutine enviro_bigR
 		end if
 		read(108,rec=nright+1) quantabigR
 		close(108)
+	end if
 
+	call MPI_bcast(quantabigR,4*subM*2,MPI_integer4,0,MPI_COMM_WORLD,ierr)
 return
 
 end Subroutine

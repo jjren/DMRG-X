@@ -18,9 +18,9 @@
 		write(*,*) "enter in PPP_term subroutine!"
 	end if
 	
-	distance=0.0D0
 	do j=1,norbs,1
 		do i=j+1,norbs,1
+			distance=0.0D0
 			do k=1,3,1
 				distance=(coord(k,i)-coord(k,j))*(coord(k,i)-coord(k,j))+distance
 			end do
@@ -29,6 +29,7 @@
 			pppV(j,i)=pppV(i,j)
 		end do
 	end do
+!	pppV=0.0D0
 ! 14.397=e^2/4*pai*epsion0/e/angstrom
 	return
 	end subroutine
