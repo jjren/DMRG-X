@@ -6,6 +6,9 @@
 
 	! MPI part
 	integer(kind=4) :: ierr,myid,nprocs,version,subversion
+
+	character(len=1) :: mode
+	integer(kind=4) :: modeindex
 	
 
 

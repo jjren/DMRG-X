@@ -19,11 +19,15 @@
 
 ! default value
 	exscheme=0
+	modeindex=0
+	mode='s'
 	if(myid==0) then
 		write(*,*) "enter in readinput subroutine"
 	end if
 !------------------------------------------------------------
 	open(unit= 10,file="inp",status="old")
+	read(10,*) mode,modeindex ! which mode you want to use
+! including restart/debug/
 	read(10,*) norbs     !how many orbitals
 	read(10,*) junk_natoms   !how many atoms
 	read(10,*) nelecs  !how many electrons

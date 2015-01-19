@@ -52,8 +52,15 @@ subroutine splitsvdL(singularvalue,leftu,statebegin,stateend,indexlp1)
 			coeffwork=coeffwork+coeffbuffer
 		end if
 	end do
-	!write(*,*) "coeffwork"
-	!write(*,*) coeffwork
+! debug
+	write(*,*) "coeffwork"
+	do i=1,4*Lrealdim,1
+	do j=1,4*Lrealdim,1
+	if(abs(coeffwork(j,i))>1.0D-8) then
+	write(*,*) coeffwork(j,i),j,i
+	end if
+	end do
+	end do
 ! split the reduced density matrix to different good quantum
 ! number subspace
 	
@@ -155,8 +162,8 @@ subroutine splitsvdL(singularvalue,leftu,statebegin,stateend,indexlp1)
 			end if
 
 			if(m/=0) then
-			!	write(*,*) i,j,i1,m
-			!	write(*,*) coeffwork(1:m,1:m)
+				write(*,*) i,j,i1,m
+				write(*,*) coeffwork(1:m,1:m)
 				call syevd(coeffwork(1:m,1:m),valuework(n+1:n+m),'V','U',info)
 				if(info/=0) then
 					write(*,*) "left diagnolization failed!"
@@ -277,8 +284,14 @@ subroutine splitsvdL(singularvalue,leftu,statebegin,stateend,indexlp1)
 	else
 		call selectstates(valuework,4*Lrealdim,valueindex,singularvalue,subspacenum,nleft,szzero,pair1)
 	end if
+! when 4*Lrealdim<subM (in the debug mode)
+	if(4*Lrealdim>subM) then
+		m=subM
+	else
+		m=4*Lrealdim
+	end if
 
-	do i=1,subM,1
+	do i=1,m,1
 		leftu(:,i)=coeffresult(1:4*Lrealdim,valueindex(i))
 		quantasmaL(i,:)=quantabigLbuffer(valueindex(i),:)
 		if(logic_spinreversal/=0) then
@@ -299,7 +312,7 @@ subroutine splitsvdL(singularvalue,leftu,statebegin,stateend,indexlp1)
 	!	write(*,*) "singularvalue",singularvalue
 	!	write(*,*) "valueindex",valueindex
 !   the total discard weight between site indexLp1,indexRm1
-		discard=1.0D0-sum(singularvalue(1:subM))
+		discard=1.0D0-sum(singularvalue(1:m))
 		write(*,'(A20,I4,D12.5)') "totaldiscardL=",indexLp1,discard
 
 

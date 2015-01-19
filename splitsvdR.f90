@@ -278,7 +278,13 @@ subroutine splitsvdR(singularvalue,rightv,statebegin,stateend,indexRm1)
 		call selectstates(valuework,4*Rrealdim,valueindex,singularvalue,subspacenum,nright,szzero,pair1)
 	end if
 
-	do i=1,subM,1
+	if(4*Rrealdim>subM) then
+		m=subM
+	else
+		m=4*Rrealdim
+	end if
+
+	do i=1,m,1
 		call copy(coeffresult(1:4*Rrealdim,valueindex(i)),rightv(i,:))
 		quantasmaR(i,:)=quantabigRbuffer(valueindex(i),:)
 		if(logic_spinreversal/=0) then
@@ -299,7 +305,7 @@ subroutine splitsvdR(singularvalue,rightv,statebegin,stateend,indexRm1)
 	!	write(*,*) "singularvalue",singularvalue
 	!	write(*,*) "valueindex",valueindex
 !   the total discard weight between site indexRm1
-		discard=1.0D0-sum(singularvalue(1:subM))
+		discard=1.0D0-sum(singularvalue(1:m))
 		write(*,'(A20,I4,D12.5)') "totaldiscardR=",indexRm1,discard
 
 
