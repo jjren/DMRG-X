@@ -4,7 +4,9 @@
 	USE MPI
 	
 	implicit none
-	integer :: isystem,i,j
+	integer :: isystem,i,j,error
+	real(kind=8) :: treal(:,:)
+	integer(kind=4) :: bondlinkreal(:,:)
 
 	if(myid==0) then 
 		write(*,*) "enter subroutine infinit_MPS"
@@ -13,11 +15,21 @@
 	isweep=0
 ! realnelecs is the real electrons in the system 
 	realnelecs=nelecs+ncharges
+! when construct the infinit MPS, let the small left space and 
+! right space to link together and simulate the real condition
+
+	allocate(treal(norbs,norbs),stat=error)
+	if(error/0) stop
+	allocate(bondlinkreal(norbs,norbs),stat=error)
+	if(error/0) stop
+	treal=t
+	bondlinkreal=bondlink
 
 	do isystem=1,norbs/2-1,1
 ! be careful that the norbs may be odd
 
 	! when doing infinit MPS we use half filled system until arrive the realnelecs
+		
 		if((isystem+1)*2>realnelecs) then
 			nelecs=realnelecs
 		else
@@ -27,7 +39,6 @@
 		if(mod(norbs,2)==0 .and. isystem==(norbs/2-1)) then
 			nelecs=realnelecs
 		end if
-
 	!--------------------------
 		nleft=isystem
 		nright=isystem
@@ -41,7 +52,15 @@
 		else
 			Rrealdim=subM
 		end if
-		
+! add the quasi link between the left and right small space
+		t=treal
+		bondlink=bondlinkreal
+		bondlink(nleft+1,norbs-nright)=1
+		bondlink(norbs-nright,nleft+1)=1
+		t(nleft+1,norbs-nright)=-2.4D0
+		t(norbs-nright,nleft+1)=-2.4D0
+
+
 		if(Lrealdim/=Rrealdim .and. myid==0) then
 			write(*,*) "---------------------------------------"
 			write(*,*) "infinit DMRG Lrealdim/=Rrealdim failed!"
@@ -88,6 +107,8 @@
 !	call MPI_barrier(MPI_COMM_WORLD,ierr)
 	end do
 
+	t=treal
+	bondlink=bondlinkreal
 ! when the norbs is odd. Then in the last process of infinit MPS.
 ! only add 1 orbital in the left space
 ! and the nelecs set to the the realnelecs
@@ -110,7 +131,9 @@
 		call Renormalization(nleft+1,norbs-nright,'i')
 	end if
 
-
+	
+	deallocate(treal)
+	deallocate(bondlinkreal)
 
 	call MPI_barrier(MPI_COMM_WORLD,ierr)
 
