@@ -44,7 +44,7 @@
 	
 
 	! DMRG part
-	integer(kind=4) :: subM,sweeps,exactsite
+	integer(kind=4) :: subM,sweeps,exactsite,isweep
 	integer(kind=4),allocatable :: treelink(:,:)
 
 	! Hamiltonian part
