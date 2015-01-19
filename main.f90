@@ -26,7 +26,7 @@
 	! do infinit DMRG
 	call infinit_MPS
 	! do finit DMRG
-	!call finit_MPS
+	call finit_MPS
   
 
 

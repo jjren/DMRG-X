@@ -19,17 +19,17 @@
 	! the orbid(:) is the process id every orbital
 	! totalSz is the up nelecs - down nelecs
 
-	integer :: logic_PPP,nbonds
+	integer(kind=4) :: logic_PPP,nbonds
 
-	integer :: logic_tree
+	integer(kind=4) :: logic_tree
 	! if use tree tensor algorithm
 
 	real(kind=8),allocatable :: coord(:,:)
-	integer,allocatable :: bondlink(:,:)
+	integer(kind=4),allocatable :: bondlink(:,:)
 
 ! we use a new schema to include symmetry
 ! logic_spinreversal=+-1
-	integer :: logic_spinreversal
+	integer(kind=4) :: logic_spinreversal
 ! symmetrylink represent the symmetry link of every state
 ! the first variables means the states
 ! the second means different symmetry spin_reversal electron-hole
@@ -44,8 +44,8 @@
 	
 
 	! DMRG part
-	integer :: subM,sweeps,exactsite,isweep
-	integer,allocatable :: treelink(:,:)
+	integer(kind=4) :: subM,sweeps,exactsite
+	integer(kind=4),allocatable :: treelink(:,:)
 
 	! Hamiltonian part
 
