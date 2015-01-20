@@ -85,12 +85,12 @@ end if
 ! 3  infinit
 ! we can add exscheme=2 and later
 	if(myid==0) then
-		!if(direction/='i' .and. NIV==1 ) then
-		!	call Initialfinit(DavidWORK,direction)
-		!else
+		if(direction/='i' .and. NIV==1 ) then
+			call Initialfinit(DavidWORK,direction)
+		else
 		!	call Initialunivector(HDIAG,DavidWORK,NIV)
 			call Initialrandomweight(DavidWORK,NIV)
-		!end if
+		end if
 	end if
 
 	

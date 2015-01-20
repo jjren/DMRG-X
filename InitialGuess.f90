@@ -24,6 +24,7 @@ MODULE InitialGuess
 	logical :: alive
 	integer :: reclength
 	integer :: error,i,j,m
+	real(kind=8) :: norm
 	character(len=1) :: direction
 
 	if(myid==0) then
@@ -52,12 +53,12 @@ MODULE InitialGuess
 			write(*,*) "wavefunction.tmp doesn't exist"
 			stop
 		end if
-		
+
 		do i=1,4,1
-		read(105,rec=4*nleft+i) leftu((i-1)*Lrealdim+1:i*Lrealdim,1:subM)
+			read(105,rec=4*nleft+i) leftu((i-1)*Lrealdim+1:i*Lrealdim,1:subM)
 		end do
 		do i=1,4,1
-		read(105,rec=4*(norbs-nright-1)+i) rightv(1:subM,i:4*Rrealdim:4)
+			read(105,rec=4*(nleft+1)+i) rightv(1:subM,i:4*Rrealdim:4)
 		end do
 
 		open(unit=106,file="singularvalue.tmp",status="old")
@@ -65,30 +66,37 @@ MODULE InitialGuess
 		singularvalue=sqrt(singularvalue)
 
 ! be careful the finit initial guessvector
-		if((direction=='l' .and. nleft>exactsite) .or.  &
-			(direction=='r' .and. nleft==norbs-exactsite-2)) then
+		if(direction=='l' .and. nleft>exactsite) then
 			if(Lrealdim/=subM) then
 				write(*,*) "-----------------------------------"
 				write(*,*) "guessfinit, Lreadlim/=subM failed!"
 				write(*,*) "-----------------------------------"
 				stop
 			end if
+
 			do i=1,subM,1
 				leftu(i:4*subM:subM,:)=leftu(i:4*subM:subM,:)*singularvalue(i)
 			end do
-		else if((direction=='r' .and. nright>exactsite) .or.  &
-			(direction=='l' .and. nright==norbs-exactsite-2)) then
+
+		else if(direction=='r' .and. nright>exactsite) then
 			if(Rrealdim/=subM) then
 				write(*,*) "-----------------------------------"
 				write(*,*) "guessfinit, Rreadlim/=subM failed!"
 				write(*,*) "-----------------------------------"
 				stop
 			end if
+
 			do i=1,subM,1
-				rightv(:,i:4*subM:subM)=rightv(:,i:4*subM:subM)*singularvalue(i)
+				rightv(:,(i-1)*4+1:i*4)=rightv(:,(i-1)*4+1:i*4)*singularvalue(i)
+			end do
+
+		else if((direction=='l' .and. nleft==exactsite) .or. (direction=='r' .and. nright==exactsite)) then
+
+			do i=1,subM,1
+				rightv(i,:)=rightv(i,:)*singularvalue(i)
 			end do
 		end if
-
+			
 		! recombine the two site sigmaL sigmaR coefficient
 		
 		allocate(LRcoeff(4*Lrealdim,4*Rrealdim),stat=error)
@@ -115,6 +123,13 @@ MODULE InitialGuess
 			stop
 		end if
 
+		norm=dot(guesscoeff(1:ngoodstates),guesscoeff(1:ngoodstates))
+		if(norm<1.0D-10) then
+			write(*,*) "--------------------------"
+			write(*,*) "initialfinit norm is < 1.0D-10,caution!"
+			write(*,*) "--------------------------"
+		end if
+		guesscoeff(1:ngoodstates)=guesscoeff(1:ngoodstates)/sqrt(norm)
 
 
 		close(105)

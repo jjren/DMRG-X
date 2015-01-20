@@ -123,7 +123,11 @@ Subroutine Renormalization(indexLp1,indexRm1,direction)
 			!	stop
 			!end if
 			call splitsvdL(singularvalue,leftu,1,nstate,indexlp1)
+			write(*,*) "Lsingular"
+			write(*,*) singularvalue(1:subM)
 			call splitsvdR(singularvalue,rightv,1,nstate,indexRm1)
+			!write(*,*) "Rsingular"
+			!write(*,*) singularvalue(1:subM)
 			!rightv=transpose(coeffbufferR(:,4*Rrealdim-subM+1:4*Rrealdim,nstate+1))
 			!singularvalue=valueR(4*Rrealdim-subM+1:4*Rrealdim)
 		!	write(*,*) "quanta"

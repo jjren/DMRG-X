@@ -169,6 +169,8 @@ subroutine splitsvdL(singularvalue,leftu,statebegin,stateend,indexlp1)
 					write(*,*) "left diagnolization failed!"
 					stop
 				end if
+			!	write(*,*) i,j,m
+			!	write(*,*) valuework(n+1:n+m)
 				
 			p=0
 			if(symm1==1) then

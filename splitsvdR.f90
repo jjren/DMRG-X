@@ -19,6 +19,8 @@ subroutine splitsvdR(singularvalue,rightv,statebegin,stateend,indexRm1)
 	integer :: szzero,pair1,szzero1,szl0
 	logical :: done,done2
 	integer,allocatable :: subspacenum(:)
+	real(kind=8) :: diffzero,scale1
+	integer :: scalenum
 !	integer :: tmp
 ! szl0 means the number of sz>0 states
 ! szzero means the number of sz=0 state including spin parity=+-1
@@ -162,6 +164,8 @@ subroutine splitsvdR(singularvalue,rightv,statebegin,stateend,indexRm1)
 					write(*,*) "right diagnolization failed!"
 					stop
 				end if
+			!	write(*,*) i,j,m
+			!	write(*,*) valuework(n+1:n+m)
 				
 			p=0
 			if(symm1==1) then
@@ -272,11 +276,56 @@ subroutine splitsvdR(singularvalue,rightv,statebegin,stateend,indexRm1)
 		quantabigRbuffer(pair1+szzero+1:4*Rrealdim,1)=quantabigRbuffer(1:pair1,1)
 		quantabigRbuffer(pair1+szzero+1:4*Rrealdim,2)=-1*quantabigRbuffer(1:pair1,2)
 	end if
-	if(logic_spinreversal==0) then
-		call selectstates(valuework,4*Rrealdim,valueindex,singularvalue,subspacenum,nright)
-	else
-		call selectstates(valuework,4*Rrealdim,valueindex,singularvalue,subspacenum,nright,szzero,pair1)
-	end if
+	!if(logic_spinreversal==0) then
+	!	call selectstates(valuework,4*Rrealdim,valueindex,singularvalue,subspacenum,nright)
+	!else
+	!	call selectstates(valuework,4*Rrealdim,valueindex,singularvalue,subspacenum,nright,szzero,pair1)
+	!end if
+	
+	! R space select states should be corresponse to the L space states
+	! so R space need to arrange again
+	
+	valueindex=0
+
+	do i=1,subM,1
+
+		scale1=1.0D0
+		scalenum=0
+		do while(.true.)
+			if(singularvalue(i)>scale1) exit
+			scale1=scale1*0.1D0
+			scalenum=scalenum+1
+		end do
+
+		do j=1,subspacenum(1),1
+			if((quantasmaL(i,1)+quantabigRbuffer(sum(subspacenum(2:j+1)),1)==nelecs) .and. &
+			(quantasmaL(i,2)+quantabigRbuffer(sum(subspacenum(2:j+1)),2)==totalSz)) then
+				diffzero=1.0D-10*(0.1D0**scalenum)
+				do while(.true.)
+					do k=sum(subspacenum(2:j+1)),sum(subspacenum(2:j+1))-subspacenum(j+1)+1,-1
+						if(abs(valuework(k)-singularvalue(i))<diffzero) then
+							valueindex(i)=k
+							exit
+						end if
+					end do
+					if(valueindex(i)/=0) exit
+					diffzero=diffzero*10.0D0
+				end do
+				exit
+			end if
+		end do
+		if(valueindex(i)==0) then
+			write(*,*) "----------------------------"
+			write(*,*) "R space valueindex==0",i
+			write(*,*) "----------------------------"
+			stop
+		end if
+	end do
+		write(*,*) valuework(valueindex(1:subM))
+				
+				
+			
+
 
 	if(4*Rrealdim>subM) then
 		m=subM
