@@ -174,7 +174,14 @@ end if
 		Write(*,*) "IERROR=",IERROR
 		write(*,*) "NMV=",NMV
 
+! update the sweepenergy
+		do i=1,IHIGH,1
+			if(DavidWORK(IHIGH*ngoodstates+i)<sweepenergy(isweep,i)) then
+				sweepenergy(isweep,i)=DavidWORK(IHIGH*ngoodstates+i)
+			end if
+		end do
 
+		
 		deallocate(HDIAG)
 		deallocate(DavidWORK)
 		if(logic_spinreversal/=0) then

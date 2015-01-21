@@ -4,7 +4,8 @@ Subroutine finit_MPS
 
 	implicit none
 
-	integer :: isystem,ibegin
+	integer :: isystem,ibegin,i
+	logical :: converged
 
 
 	if(myid==0) then
@@ -85,6 +86,27 @@ Subroutine finit_MPS
 			end if
 			call fromleftsweep
 		end do
+
+		if(myid==0) then
+			write(*,*) isweep,"finit MPS end!"
+			write(*,*) "the lowest energy is",sweepenergy(isweep,:)
+			converged=.true.
+			do i=1,nstate,1
+				if(abs(sweepenergy(isweep-1,i)-sweepenergy(isweep,i))>energythresh) then
+					converged=.false.
+					exit
+				end if
+			end do
+			if(converged==.true.) then
+				write(*,*) "energy converged! at sweep",isweep
+				write(*,*) sweepenergy(0:isweep,:)
+			end if
+		end if
+		call MPI_bcast(converged,1,MPI_logical,0,MPI_COMM_WORLD,ierr)
+		
+		if(converged==.true.) then
+			exit
+		end if
 	end do
 		
 	

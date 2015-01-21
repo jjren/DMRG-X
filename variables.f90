@@ -46,6 +46,8 @@
 	! DMRG part
 	integer(kind=4) :: subM,sweeps,exactsite,isweep
 	integer(kind=4),allocatable :: treelink(:,:)
+	real(kind=8) :: energythresh
+	real(kind=8),allocatable :: sweepenergy(:,:)
 
 	! Hamiltonian part
 

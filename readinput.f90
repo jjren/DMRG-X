@@ -45,7 +45,13 @@
 	read(10,*) subM  ! DMRG SUB M
 	read(10,*) sweeps ! DMRG how many sweeps
 	read(10,*) nstate ! how many state wanted to get
-	
+	read(10,*) energythresh ! the threshold of the total energy you want to get
+
+! sweepenergy is the total energy of every sweep
+	allocate(sweepenergy(0:sweeps,nstate),stat=error)
+	if(error/=0) stop
+	sweepenergy=0.0D0
+! 
 	allocate(nweight(nstate),stat=error)
 	if(error/=0) stop
 	!default value
@@ -273,6 +279,7 @@
 		write(*,*) "logic_tree=",logic_tree
 		write(*,*) "subM=",subM
 		write(*,*) "sweeps=",sweeps
+		write(*,*) "energythresh",energythresh
 		write(*,*) "nbonds=",nbonds,"bondlink="
 		do i=1,norbs,1
 		write(*,*) bondlink(:,i)
