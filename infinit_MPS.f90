@@ -44,15 +44,22 @@
 	!--------------------------
 		nleft=isystem
 		nright=isystem
-		if(4**nleft<subM) then
-			Lrealdim=4**nleft
-		else
-			Lrealdim=subM
+		
+		if(isystem==1) then
+			Lrealdim=1
+			Rrealdim=1
 		end if
-		if(4**nright<subM) then
-			Rrealdim=4**nleft
+
+		if(4*Lrealdim>subM) then
+			Lrealdim=subM
 		else
+			Lrealdim=Lrealdim*4
+		end if
+
+		if(4*Rrealdim>subM) then
 			Rrealdim=subM
+		else
+			Rrealdim=Rrealdim*4
 		end if
 ! add the quasi link between the left and right small space
 !		if(nleft+1<norbs/2 .or. mod(norbs,2)/=0) then 
