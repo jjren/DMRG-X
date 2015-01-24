@@ -105,12 +105,14 @@ Subroutine finit_MPS
 		end if
 	end do
 
+	if(myid==0) then
 	if(converged==.true.) then
 		write(*,*) "energy converged! at sweep",isweep
 		write(*,*) sweepenergy(0:isweep,:)
 	else
 		write(*,*) "maxiter reached!"
 		write(*,*) sweepenergy(0:sweeps,:)
+	end if
 	end if
 		
 	
