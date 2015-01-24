@@ -110,7 +110,7 @@ subroutine splitsvdR(singularvalue,rightv,statebegin,stateend,indexRm1)
 			end do
 
 			if(m/=0) then
-			!	write(*,*) i,j,m
+			!	irite(*,*) i,j,m
 			!	write(*,*) coeffwork(1:m,1:m)
 			! when j==0 we first transform the basis to the new basis
 			! which the symmlink is him self
@@ -190,7 +190,7 @@ subroutine splitsvdR(singularvalue,rightv,statebegin,stateend,indexRm1)
 					deallocate(coeffdummy)
 				else
 					call syevd(coeffwork(1:m,1:m),valuework(n+1:n+m),'V','U',info)
-					write(*,*) valuework(n+1:n+m)
+				!	write(*,*) valuework(n+1:n+m)
 					if(info/=0) then
 						write(*,*) "right diagnolization failed!"
 						stop
