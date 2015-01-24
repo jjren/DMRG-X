@@ -27,11 +27,12 @@ subroutine op(bigdim,smadim,coeff,newcoeff)
 	real(kind=8),allocatable :: LRcoeff(:,:,:)
 	real(kind=8),allocatable :: componentmat(:,:,:,:),buffermat(:,:)
 	logical :: done
+	real(kind=8) :: norm
 ! debug
-	logical ::alive
-	real(kind=8),allocatable :: Hbuffer(:,:),newcoeffdummy(:)
-	real(kind=8) :: diff
-	integer :: tmp
+!	logical ::alive
+!	real(kind=8),allocatable :: Hbuffer(:,:),newcoeffdummy(:)
+!	real(kind=8) :: diff
+!	integer :: tmp
 !
 !   transform the 1-array to 4M*4M form 
 	allocate(LRcoeff(4*Lrealdim,4*Rrealdim,smadim),stat=error) 
@@ -166,7 +167,7 @@ subroutine op(bigdim,smadim,coeff,newcoeff)
 				do j=1,smadim,1
 					if(bondlink(i,l)==1) then
 						
-							open(unit=997,file="imme2.tmp",status="replace")
+!							open(unit=997,file="imme2.tmp",status="replace")
 						do k=1,5,1
 							!k<=3 al^+*ar,(nl-1)(nr-1),k>3 al*ar^(+) 
 							if(k<=3) then
@@ -178,7 +179,7 @@ subroutine op(bigdim,smadim,coeff,newcoeff)
 							! buffermat is to save the intermediate matrix
 							end if
 ! debug
-							write(997,*) buffermat
+!							write(997,*) buffermat
 
 							if(k/=3) then
 								componentmat(:,:,6,j)=buffermat*t(i,l)+componentmat(:,:,6,j)
@@ -186,7 +187,7 @@ subroutine op(bigdim,smadim,coeff,newcoeff)
 								componentmat(:,:,6,j)=buffermat*pppV(i,l)+componentmat(:,:,6,j)
 							end if
 						end do
-							close(997)
+!							close(997)
 						! add all the five operator ai^+up*ajup,ai^_down*ajdown (ni-1)(nj-1)... together
 					else ! not bond linked only the pppV term
 						call gemm(operamatbig(1:4*Lrealdim,1:4*Lrealdim,operaindex*3),componentmat(:,:,3,j)&
@@ -228,28 +229,46 @@ subroutine op(bigdim,smadim,coeff,newcoeff)
 	!	end do
 	!end if
 
-	if(myid==0 .and. logic_spinreversal/=0) then
-			!do i=1,ngoodstates,1
-			do i=1,ngoodstates,1
-				if(abs(symmlinkbig(symmlinkgood(i,1),1,1))==symmlinkgood(i,1) .and. &
-				abs(symmlinkbig(symmlinkgood(i,2),1,2))==symmlinkgood(i,2)) then
-					if(sign(1,symmlinkbig(symmlinkgood(i,1),1,1))*sign(1,symmlinkbig(symmlinkgood(i,2),1,2))&
-					/=logic_spinreversal) then
-						newcoeff(i:smadim*ngoodstates:ngoodstates)=0.0D0
-					end if
-				else if(abs(symmlinkbig(symmlinkgood(i,1),1,1))/=symmlinkgood(i,1) .or. &
-				abs(symmlinkbig(symmlinkgood(i,2),1,2))/=symmlinkgood(i,2)) then
-					do j=1,ngoodstates,1
-						if(abs(symmlinkbig(symmlinkgood(i,1),1,1))==symmlinkgood(j,1) .and. &
-						abs(symmlinkbig(symmlinkgood(i,2),1,2))==symmlinkgood(j,2)) then
-							newcoeff(j:smadim*ngoodstates:ngoodstates)=newcoeff(i:smadim*ngoodstates:ngoodstates)&
-							*DBLE(sign(1,symmlinkbig(symmlinkgood(i,1),1,1))*sign(1,symmlinkbig(symmlinkgood(i,2),1,2)))&
-							*DBLE(logic_spinreversal)
-							exit
-						end if
-					end do
-				end if
-			end do
+!	if(myid==0 .and. logic_spinreversal/=0) then
+!			!do i=1,ngoodstates,1
+!			do i=1,ngoodstates,1
+!				if(abs(symmlinkbig(symmlinkgood(i,1),1,1))==symmlinkgood(i,1) .and. &
+!				abs(symmlinkbig(symmlinkgood(i,2),1,2))==symmlinkgood(i,2)) then
+!					if(sign(1,symmlinkbig(symmlinkgood(i,1),1,1))*sign(1,symmlinkbig(symmlinkgood(i,2),1,2))&
+!					/=logic_spinreversal*((-1)**mod(nelecs,2))) then
+!						newcoeff(i:smadim*ngoodstates:ngoodstates)=0.0D0
+!					end if
+!				else if(abs(symmlinkbig(symmlinkgood(i,1),1,1))/=symmlinkgood(i,1) .or. &
+!				abs(symmlinkbig(symmlinkgood(i,2),1,2))/=symmlinkgood(i,2)) then
+!					done=.false.
+!					do j=1,ngoodstates,1
+!						if(abs(symmlinkbig(symmlinkgood(i,1),1,1))==symmlinkgood(j,1) .and. &
+!						abs(symmlinkbig(symmlinkgood(i,2),1,2))==symmlinkgood(j,2)) then
+!							newcoeff(j:smadim*ngoodstates:ngoodstates)=newcoeff(i:smadim*ngoodstates:ngoodstates)&
+!							*DBLE(sign(1,symmlinkbig(symmlinkgood(i,1),1,1))*sign(1,symmlinkbig(symmlinkgood(i,2),1,2)))&
+!							*DBLE(logic_spinreversal)*((-1.0D0)**mod(nelecs,2))
+!							done=.true.
+!							exit
+!						end if
+!					end do
+!					if(done==.false.) then
+!						write(*,*) "-----------------------------------------------------------------------------"
+!						write(*,*) "in op did't find the state",i,symmlinkgood(i,1),symmlinkgood(i,2),"corrsponds",&
+!						symmlinkbig(symmlinkgood(i,1),1,1),symmlinkbig(symmlinkgood(i,2),1,2)
+!						write(*,*) "-----------------------------------------------------------------------------"
+!						stop
+!					end if
+!				end if
+!			end do
+!			do i=1,smadim,1
+!				norm=dot(newcoeff((i-1)*ngoodstates+1:i*ngoodstates),newcoeff((i-1)*ngoodstates+1:i*ngoodstates))
+!				if(norm<1.0D-10) then
+!					write(*,*) "--------------------------"
+!					write(*,*) "in op norm is < 1.0D-10,caution!"
+!					write(*,*) "--------------------------"
+!				end if
+!				newcoeff((i-1)*ngoodstates+1:i*ngoodstates)=newcoeff((i-1)*ngoodstates+1:i*ngoodstates)/sqrt(norm)
+!			end do
 			!	if(quantabigL(symmlinkgood(i,1),2)>=0 .and. abs(symmlinkbig(symmlinkgood(i,1),1,1))/=symmlinkgood(i,1)) then
 			!		done=.false.
 			!	do j=1,ngoodstates,1
@@ -275,11 +294,11 @@ subroutine op(bigdim,smadim,coeff,newcoeff)
 			!		end if
 			!	end if
 			!end do
-	end if
+!	end if
 
 ! debug
 ! logic :: alive
-	if(myid==0) then
+!	if(myid==0) then
 !		inquire(file="H.tmp",exist=alive)
 !		if(alive) then
 !			open(unit=998,file="H.tmp",status="old")
@@ -302,10 +321,10 @@ subroutine op(bigdim,smadim,coeff,newcoeff)
 !		end do
 !		read(*,*) tmp
 !		close(998)
-		open(unit=996,file="LRcoeff.tmp",status="replace")
-		write(996,*) LRcoeff
-		close(996)
-	end if
+!		open(unit=996,file="LRcoeff.tmp",status="replace")
+!		write(996,*) newcoeff
+!		close(996)
+!	end if
 		
 
 

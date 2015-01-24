@@ -26,6 +26,7 @@ MODULE InitialGuess
 	integer :: error,i,j,m
 	real(kind=8) :: norm
 	character(len=1) :: direction
+	logical :: done
 
 	if(myid==0) then
 		write(*,*) "enter Initialfinit subroutine"
@@ -123,6 +124,39 @@ MODULE InitialGuess
 			stop
 		end if
 
+		if(logic_spinreversal/=0) then
+			do i=1,ngoodstates,1
+			! the symmlink is himself
+				if(abs(symmlinkbig(symmlinkgood(i,1),1,1))==symmlinkgood(i,1) .and. &
+				abs(symmlinkbig(symmlinkgood(i,2),1,2))==symmlinkgood(i,2)) then
+					if(sign(1,symmlinkbig(symmlinkgood(i,1),1,1))*sign(1,symmlinkbig(symmlinkgood(i,2),1,2))&
+					/=logic_spinreversal*((-1)**(mod(nelecs/2,2)))) then
+						guesscoeff(i)=0.0D0
+					end if
+			! either of the L or R space symmlink is not himself
+				else if(abs(symmlinkbig(symmlinkgood(i,1),1,1))/=symmlinkgood(i,1) .or. &
+				abs(symmlinkbig(symmlinkgood(i,2),1,2))/=symmlinkgood(i,2)) then
+					done=.false.
+					do j=1,ngoodstates,1
+						if(abs(symmlinkbig(symmlinkgood(i,1),1,1))==symmlinkgood(j,1) .and. &
+						abs(symmlinkbig(symmlinkgood(i,2),1,2))==symmlinkgood(j,2)) then
+							guesscoeff(j)=guesscoeff(i)&
+							*DBLE(sign(1,symmlinkbig(symmlinkgood(i,1),1,1))*sign(1,symmlinkbig(symmlinkgood(i,2),1,2)))&
+							*DBLE(logic_spinreversal)*((-1)**(mod(nelecs/2,2)))
+							done=.true.
+							exit
+						end if
+					end do
+					if(done==.false.) then
+						write(*,*) "-----------------------------------------------------------------------------"
+						write(*,*) "did't find the state",i,symmlinkgood(i,1),symmlinkgood(i,2),"corrsponds",symmlinkbig(symmlinkgood(i,1),1,1),symmlinkbig(symmlinkgood(i,2),1,2)
+						write(*,*) "-----------------------------------------------------------------------------"
+						stop
+					end if
+				end if
+			end do
+		end if
+
 		norm=dot(guesscoeff(1:ngoodstates),guesscoeff(1:ngoodstates))
 		if(norm<1.0D-10) then
 			write(*,*) "--------------------------"
@@ -204,23 +238,33 @@ MODULE InitialGuess
 		!		end if
 		!	end do
 			do i=1,ngoodstates,1
+			! the symmlink is himself
 				if(abs(symmlinkbig(symmlinkgood(i,1),1,1))==symmlinkgood(i,1) .and. &
 				abs(symmlinkbig(symmlinkgood(i,2),1,2))==symmlinkgood(i,2)) then
 					if(sign(1,symmlinkbig(symmlinkgood(i,1),1,1))*sign(1,symmlinkbig(symmlinkgood(i,2),1,2))&
-					/=logic_spinreversal) then
+					/=logic_spinreversal*((-1)**(mod(nelecs/2,2)))) then
 						guessvector(i:num*ngoodstates:ngoodstates)=0.0D0
 					end if
+			! either of the L or R space symmlink is not himself
 				else if(abs(symmlinkbig(symmlinkgood(i,1),1,1))/=symmlinkgood(i,1) .or. &
 				abs(symmlinkbig(symmlinkgood(i,2),1,2))/=symmlinkgood(i,2)) then
+					done=.false.
 					do j=1,ngoodstates,1
 						if(abs(symmlinkbig(symmlinkgood(i,1),1,1))==symmlinkgood(j,1) .and. &
 						abs(symmlinkbig(symmlinkgood(i,2),1,2))==symmlinkgood(j,2)) then
 							guessvector(j:num*ngoodstates:ngoodstates)=guessvector(i:num*ngoodstates:ngoodstates)&
 							*DBLE(sign(1,symmlinkbig(symmlinkgood(i,1),1,1))*sign(1,symmlinkbig(symmlinkgood(i,2),1,2)))&
-							*DBLE(logic_spinreversal)
+							*DBLE(logic_spinreversal)*((-1.0D0)**(mod(nelecs/2,2)))
+							done=.true.
 							exit
 						end if
 					end do
+					if(done==.false.) then
+						write(*,*) "-----------------------------------------------------------------------------"
+						write(*,*) "in Initial did't find the state",i,symmlinkgood(i,1),symmlinkgood(i,2),"corrsponds",symmlinkbig(symmlinkgood(i,1),1,1),symmlinkbig(symmlinkgood(i,2),1,2)
+						write(*,*) "-----------------------------------------------------------------------------"
+						stop
+					end if
 				end if
 			end do
 		end if

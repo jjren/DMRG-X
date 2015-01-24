@@ -1,11 +1,11 @@
 subroutine selectstates(valuework,dim1,valueindex,singularvalue,&
-		subspacenum,syssite,szzero,pair1)
+		subspacenum,syssite,szzero,szl0)
 	USE mpi
 	USe variables
 	
 	implicit none
 	integer :: dim1
-	integer,optional :: szzero,pair1
+	integer,optional :: szzero,szl0
 	real(kind=8) :: valuework(dim1),singularvalue(subM)
 	integer :: valueindex(subM)
 	real(kind=8) :: percent
@@ -61,46 +61,47 @@ subroutine selectstates(valuework,dim1,valueindex,singularvalue,&
 			end do
 		end if
 !		write(*,*) "valueindex",valueindex
-!	else
-!		do i=1,szzero+pair1,1
-!			do j=1,subM,1
-!				if(valuework(i)>singularvalue(j)) then
-!					if(i<=pair1) then
-!						valueindex(j+2:subM)=valueindex(j:subM-2)
-!						valueindex(j)=i
-!						valueindex(j+1)=pair1+szzero+i
-!						singularvalue(j+2:subM)=singularvalue(j:subM-2)
-!						singularvalue(j)=valuework(i)
-!						singularvalue(j+1)=valuework(i)
-!						exit
-!					else
-!						valueindex(j+1:subM)=valueindex(j:subM-1)
-!						singularvalue(j+1:subM)=singularvalue(j:subM-1)
-!						valueindex(j)=i
-!						singularvalue(j)=valuework(i)
-!						exit
-!					end if
-!				end if
-!			end do
-!		end do
-!		if(valueindex(subM)<=pair1) then
-!			do i=pair1+szzero,pair1+1,-1
-!			
-!			do j=1,subM,1
-!				if(valueindex(j)==i) then
-!					done=.false.
-!					exit
-!				else
-!					done=.true.
-!				end if
-!			end do
-!				if(done==.true.) then
-!				valueindex(subM)=i
-!				singularvalue(subM)=valuework(i)
-!				exit
-!				end if
-!			end do
-!		end if
+	else
+		do i=1,szzero+szl0,1
+			do j=1,subM,1
+				if(valuework(i)>singularvalue(j)) then
+					if(i<=szl0) then
+						valueindex(j+2:subM)=valueindex(j:subM-2)
+						valueindex(j)=i
+						valueindex(j+1)=szl0+szzero+i
+						singularvalue(j+2:subM)=singularvalue(j:subM-2)
+						singularvalue(j)=valuework(i)
+						singularvalue(j+1)=valuework(i)
+						exit
+					else
+						valueindex(j+1:subM)=valueindex(j:subM-1)
+						singularvalue(j+1:subM)=singularvalue(j:subM-1)
+						valueindex(j)=i
+						singularvalue(j)=valuework(i)
+						exit
+					end if
+				end if
+			end do
+		end do
+		if(valueindex(subM)<=szl0) then
+			do i=szl0+szzero,szl0+1,-1
+			
+			do j=1,subM-1,1
+				if(valueindex(j)==i .or. &
+				valuework(i)<valuework(valueindex(subM)/1.0D3)) then
+					done=.false.
+					exit
+				else 
+					done=.true.
+				end if
+			end do
+				if(done==.true.) then
+				valueindex(subM)=i
+				singularvalue(subM)=valuework(i)
+				exit
+				end if
+			end do
+		end if
 	end if
 
 return

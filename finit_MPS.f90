@@ -97,10 +97,6 @@ Subroutine finit_MPS
 					exit
 				end if
 			end do
-			if(converged==.true.) then
-				write(*,*) "energy converged! at sweep",isweep
-				write(*,*) sweepenergy(0:isweep,:)
-			end if
 		end if
 		call MPI_bcast(converged,1,MPI_logical,0,MPI_COMM_WORLD,ierr)
 		
@@ -108,6 +104,14 @@ Subroutine finit_MPS
 			exit
 		end if
 	end do
+
+	if(converged==.true.) then
+		write(*,*) "energy converged! at sweep",isweep
+		write(*,*) sweepenergy(0:isweep,:)
+	else
+		write(*,*) "maxiter reached!"
+		write(*,*) sweepenergy(0:sweeps,:)
+	end if
 		
 	
 return

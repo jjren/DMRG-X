@@ -34,14 +34,15 @@ subroutine hamiltonian(direction)
 !		critr=critr*0.1D0
 !		ortho=ortho*0.1D0
 !	end if
-	if(isweep==sweeps) then
+	if(isweep==sweeps .or. isweep==sweeps-1 .or. &
+	isweep==sweeps-2) then
 		crite=1.0D-12
 		critc=1.0D-12
 		critr=1.0D-12
 		ortho=1.0D-11
 	end if
 
-	maxiter=400
+	maxiter=200
 	allocate(iselec(lim),stat=error)
 	if(error/=0) stop
 	iselec=-1

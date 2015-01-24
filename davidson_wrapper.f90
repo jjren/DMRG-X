@@ -18,6 +18,7 @@ Subroutine davidson_wrapper(direction,LIM,ILOW,IHIGH,ISELEC,NIV,MBLOCK,&
 	real(kind=8),allocatable :: HDIAG(:),DavidWORK(:),dummycoeff(:),dummynewcoeff(:)
 	integer :: smadim,IWRSZ
 	character(len=1) :: direction
+	logical :: done
 
 ! check how many states fullfill good quantum number
 ! every process do it
@@ -127,6 +128,11 @@ end if
 			write(*,*) "---------------------------"
 			stop
 		end if
+		
+		if(logic_spinreversal/=0) then
+			call spincorrect(DavidWORK(1:ngoodstates*nstate))
+		end if
+
 		allocate(coeffIF(4*Lrealdim,4*Rrealdim,IHIGH),stat=error)
 		if(error/=0) stop
 		coeffIF=0.0D0

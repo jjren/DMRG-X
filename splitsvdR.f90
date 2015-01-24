@@ -13,19 +13,17 @@ subroutine splitsvdR(singularvalue,rightv,statebegin,stateend,indexRm1)
 	real(kind=8) :: rightv(subM,4*Rrealdim),singularvalue(subM),discard
 	integer :: statebegin,stateend,indexRm1
 	real(kind=8),allocatable :: valuework(:),coeffwork(:,:),coeffbuffer(:,:)&
-	,coeffresult(:,:)
-	integer,allocatable :: valueindex(:),szzeroindex(:),quantabigRbuffer(:,:)
-	integer :: i,error,j,k,l,m,n,info,i1,symm1,p,p1
-	integer :: szzero,pair1,szzero1,szl0
-	logical :: done,done2
+	,coeffresult(:,:),transform(:,:),coeffdummy(:,:)
+	integer,allocatable :: valueindex(:),szzeroindex(:),quantabigRbuffer(:,:),&
+	symmlinkbigbuffer(:)
+	integer :: i,error,j,k,l,m,n,info,symm1,p,l1,q
+	integer :: szzero,szl0,himp1
+	logical :: done
 	integer,allocatable :: subspacenum(:)
 	real(kind=8) :: diffzero,scale1
 	integer :: scalenum
-!	integer :: tmp
 ! szl0 means the number of sz>0 states
-! szzero means the number of sz=0 state including spin parity=+-1
-! pair1 means the number of sz>0 and sz=0 but the symmetry pair is not himself state
-! szzero1 means the number sz=0 and spin reversal parity=1
+! szzero means the number of sz=0 state 
 
 
 	write(*,*) "enter in subroutine splitsvdR"
@@ -73,6 +71,9 @@ subroutine splitsvdR(singularvalue,rightv,statebegin,stateend,indexRm1)
 	if(logic_spinreversal/=0) then
 		allocate(szzeroindex(4*subM),stat=error)
 		if(error/=0) stop
+		allocate(symmlinkbigbuffer(4*subM),stat=error)
+		if(error/=0) stop
+		symmlinkbigbuffer=0
 	end if
 	
 	coeffbuffer=coeffwork
@@ -88,117 +89,121 @@ subroutine splitsvdR(singularvalue,rightv,statebegin,stateend,indexRm1)
 		! using pair symmetry copy
 		end if
 
-! when Sz=0 we need to seperate spin reversal=1 or -1 and symmetry pair is not
-! himself
-		if(logic_spinreversal/=0 .and. j==0) then
-			symm1=3
-		else
-			symm1=1
-		end if
-				
-
-		do i1=1,symm1,1
-		
 		do i=0,2*(nright+1),1
 
-		
 			m=0
 			coeffwork=coeffbuffer
-! n is the last total m
-			if(symm1==1) then
-				do k=1,4*Rrealdim,1
-					if(quantabigR(k,1)==i .and. quantabigR(k,2)==j) then
-						m=m+1
-						call swap(coeffwork(:,m),coeffwork(:,k))
-						call swap(coeffwork(m,:),coeffwork(k,:))
-					end if
-				end do
-			!	write(*,*) m
-			else if(symm1==3 .and. i1==1) then
+
+			if(logic_spinreversal/=0) then
 				szzeroindex=0
-				do k=1,4*Rrealdim,1
-					if(quantabigR(k,1)==i .and. quantabigR(k,2)==j .and. abs(symmlinkbig(k,1,2))/=k) then
-						done2=.true.
-						do p1=1,m,1
-							if(abs(symmlinkbig(k,1,2))/=szzeroindex(p1)) then
-								done2=.true.
-							else
-								done2=.false.
-								exit
-							end if
-						end do
-						if(done2==.true.) then
-							m=m+1
-							szzeroindex(m)=k
-							call swap(coeffwork(:,m),coeffwork(:,k))
-							call swap(coeffwork(m,:),coeffwork(k,:))
-						end if
-					end if
-				end do
-			!	write(*,*) m
-			else if(symm1==3 .and. i1==2) then
-				do k=1,4*Rrealdim,1
-					if(quantabigR(k,1)==i .and. quantabigR(k,2)==j .and. symmlinkbig(k,1,2)==k) then
-						m=m+1
-						call swap(coeffwork(:,m),coeffwork(:,k))
-						call swap(coeffwork(m,:),coeffwork(k,:))
-					end if
-				end do
-			!	write(*,*) m
-			else if(symm1==3 .and. i1==3) then
-				do k=1,4*Rrealdim,1
-					if(quantabigR(k,1)==i .and. quantabigR(k,2)==j .and. symmlinkbig(k,1,2)==-k) then
-						m=m+1
-						call swap(coeffwork(:,m),coeffwork(:,k))
-						call swap(coeffwork(m,:),coeffwork(k,:))
-					end if
-				end do
-			!	write(*,*) m
 			end if
 
-			if(m/=0) then
-				!write(*,*) i,j,i1,m
-				!write(*,*) coeffwork(1:m,1:m)
-				call syevd(coeffwork(1:m,1:m),valuework(n+1:n+m),'V','U',info)
-				if(info/=0) then
-					write(*,*) "right diagnolization failed!"
-					stop
+			do k=1,4*Rrealdim,1
+				if(quantabigR(k,1)==i .and. quantabigR(k,2)==j) then
+					m=m+1
+					call swap(coeffwork(:,m),coeffwork(:,k))
+					call swap(coeffwork(m,:),coeffwork(k,:))
+					if(logic_spinreversal/=0 .and. j==0) then
+						szzeroindex(m)=k
+					end if
 				end if
-			!	write(*,*) i,j,m
-			!	write(*,*) valuework(n+1:n+m)
+			end do
+
+			if(m/=0) then
+				write(*,*) i,j,m
+				write(*,*) coeffwork(1:m,1:m)
+			! when j==0 we first transform the basis to the new basis
+			! which the symmlink is him self
+				if(logic_spinreversal/=0 .and. j==0 ) then
+					allocate(transform(m,m),stat=error)
+					if(error/=0) stop
+					transform=0.0D0
 				
-			p=0
-			if(symm1==1) then
+					do l=1,m,1
+						if(abs(symmlinkbig(szzeroindex(l),1,2))==szzeroindex(l)) then
+							transform(l,l)=1.0D0
+						else
+							do q=l+1,m,1
+								if(symmlinkbig(szzeroindex(l),1,2)==szzeroindex(q)) then
+								! the fisrt column the parity is 1
+								! the second column the parity is -1
+									transform(l,l)=sqrt(2.0D0)/2.0D0
+									transform(q,l)=sqrt(2.0D0)/2.0D0
+									transform(l,q)=sqrt(2.0D0)/2.0D0
+									transform(q,q)=-sqrt(2.0D0)/2.0D0
+								else if(symmlinkbig(szzeroindex(l),1,2)==-szzeroindex(q)) then
+									transform(l,l)=sqrt(2.0D0)/2.0D0
+									transform(q,l)=-sqrt(2.0D0)/2.0D0
+									transform(l,q)=sqrt(2.0D0)/2.0D0
+									transform(q,q)=sqrt(2.0D0)/2.0D0
+								end if
+							end do
+						end if
+					end do
+					allocate(coeffdummy(m,m),stat=error)
+					if(error/=0) stop
+					call gemm(coeffwork(1:m,1:m),transform,coeffdummy(1:m,1:m),'N','N',1.0D0,0.0D0)
+					call gemm(transform,coeffdummy(1:m,1:m),coeffwork(1:m,1:m),'T','N',1.0D0,0.0D0)
+
+					himp1=0
+					do l=1,m,1
+						if(symmlinkbig(szzeroindex(l),1,2)==szzeroindex(l)) then
+							himp1=himp1+1
+							call swap(coeffwork(:,himp1),coeffwork(:,l))
+							call swap(coeffwork(himp1,:),coeffwork(l,:))
+							call swap(transform(:,l),transform(:,himp1))
+						else if(symmlinkbig(szzeroindex(l),1,2)==-szzeroindex(l)) then
+							cycle
+						else
+							done=.true.
+							do l1=1,l-1,1
+								if(abs(symmlinkbig(szzeroindex(l),1,2))==szzeroindex(l1)) then
+									done=.false.
+									exit
+								end if
+							end do
+							if(done==.true.) then
+								himp1=himp1+1
+								call swap(coeffwork(:,himp1),coeffwork(:,l))
+								call swap(coeffwork(himp1,:),coeffwork(l,:))
+								call swap(transform(:,l),transform(:,himp1))
+							end if
+						end if
+					end do
+					call syevd(coeffwork(1:himp1,1:himp1),valuework(n+1:n+himp1),'V','U',info)
+					if(info/=0) then
+						write(*,*) "right diagnolization failed! himp1"
+						stop
+					end if
+					symmlinkbigbuffer(n+1:n+himp1)=1
+					call syevd(coeffwork(himp1+1:m,himp1+1:m),valuework(n+himp1+1:n+m),'V','U',info)
+					if(info/=0) then
+						write(*,*) "right diagnolization failed! himm1"
+						stop
+					end if
+					symmlinkbigbuffer(n+himp1+1:n+m)=-1
+						
+					call gemm(transform,coeffwork(1:m,1:m),coeffdummy(1:m,1:m),'N','N',1.0D0,0.0D0)
+					coeffwork(1:m,1:m)=coeffdummy(1:m,1:m)
+					
+					deallocate(transform)
+					deallocate(coeffdummy)
+				else
+					call syevd(coeffwork(1:m,1:m),valuework(n+1:n+m),'V','U',info)
+					write(*,*) valuework(n+1:n+m)
+					if(info/=0) then
+						write(*,*) "right diagnolization failed!"
+						stop
+					end if
+				end if
+				
+				p=0
 				do k=1,4*Rrealdim,1
 					if(quantabigR(k,1)==i .and. quantabigR(k,2)==j) then
 						p=p+1
 						call copy(coeffwork(p,1:m),coeffresult(k,n+1:m+n))
 					end if
 				end do
-			else if(symm1==3 .and. i1==1) then
-					do p1=1,4*Rrealdim
-						if(szzeroindex(p1)/=0) then
-							p=p+1
-							call copy(coeffwork(p,n+1:m),coeffresult(szzeroindex(p1),n+1:m+n))
-						else
-							exit
-						end if
-					end do
-			else if(symm1==3 .and. i1==2) then
-				do k=1,4*Rrealdim,1
-					if(quantabigR(k,1)==i .and. quantabigR(k,2)==j .and. symmlinkbig(k,1,2)==k) then
-						p=p+1
-						call copy(coeffwork(p,n+1:m),coeffresult(k,n+1:m+n))
-					end if
-				end do
-			else if(symm1==3 .and. i1==3) then
-				do k=1,4*Rrealdim,1
-					if(quantabigR(k,1)==i .and. quantabigR(k,2)==j .and. symmlinkbig(k,1,2)==-k) then
-						p=p+1
-						call copy(coeffwork(p,n+1:m),coeffresult(k,n+1:m+n))
-					end if
-				end do
-			end if
 
 				if(p/=m) then
 					write(*,*) "p/=m failed!",p,m
@@ -217,27 +222,21 @@ subroutine splitsvdR(singularvalue,rightv,statebegin,stateend,indexRm1)
 		
 		if(j>0) then
 			szl0=n
-		else if(j==0 .and. i1==1 .and. logic_spinreversal/=0) then
-			pair1=n
-		else if(j==0 .and. i1==2 .and. logic_spinreversal/=0) then
-			szzero1=n-pair1
-		else if(j==0 .and. i1==3 .and. logic_spinreversal/=0) then
-			szzero=n-pair1
+		else if(j==0 .and. logic_spinreversal/=0) then
+			szzero=n-szl0
 		end if
-
-		end do
 
 	end do
 	
 	if(logic_spinreversal/=0) then
-		write(*,*) "pair1=",pair1,"szl0=",szl0,"szzero1=",szzero1,"szzero=",szzero
-		if((pair1*2+szzero)/=4*Rrealdim) then
-			write(*,*) "(pair1*2+szzero)/=4Rrealdim failed!","pair1=",pair1,"szzero",szzero
+		write(*,*) "szl0=",szl0,"szzero=",szzero
+		if((szl0*2+szzero)/=4*Rrealdim) then
+			write(*,*) "(szl0*2+szzero)/=4Rrealdim failed!","szl0=",szl0,"szzero",szzero
 			stop
 		end if
-		if(sum(subspacenum(2:subspacenum(1)+1))/=pair1+szzero) then
+		if(sum(subspacenum(2:subspacenum(1)+1))/=szl0+szzero) then
 			write(*,*) "------------------------"
-			write(*,*) "subspacenum=pair1+szzero,failed!",subspacenum
+			write(*,*) "subspacenum=szl0+szzero,failed!",subspacenum
 			write(*,*) "------------------------"
 			stop
 		end if
@@ -263,18 +262,12 @@ subroutine splitsvdR(singularvalue,rightv,statebegin,stateend,indexRm1)
 	if(logic_spinreversal/=0) then
 		do i=1,4*Rrealdim,1
 			if(quantabigR(i,2)>0) then
-				coeffresult(abs(symmlinkbig(i,1,2)),szl0+szzero+1:2*szl0+szzero)=coeffresult(i,1:szl0)*DBLE(sign(1,symmlinkbig(i,1,2)))
+				coeffresult(abs(symmlinkbig(i,1,2)),szl0+szzero+1:4*Rrealdim)=coeffresult(i,1:szl0)*DBLE(sign(1,symmlinkbig(i,1,2)))
 			end if
 		end do
-			do p1=1,4*Rrealdim,1
-				if(szzeroindex(p1)/=0) then
-				coeffresult(abs(symmlinkbig(szzeroindex(p1),1,2)),pair1+szzero+szl0+1:4*Rrealdim)&
-				=coeffresult(szzeroindex(p1),szl0+1:pair1)*&
-					DBLE(sign(1,symmlinkbig(szzeroindex(p1),1,2)))
-				end if
-			end do
-		quantabigRbuffer(pair1+szzero+1:4*Rrealdim,1)=quantabigRbuffer(1:pair1,1)
-		quantabigRbuffer(pair1+szzero+1:4*Rrealdim,2)=-1*quantabigRbuffer(1:pair1,2)
+		quantabigRbuffer(szl0+szzero+1:4*Rrealdim,1)=quantabigRbuffer(1:szl0,1)
+		quantabigRbuffer(szl0+szzero+1:4*Rrealdim,2)=-1*quantabigRbuffer(1:szl0,2)
+		valuework(szl0+szzero+1:4*Rrealdim)=valuework(1:szl0)
 	end if
 	!if(logic_spinreversal==0) then
 	!	call selectstates(valuework,4*Rrealdim,valueindex,singularvalue,subspacenum,nright)
@@ -296,8 +289,9 @@ subroutine splitsvdR(singularvalue,rightv,statebegin,stateend,indexRm1)
 			scale1=scale1*0.1D0
 			scalenum=scalenum+1
 		end do
-
-		do j=1,subspacenum(1),1
+		
+		if(logic_spinreversal==0) then
+			do j=1,subspacenum(1),1
 			if((quantasmaL(i,1)+quantabigRbuffer(sum(subspacenum(2:j+1)),1)==nelecs) .and. &
 			(quantasmaL(i,2)+quantabigRbuffer(sum(subspacenum(2:j+1)),2)==totalSz)) then
 				diffzero=1.0D-10*(0.1D0**scalenum)
@@ -313,14 +307,43 @@ subroutine splitsvdR(singularvalue,rightv,statebegin,stateend,indexRm1)
 				end do
 				exit
 			end if
-		end do
-		if(valueindex(i)==0) then
+			end do
+		else
+			if(quantasmaL(i,2)<=0) then
+			do j=1,subspacenum(1),1
+			if((quantasmaL(i,1)+quantabigRbuffer(sum(subspacenum(2:j+1)),1)==nelecs) .and. &
+			(quantasmaL(i,2)+quantabigRbuffer(sum(subspacenum(2:j+1)),2)==totalSz)) then
+				diffzero=1.0D-10*(0.1D0**scalenum)
+				do while(.true.)
+					do k=sum(subspacenum(2:j+1)),sum(subspacenum(2:j+1))-subspacenum(j+1)+1,-1
+						if(abs(valuework(k)-singularvalue(i))<diffzero) then
+							if(quantasmaL(i,2)<0) then
+								valueindex(i)=k
+								valueindex(i-1)=k+szl0+szzero
+								exit
+							else if(quantasmaL(i,2)==0) then
+								valueindex(i)=k
+								exit
+							end if
+						end if
+					end do
+					if(valueindex(i)/=0) exit
+					diffzero=diffzero*10.0D0
+				end do
+				exit
+			end if
+			end do
+			end if
+
+			if(quantasmaL(i,2)<=0 .and. valueindex(i)==0) then
 			write(*,*) "----------------------------"
 			write(*,*) "R space valueindex==0",i
 			write(*,*) "----------------------------"
 			stop
+			end if
 		end if
 	end do
+
 		write(*,*) valuework(valueindex(1:subM))
 				
 				
@@ -337,26 +360,24 @@ subroutine splitsvdR(singularvalue,rightv,statebegin,stateend,indexRm1)
 		call copy(coeffresult(1:4*Rrealdim,valueindex(i)),rightv(i,:))
 		quantasmaR(i,:)=quantabigRbuffer(valueindex(i),:)
 		if(logic_spinreversal/=0) then
-			if(valueindex(i)<=pair1) then
-				symmlinksma(i,1,2)=i+1
-			else if(valueindex(i)>pair1 .and. valueindex(i)<=pair1+szzero) then
-				if(valueindex(i)<=pair1+szzero1) then
-					symmlinksma(i,1,2)=i
-				else
-					symmlinksma(i,1,2)=-i
-				end if
-			else 
+			if(valueindex(i)<=szl0) then
 				symmlinksma(i,1,2)=i-1
+			else if(valueindex(i)>szl0 .and. valueindex(i)<=szl0+szzero) then
+				if(symmlinkbigbuffer(valueindex(i)==0)) then
+					write(*,*) "----------------------------------------"
+					write(*,*) "R symmlinkbigbuffer(valueindex(i)==0 failed!"
+					write(*,*) "----------------------------------------"
+					stop
+				end if
+				symmlinksma(i,1,2)=i*symmlinkbigbuffer(valueindex(i))
+			else 
+				symmlinksma(i,1,2)=i+1
 			end if
 		end if
 	end do
-	!	write(*,*) "valuework",valuework
-	!	write(*,*) "singularvalue",singularvalue
-	!	write(*,*) "valueindex",valueindex
-!   the total discard weight between site indexRm1
-		discard=1.0D0-sum(singularvalue(1:m))
-		write(*,'(A20,I4,D12.5)') "totaldiscardR=",indexRm1,discard
 
+		discard=1.0D0-sum(valuework(valueindex(1:subM)))
+		write(*,'(A20,I4,D12.5)') "totaldiscardR=",indexRm1,discard
 
 deallocate(valuework)
 deallocate(coeffwork)
@@ -367,6 +388,7 @@ deallocate(coeffresult)
 deallocate(subspacenum)
 if(logic_spinreversal/=0) then
 	deallocate(szzeroindex)
+	deallocate(symmlinkbigbuffer)
 end if
 !	tmp=0
 !	do while(tmp==0) 
