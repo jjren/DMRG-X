@@ -88,7 +88,7 @@ subroutine selectstates(valuework,dim1,valueindex,singularvalue,&
 			
 			do j=1,subM-1,1
 				if(valueindex(j)==i .or. &
-				valuework(i)<valuework(valueindex(subM)/1.0D3)) then
+				valuework(i)<valuework(valueindex(subM))/1.0D3) then
 					done=.false.
 					exit
 				else 
