@@ -110,8 +110,8 @@ subroutine splitsvdR(singularvalue,rightv,statebegin,stateend,indexRm1)
 			end do
 
 			if(m/=0) then
-				write(*,*) i,j,m
-				write(*,*) coeffwork(1:m,1:m)
+			!	write(*,*) i,j,m
+			!	write(*,*) coeffwork(1:m,1:m)
 			! when j==0 we first transform the basis to the new basis
 			! which the symmlink is him self
 				if(logic_spinreversal/=0 .and. j==0 ) then

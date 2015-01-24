@@ -122,8 +122,8 @@ subroutine splitsvdL(singularvalue,leftu,statebegin,stateend,indexlp1)
 			end do
 
 			if(m/=0) then
-				write(*,*) i,j,m
-				write(*,*) coeffwork(1:m,1:m)
+			!	write(*,*) i,j,m
+			!	write(*,*) coeffwork(1:m,1:m)
 			! when j==0 we first transform the basis to the new basis
 			! which the symmlink is him self
 				if(logic_spinreversal/=0 .and. j==0 ) then
@@ -202,7 +202,7 @@ subroutine splitsvdL(singularvalue,leftu,statebegin,stateend,indexlp1)
 					deallocate(coeffdummy)
 				else
 					call syevd(coeffwork(1:m,1:m),valuework(n+1:n+m),'V','U',info)
-					write(*,*) valuework(n+1:n+m)
+				!	write(*,*) valuework(n+1:n+m)
 					if(info/=0) then
 						write(*,*) "left diagnolization failed!"
 						stop
