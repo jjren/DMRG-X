@@ -34,6 +34,16 @@
 	open(unit= 10,file="inp",status="old")
 	read(10,*) mode,modeindex ! which mode you want to use
 ! including restart/debug/
+! in the restart mode we need the isweep,nleft,nright
+! modeindex=1 the fromleftsweep 
+! modeindex=-1 the from right sweep
+! isweep is the now sweep 
+! nleft and nright is the L space and R space that the operator matrix
+! is in the disc
+	if(mode=='r') then
+		read(10,*) isweep,nleft,nright
+	end if
+
 	read(10,*) norbs     !how many orbitals
 	read(10,*) junk_natoms   !how many atoms
 	read(10,*) nelecs  !how many electrons
@@ -181,6 +191,13 @@
 		position1=0
 		call MPI_PACK(mode,1,MPI_character,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
 		call MPI_PACK(modeindex,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
+		
+		if(mode=='r') then
+		call MPI_PACK(isweep,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
+		call MPI_PACK(nleft,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
+		call MPI_PACK(nright,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
+		end if
+		
 		call MPI_PACK(norbs,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
 		call MPI_PACK(natoms,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
 		call MPI_PACK(nelecs,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
@@ -216,6 +233,11 @@
 		position1=0
 		call MPI_UNPACK(packbuf,packsize,position1,mode,1,MPI_character,MPI_COMM_WORLD,ierr)
 		call MPI_UNPACK(packbuf,packsize,position1,modeindex,1,MPI_integer4,MPI_COMM_WORLD,ierr)
+		if(mode=='r') then
+			call MPI_UNPACK(packbuf,packsize,position1,isweep,1,MPI_integer4,MPI_COMM_WORLD,ierr)
+			call MPI_UNPACK(packbuf,packsize,position1,nleft,1,MPI_integer4,MPI_COMM_WORLD,ierr)
+			call MPI_UNPACK(packbuf,packsize,position1,nright,1,MPI_integer4,MPI_COMM_WORLD,ierr)
+		end if
 		call MPI_UNPACK(packbuf,packsize,position1,norbs,1,MPI_integer4,MPI_COMM_WORLD,ierr)
 		call MPI_UNPACK(packbuf,packsize,position1,natoms,1,MPI_integer4,MPI_COMM_WORLD,ierr)
 		call MPI_UNPACK(packbuf,packsize,position1,nelecs,1,MPI_integer4,MPI_COMM_WORLD,ierr)
@@ -265,6 +287,8 @@
 	pppV=0.0D0
 	call ohno_potential
 	! here can add many different potentials in Module PPP term
+	! realnelecs is the real electrons in the system 
+	realnelecs=nelecs+ncharges
 
 !-----------------------------------------------------
 	if(myid==0) then

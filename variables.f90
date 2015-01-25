@@ -9,6 +9,9 @@
 
 	character(len=1) :: mode
 	integer(kind=4) :: modeindex
+	! mode=s standard 
+	! mode=d debug
+	! mode=r restart
 	
 
 

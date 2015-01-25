@@ -70,7 +70,7 @@ MODULE InitialGuess
 		if(direction=='l' .and. nleft>exactsite) then
 			if(Lrealdim/=subM) then
 				write(*,*) "-----------------------------------"
-				write(*,*) "guessfinit, Lreadlim/=subM failed!"
+				write(*,*) "guessfinit, Lrealdim/=subM failed!",Lrealdim,subM
 				write(*,*) "-----------------------------------"
 				stop
 			end if

@@ -4,7 +4,7 @@ Subroutine finit_MPS
 
 	implicit none
 
-	integer :: isystem,ibegin,i
+	integer :: isystem,ibegin,i,sweepbegin
 	logical :: converged
 
 
@@ -38,7 +38,26 @@ Subroutine finit_MPS
 		end if
 	end if
 
-	do isweep=1,sweeps,1
+! only used in the restart mode
+	if(mode=='r' .and. isweep/=0) then
+		sweepbegin=isweep
+		isweep=isweep-1
+		nleft=ibegin-1
+		nright=norbs-ibegin-1
+		Lrealdim=subM
+		Rrealdim=subM
+		sweepenergy(0:isweep-2,:)=0.0D0
+		call enviro_bigL
+		call enviro_bigR
+		call hamiltonian('i')
+		call Renormalization(nleft+1,norbs-nright,'i')
+	else
+		sweepbegin=1
+	end if
+
+	do isweep=sweepbegin,sweeps,1
+		
+
 		do isystem=ibegin,norbs-exactsite-2,1
 			nleft=isystem
 			nright=norbs-isystem-2

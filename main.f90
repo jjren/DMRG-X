@@ -23,6 +23,7 @@
 	!if(myid==0 .and. logic_spinreversal/=0) then
 	!	call parity_onesitematrix
 	!end if
+	
 	! do infinit DMRG
 	call infinit_MPS
 	! do finit DMRG

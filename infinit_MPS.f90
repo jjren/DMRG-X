@@ -11,10 +11,13 @@
 	if(myid==0) then 
 		write(*,*) "enter subroutine infinit_MPS"
 	end if
+
+	if(mode=='r' .and. isweep/=0) then
+		return
+	else
 ! isweep means the initial finit-MPS stage
-	isweep=0
-! realnelecs is the real electrons in the system 
-	realnelecs=nelecs+ncharges
+		isweep=0
+	end if
 ! when construct the infinit MPS, let the small left space and 
 ! right space to link together and simulate the real condition
 
@@ -26,6 +29,19 @@
 	bondlinkreal=bondlink
 
 	do isystem=1,norbs/2-1,1
+		
+		if(mode=='r') then
+			if(isystem<nleft) then
+				cycle
+			else if(isystem==nleft) then
+				call enviro_bigL
+				call enviro_bigR
+				call hamiltonian('i')
+				call Renormalization(nleft+1,norbs-nright,'i')
+				cycle
+			end if
+		end if
+
 		t=treal
 		bondlink=bondlinkreal
 ! be careful that the norbs may be odd
