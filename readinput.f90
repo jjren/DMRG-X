@@ -51,6 +51,7 @@
 	read(10,*) totalsz !total Sz of the system
 	read(10,*) logic_PPP ! if do PPP model logic_PPP=1
 	read(10,*) logic_spinreversal ! if do spin reversal logic_spinreversal=+-1 
+	read(10,*) logic_C2 ! if do C2 symmetry or the same mirror reflection and center reflection
 	read(10,*) logic_tree ! if do tree tensor algorithm logic_tree=1
 	read(10,*) subM  ! DMRG SUB M
 	read(10,*) sweeps ! DMRG how many sweeps
@@ -205,6 +206,7 @@
 		call MPI_PACK(totalSz,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
 		call MPI_PACK(logic_PPP,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
 		call MPI_PACK(logic_spinreversal,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
+		call MPI_PACK(logic_C2,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
 		call MPI_PACK(logic_tree,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
 		call MPI_PACK(subM,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
 		call MPI_PACK(sweeps,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
@@ -245,6 +247,7 @@
 		call MPI_UNPACK(packbuf,packsize,position1,totalSz,1,MPI_integer4,MPI_COMM_WORLD,ierr)
 		call MPI_UNPACK(packbuf,packsize,position1,logic_PPP,1,MPI_integer4,MPI_COMM_WORLD,ierr)
 		call MPI_UNPACK(packbuf,packsize,position1,logic_spinreversal,1,MPI_integer4,MPI_COMM_WORLD,ierr)
+		call MPI_UNPACK(packbuf,packsize,position1,logic_C2,1,MPI_integer4,MPI_COMM_WORLD,ierr)
 		call MPI_UNPACK(packbuf,packsize,position1,logic_tree,1,MPI_integer4,MPI_COMM_WORLD,ierr)
 		call MPI_UNPACK(packbuf,packsize,position1,subM,1,MPI_integer4,MPI_COMM_WORLD,ierr)
 		call MPI_UNPACK(packbuf,packsize,position1,sweeps,1,MPI_integer4,MPI_COMM_WORLD,ierr)

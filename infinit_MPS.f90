@@ -100,17 +100,22 @@
 		end if
 ! construct the L+sigmaL subspace operator matrix
 		call system_bigL
-! sigmaR subspace operator matrix
-		call onesitematrix(norbs-nright)
-! R subspace initial
-		if(nright==1) then
-			call infinit_smallR
-		end if
-! construct the R+sigmaR subspace operator matrix
-		call system_bigR
 ! construct the good quantum number Sz and occpuation
 		call system_constructquantaL
-		call system_constructquantaR
+! when use C2 symmetry the left and right space is the same
+		if(logic_c2==0) then
+			! sigmaR subspace operator matrix
+			call onesitematrix(norbs-nright)
+			! R subspace initial
+			if(nright==1) then
+				call infinit_smallR
+			end if
+			! construct the R+sigmaR subspace operator matrix
+			call system_bigR
+			call system_constructquantaR
+		else
+			call C2_copy('i')
+		end if
 ! construct the spin_reversal adapted matrix
 	!	if(logic_spinreversal/=0) then
 	!		call Spin_reversalmatL
