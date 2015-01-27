@@ -306,6 +306,9 @@
 		write(*,*) "logic_tree=",logic_tree
 		write(*,*) "subM=",subM
 		write(*,*) "sweeps=",sweeps
+		write(*,*) "nstates=",nstate
+		write(*,*) "exscheme=",exscheme
+		write(*,*) "nweight=",nweight
 		write(*,*) "energythresh",energythresh
 		write(*,*) "nbonds=",nbonds,"bondlink="
 		do i=1,norbs,1
