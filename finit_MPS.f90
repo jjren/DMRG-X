@@ -61,12 +61,13 @@ Subroutine finit_MPS
 		do isystem=ibegin,norbs-exactsite-2,1
 			nleft=isystem
 			nright=norbs-isystem-2
-			if(4**nleft<subM) then
+			
+			if(nleft<=exactsite) then
 				Lrealdim=4**nleft
 			else
 				Lrealdim=subM
 			end if
-			if(4**nright<subM) then
+			if(nright<=exactsite) then
 				Rrealdim=4**nright
 			else
 				Rrealdim=subM
@@ -77,12 +78,12 @@ Subroutine finit_MPS
 		do isystem=exactsite,norbs-exactsite-2,1
 			nleft=norbs-isystem-2
 			nright=isystem
-			if(4**nleft<subM) then
+			if(nleft<=exactsite) then
 				Lrealdim=4**nleft
 			else
 				Lrealdim=subM
 			end if
-			if(4**nright<subM) then
+			if(nright<=exactsite) then
 				Rrealdim=4**nright
 			else
 				Rrealdim=subM
@@ -93,12 +94,12 @@ Subroutine finit_MPS
 		do isystem=exactsite,ibegin-1,1
 			nleft=isystem
 			nright=norbs-isystem-2
-			if(4**nleft<subM) then
+			if(nleft<=exactsite) then
 				Lrealdim=4**nleft
 			else
 				Lrealdim=subM
 			end if
-			if(4**nright<subM) then
+			if(nright<=exactsite) then
 				Rrealdim=4**nright
 			else
 				Rrealdim=subM
