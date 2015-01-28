@@ -31,6 +31,9 @@ Subroutine Renormalization(indexLp1,indexRm1,direction)
 	integer :: reclength,indexLp1,indexRm1
 	logical :: alive
 	real(kind=8) :: norm
+! exscheme2 space
+	integer,allocatable :: quantasmaL2(:,:),quantasmaR2(:,:),symmlinksma2(:,:,:)
+	real(kind=8),allocatable ::leftu2(:,:),rightv2(:,:)
 
 ! debug
 !	integer :: mindim
@@ -139,7 +142,50 @@ Subroutine Renormalization(indexLp1,indexRm1,direction)
 
 !--------------------------------------------------
 		else if(exscheme==2) then
+			allocate(singularvalue(subM*nstate),stat=error)
+			if(error/=0) stop
+			allocate(leftu2(4*Lrealdim,subM*nstate),stat=error)
+			if(error/=0) stop
+			allocate(rightv2(subM*nstate,4*Rrealdim),stat=error)
+			if(error/=0) stop
+			allocate(quantasmaL2(subM*nstate,2),stat=error)
+			if(error/=0) stop
+			allocate(quantasmaR2(subM*nstate,2),stat=error)
+			if(error/=0) stop
+			if(logic_spinreversal/=0) then
+				allocate(symmlinksma2(subM*nstate,1,2),stat=error)
+				if(error/=0) stop
+			end if
+
 			write(*,*) "my new method to calulate the excited states!"
+			do i=1,nstate,1
+				call splitsvdL(singularvalue((i-1)*subM+1:i*subM),leftu2(:,(i-1)*subM+1:i*subM),i,i,indexlp1)
+				call splitsvdR(singularvalue((i-1)*subM+1:i*subM),rightv2((i-1)*subM+1:i*subM,:),i,i,indexRm1)
+				quantasmaL2((i-1)*subM+1:i*subM,:)=quantasmaL
+				quantasmaR2((i-1)*subM+1:i*subM,:)=quantasmaR
+				if(logic_spinreversal/=0) then
+					symmlinksma2((i-1)*subM+1:i*subM,:,:)=symmlinksma
+				end if
+			end do
+			
+			allocate(leftu(4*Lrealdim,subM),stat=error)
+			if(error/=0) stop
+			allocate(rightv(subM,4*Rrealdim),stat=error)
+			if(error/=0) stop
+
+			if(logic_spinreversal==0) then
+				call excitedbasis(leftu,rightv,singularvalue,leftu2,rightv2,quantasmaL2,quantasmaR2)
+			else
+				call excitedbasis(leftu,rightv,singularvalue,leftu2,rightv2,quantasmaL2,quantasmaR2,symmlinksma2)
+			end if
+
+			deallocate(leftu2)
+			deallocate(rightv2)
+			deallocate(quantasmaL2)
+			deallocate(quantasmaR2)
+			if(logic_spinreversal/=0) then
+				deallocate(symmlinksma2)
+			end if
 		end if
 !--------------------------------------------------------------------------
 ! there are some numerical inaccuracy when we do svd or diagonalizaiton and this
@@ -216,7 +262,7 @@ Subroutine Renormalization(indexLp1,indexRm1,direction)
 		end if
 		! write singularvalue though only used in finit MPS
 		! the singularvalue we use here is the exactly singlarvalue^2
-		write(106,*) singularvalue(1:subM)
+		write(106,*) singularvalue
 		close(105)
 		close(106)
 		end if
@@ -385,6 +431,8 @@ end if
 	end if
 	deallocate(dummymat)
 end if
+
+
 
 !if(myid==0) then
 !	deallocate(coeffIF)

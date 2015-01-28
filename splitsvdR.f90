@@ -277,7 +277,7 @@ subroutine splitsvdR(singularvalue,rightv,statebegin,stateend,indexRm1)
 	
 	! R space select states should be corresponse to the L space states
 	! so R space need to arrange again
-	
+	if(nstate==1) then
 	valueindex=0
 
 	do i=1,subM,1
@@ -343,6 +343,11 @@ subroutine splitsvdR(singularvalue,rightv,statebegin,stateend,indexRm1)
 			end if
 		end if
 	end do
+	else if(logic_spinreversal==0) then
+		call selectstates(valuework,4*Rrealdim,valueindex,singularvalue,subspacenum,nright)
+	else
+		call selectstates(valuework,4*Rrealdim,valueindex,singularvalue,subspacenum,nright,szzero,szl0)
+	end if
 
 		write(*,*) valuework(valueindex(1:subM))
 				
