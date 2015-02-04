@@ -58,6 +58,8 @@
 		if(error/=0) stop
 		allocate(Hsma(subM,subM,2),stat=error)
 		if(error/=0) stop
+		allocate(coeffIF(4*subM,4*subM,nstate),stat=error)
+		if(error/=0) stop
 	end if
 	! 2 means the R space ;1 means the L space
 

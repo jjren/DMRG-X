@@ -419,7 +419,6 @@ if(4*Lrealdim>subM .or. 4*Rrealdim>subM .or. (mode=='d' .and. &
 modeindex==1)) then
 if(myid==0) then
 	deallocate(singularvalue)
-	deallocate(coeffIF)
 	deallocate(leftu)
 	deallocate(rightv)
 end if

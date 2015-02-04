@@ -141,8 +141,11 @@
 		nelecs=realnelecs
 		nleft=norbs/2
 		nright=norbs/2-1
-		Lrealdim=subM
-		Rrealdim=subM
+		if(4*Lrealdim>subM) then
+			Lrealdim=subM
+		else
+			Lrealdim=Lrealdim*4
+		end if
 ! caution here may be some problem ? because the right space using the
 ! last step operamatbig
 		call onesitematrix(nleft+1)

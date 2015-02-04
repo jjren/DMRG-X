@@ -132,9 +132,7 @@ end if
 		if(logic_spinreversal/=0) then
 			call spincorrect(DavidWORK(1:ngoodstates*nstate))
 		end if
-
-		allocate(coeffIF(4*Lrealdim,4*Rrealdim,IHIGH),stat=error)
-		if(error/=0) stop
+		
 		coeffIF=0.0D0
 ! the DavidWORK only contains the ngoodstates coeff.
 ! other nongoodstates should be set to 0
