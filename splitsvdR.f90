@@ -366,7 +366,11 @@ subroutine splitsvdR(singularvalue,rightv,statebegin,stateend,indexRm1)
 		quantasmaR(i,:)=quantabigRbuffer(valueindex(i),:)
 		if(logic_spinreversal/=0) then
 			if(valueindex(i)<=szl0) then
-				symmlinksma(i,1,2)=i-1
+				if(nstate==1) then
+					symmlinksma(i,1,2)=i-1
+				else
+					symmlinksma(i,1,2)=i+1
+				end if
 			else if(valueindex(i)>szl0 .and. valueindex(i)<=szl0+szzero) then
 				if(symmlinkbigbuffer(valueindex(i)==0)) then
 					write(*,*) "----------------------------------------"
@@ -376,7 +380,11 @@ subroutine splitsvdR(singularvalue,rightv,statebegin,stateend,indexRm1)
 				end if
 				symmlinksma(i,1,2)=i*symmlinkbigbuffer(valueindex(i))
 			else 
-				symmlinksma(i,1,2)=i+1
+				if(nstate==1) then
+					symmlinksma(i,1,2)=i+1
+				else
+					symmlinksma(i,1,2)=i-1
+				end if
 			end if
 		end if
 	end do
