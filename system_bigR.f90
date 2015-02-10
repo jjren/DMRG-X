@@ -119,12 +119,6 @@ Subroutine system_bigR
 		end do
 		Hbig(1:4*Rrealdim,1:4*Rrealdim,2)=Hbuffer(1:4*Rrealdim,1:4*Rrealdim)+Hbig(1:4*Rrealdim,1:4*Rrealdim,2)
 !-------------------------------------------------------------------
-		! using Hamiltonian is hermian
-	!	do i=1,4*Rrealdim-1,1
-	!		do j=i+1,4*Rrealdim,1
-	!			Hbig(i,j,2)=Hbig(j,i,2)
-	!		end do
-	!	end do
 !	do i=1,16,1
 !		write(*,'(16F5.1)') Hbig(i,1:Rrealdim*4,2)
 !	end do

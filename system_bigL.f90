@@ -73,7 +73,6 @@ Subroutine system_bigL
 			end do
 		call directproduct(Im(1:Lrealdim,1:Lrealdim),Lrealdim,onesitemat(:,:,i),4,operamatbig(1:Lrealdim*4,1:Lrealdim*4,3*(operaindex-1)+i),phase(1:Lrealdim*4,1:Lrealdim*4))
 		else
-			phase=1
 		call directproduct(Im(1:Lrealdim,1:Lrealdim),Lrealdim,onesitemat(:,:,i),4,operamatbig(1:Lrealdim*4,1:Lrealdim*4,3*(operaindex-1)+i))
 		end if
 		end do
@@ -117,7 +116,6 @@ Subroutine system_bigL
 			end if
 			!     ppp term
 				Hbuffer=0.0D0
-				phase=1
 				call directproduct(operabuffer(1:Lrealdim,1:Lrealdim,3),Lrealdim,onesitemat(:,:,3),&
 				4,Hbuffer(1:4*Lrealdim,1:4*Lrealdim))
 				Hbig(1:4*Lrealdim,1:4*Lrealdim,1)=Hbig(1:4*Lrealdim,1:4*Lrealdim,1)+Hbuffer(1:4*Lrealdim,1:4*Lrealdim)*pppV(i,nleft+1)
@@ -132,12 +130,6 @@ Subroutine system_bigL
 		end do
 		Hbig(1:4*Lrealdim,1:4*Lrealdim,1)=Hbuffer(1:4*Lrealdim,1:4*Lrealdim)+Hbig(1:4*Lrealdim,1:4*Lrealdim,1)
 !-------------------------------------------------------------------
-		! using Hamiltonian is hermian
-	!	do i=1,4*Lrealdim-1,1
-	!		do j=i+1,4*Lrealdim,1
-	!			Hbig(j,i,1)=Hbig(i,j,1)
-	!		end do
-	!	end do
 !	do i=1,16,1
 !		write(*,'(16F5.1)') Hbig(i,1:Lrealdim*4,1)
 !	end do

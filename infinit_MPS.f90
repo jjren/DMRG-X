@@ -11,7 +11,7 @@
 	if(myid==0) then 
 		write(*,*) "enter subroutine infinit_MPS"
 	end if
-
+! if mode==r and isweep/=0 means the infinit DMRG is finished
 	if(mode=='r' .and. isweep/=0) then
 		return
 	else
@@ -78,12 +78,13 @@
 			Rrealdim=Rrealdim*4
 		end if
 ! add the quasi link between the left and right small space
-!		if(nleft+1<norbs/2 .or. mod(norbs,2)/=0) then 
-!		bondlink(nleft+1,norbs-nright)=1
-!		bondlink(norbs-nright,nleft+1)=1
-!		t(nleft+1,norbs-nright)=-2.4D0
-!		t(norbs-nright,nleft+1)=-2.4D0
-!		end if
+! to let the boundry be more real
+		if(nleft+1<norbs/2 .or. mod(norbs,2)/=0) then 
+		bondlink(nleft+1,norbs-nright)=1
+		bondlink(norbs-nright,nleft+1)=1
+		t(nleft+1,norbs-nright)=-2.4D0
+		t(norbs-nright,nleft+1)=-2.4D0
+		end if
 
 
 		if(Lrealdim/=Rrealdim .and. myid==0) then
@@ -147,7 +148,7 @@
 			Lrealdim=Lrealdim*4
 		end if
 ! caution here may be some problem ? because the right space using the
-! last step operamatbig
+! last step operamatbig quantabigR and so on HbigR
 		call onesitematrix(nleft+1)
 		call system_bigL
 		call system_constructquantaL

@@ -1,5 +1,6 @@
 	program main
 	! This is a DMRG_MPS program quantum chemistry
+	! only PPP model has been written
 
 	USE MPI
 	USE Variables
@@ -18,7 +19,9 @@
 	!read the input files
 	call readinput
 	! allocate the operator to different process
+	! allocate the needed memory
 	call loadbalance
+
 	! construct onesite parity matrix
 	!if(myid==0 .and. logic_spinreversal/=0) then
 	!	call parity_onesitematrix

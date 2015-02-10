@@ -170,14 +170,20 @@ end if
 		do i=1,IHIGH,1
 !		write(*,*) DavidWORK((i-1)*ngoodstates+1:i*ngoodstates)
 		write(*,*) nleft+1,norbs-nright,i,"th energy=",DavidWORK(IHIGH*ngoodstates+i)
+		write(*,*) "energy converge:",DavidWORK(IHIGH*ngoodstates+IHIGH+i)
+		write(*,*) "residual norm:",DavidWORK(IHIGH*ngoodstates+2*IHIGH+IHIGH+i)
 		end do
-		write(*,*) "energy converge:",DavidWORK(IHIGH*ngoodstates+IHIGH+1)
-		write(*,*) "residual norm"
-		write(*,*) DavidWORK(IHIGH*ngoodstates+IHIGH+2:IHIGH*ngoodstates+2*IHIGH+1)
 		write(*,*) "NLOOPS=",NLOOPS
 		Write(*,*) "IERROR=",IERROR
 		write(*,*) "NMV=",NMV
 
+		if(IERROR/=0) then
+			write(*,*) "---------------------------"
+			write(*,*) "failed! IERROR=",IERROR
+			write(*,*) "---------------------------"
+			stop
+		end if
+		
 ! update the sweepenergy
 		do i=1,IHIGH,1
 			if(DavidWORK(IHIGH*ngoodstates+i)<sweepenergy(isweep,i)) then

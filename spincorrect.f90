@@ -43,6 +43,7 @@ Subroutine spincorrect(DavidWORK)
 		end do
 
 		norm=dot(DavidWORK(1:ngoodstates),DavidWORK(1:ngoodstates))
+		write(*,*) "spincorrect state1 norm=",norm
 		if(norm<1.0D-10) then
 			write(*,*) "--------------------------"
 			write(*,*) "in op norm is < 1.0D-10,caution!"
@@ -62,6 +63,7 @@ Subroutine spincorrect(DavidWORK)
 			end do
 				norm=dot(DavidWORK((i-1)*ngoodstates+1:i*ngoodstates),&
 				DavidWORK((i-1)*ngoodstates+1:i*ngoodstates))
+				write(*,*) "spincorrect state",i,"norm=",norm
 				if(norm<1.0D-10) then
 					write(*,*) "norm is < 1.0D-10,caution!"
 				end if

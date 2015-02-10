@@ -1,4 +1,5 @@
 Subroutine finit_MPS
+! this subroutine is do finit DMRG
 	USE MPI
 	USE variables
 
@@ -57,7 +58,6 @@ Subroutine finit_MPS
 
 	do isweep=sweepbegin,sweeps,1
 		
-
 		do isystem=ibegin,norbs-exactsite-2,1
 			nleft=isystem
 			nright=norbs-isystem-2

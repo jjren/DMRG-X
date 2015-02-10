@@ -274,6 +274,7 @@ Subroutine Renormalization(indexLp1,indexRm1,direction)
 !------------------------------------------------------------
 	
 !   the two buffer are used to transfer the unitary matrix to other process
+! remember test good quantum number
 !------------------------------------------------------------------
 		allocate(dummymat(subM,4*subM),stat=error)
 		if(error/=0) stop

@@ -109,7 +109,7 @@ subroutine fullmat
 					!write(11,*) fullHdummy*t(i,j)*(-1.0D0)
 				! transfer from al*ar^+ to ar^+*al
 					fullHdummy=fullHdummy*(-1.0D0)
-					write(120,*) fullHdummy
+				!	write(120,*) fullHdummy
 					!write(11,*) "ar+al",k
 					!do i1=1,16*Lrealdim*Rrealdim,1
 					!do j1=1,16*Lrealdim*Rrealdim,1
@@ -143,13 +143,13 @@ subroutine fullmat
 				end do
 
 				fullHdummy=fullH-fullH2
-				do i1=1,16*Lrealdim*Rrealdim,1
-				do j1=1,16*Lrealdim*Rrealdim,1
-					if(abs(fullHdummy(j1,i1))>0.1D-3) then
-						write(11,*) fullHdummy(j1,i1),j1,i1
-					end if
-				end do
-				end do
+			!	do i1=1,16*Lrealdim*Rrealdim,1
+			!	do j1=1,16*Lrealdim*Rrealdim,1
+			!		if(abs(fullHdummy(j1,i1))>0.1D-3) then
+			!			write(11,*) fullHdummy(j1,i1),j1,i1
+			!		end if
+			!	end do
+			!	end do
 				
 			end if
 			! PPP term
@@ -204,9 +204,9 @@ subroutine fullmat
 	end do
 	fullHdummy(1:m,1:m)=fullH(1:m,1:m)
 	write(*,*) "direct ngoodstates=",m
-	open(unit=999,file="H.tmp",status="replace")
-	write(999,*) fullH(1:m,1:m)
-	close(999)
+	!open(unit=999,file="H.tmp",status="replace")
+	!write(999,*) fullH(1:m,1:m)
+	!close(999)
 
 
 	allocate(eigenvalue(m),stat=error)
@@ -219,17 +219,17 @@ subroutine fullmat
 	!write(*,*) "syevr,direct diagonalizaiton result,E=",eigenvalue
 write(*,*) "fullH"
 !write(*,*) fullH(1:m,1:m)
-do i=1,m,1
-do j=1,m,1
-	if(abs(fullH(j,i))>1.0D-7) then
-		write(*,*) fullH(j,i),j,i
-	end if
-end do
-end do
+!do i=1,m,1
+!do j=1,m,1
+!	if(abs(fullH(j,i))>1.0D-7) then
+!		write(*,*) fullH(j,i),j,i
+!	end if
+!end do
+!end do
 call syevd(fullH(1:m,1:m),eigenvalue,'V','U',info)
 	!'U',z,vl,vu,1,1,m,isuppz,abstol,info)
 write(*,*) "info",info
-write(*,*) "syevd,direct diagonalizaiton result,energy=",eigenvalue
+write(*,*) "syevd,direct diagonalizaiton result,energy=",eigenvalue(1:10)
 write(*,*) "eigenstate"
 write(*,*) fullH(1:m,1)
 	!call syevd(fullH2(1:m,1:m),eigenvalue,'V','U',info)

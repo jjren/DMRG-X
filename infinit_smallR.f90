@@ -44,11 +44,11 @@ Subroutine infinit_smallR
 			Hsma(4,4,2)=2*t(norbs,norbs)+hubbardU(norbs)
 			
 			if(logic_spinreversal/=0) then
-			symmlinksma(:,:,2)=0
-			symmlinksma(1,1,2)=1
-			symmlinksma(2,1,2)=3
-			symmlinksma(3,1,2)=2
-			symmlinksma(4,1,2)=-4
+				symmlinksma(:,:,2)=0
+				symmlinksma(1,1,2)=1
+				symmlinksma(2,1,2)=3
+				symmlinksma(3,1,2)=2
+				symmlinksma(4,1,2)=-4
 			end if
 
 			!adaptedsma(:,:,2)=0.0D0

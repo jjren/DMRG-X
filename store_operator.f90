@@ -12,7 +12,7 @@ subroutine store_operatorL(index1)
 	character(len=50) :: filename
 	logical :: alive
 	integer :: thefile,status(MPI_STATUS_SIZE)
-	integer(kind=MPI_OFFSET_KIND) ::offset
+	integer(kind=MPI_OFFSET_KIND) :: offset
 
 	! reclength is the length of direct io
 	! ifort use 4byte as 1 by default
@@ -22,29 +22,6 @@ subroutine store_operatorL(index1)
 	end if
 	
 	! L+sigmaL space
-!	do i=1,index1,1
-!	if(myid==orbid(i)) then
-!		reclength=2*16*subM*subM*3
-
-!----------------open a binary file-------------
-!		write(filename,'(i5.5,a8)') index1,'left.tmp'
-!		inquire(file=trim(filename),exist=alive)
-!		if(alive) then
-!			open(unit=99,file=trim(filename),access="Direct",form="unformatted",recl=reclength,status="old")
-!		else
-!			open(unit=99,file=trim(filename),access="Direct",form="unformatted",recl=reclength,status="replace")
-!		end if
-!-----------------------------------------------
-!		if(mod(i,nprocs-1)==0) then
-!			operaindex=i/(nprocs-1)
-!		else
-!			operaindex=i/(nprocs-1)+1
-!		end if
-
-!		write(99,rec=i) operamatbig(:,:,3*(operaindex-1)+1:3*operaindex)
-!		close(99)
-!	end if
-!	end do
 ! parallel io
 	write(filename,'(i5.5,a8)') index1,'left.tmp'
 	call MPI_FILE_OPEN(MPI_COMM_WORLD,trim(filename),MPI_MODE_WRONLY+MPI_MODE_CREATE,MPI_INFO_NULL,thefile,ierr)
@@ -130,29 +107,6 @@ subroutine store_operatorR(index2)
 	! reclength is the length of direct io
 	! ifort use 4byte as 1 by default
 
-
-!	do i=norbs,index2,-1
-!	if(myid==orbid(i)) then
-!		reclength=2*16*subM*subM*3
-!----------------open a binary file-------------
-!		write(filename,'(i5.5,a9)') index2,'right.tmp'
-!		inquire(file=trim(filename),exist=alive)
-!		if(alive) then
-!			open(unit=100,file=trim(filename),access="Direct",form="unformatted",recl=reclength,status="old")
-!		else
-!			open(unit=100,file=trim(filename),access="Direct",form="unformatted",recl=reclength,status="replace")
-!		end if
-!!-----------------------------------------------
-!		if(mod(i,nprocs-1)==0) then
-!			operaindex=i/(nprocs-1)
-!		else
-!			operaindex=i/(nprocs-1)+1
-!		end if
-! sigmaR index = norbs is 1; norbs-1 is 2.....
-!		write(100,rec=norbs+1-i) operamatbig(:,:,3*(operaindex-1)+1:3*operaindex)
-!		close(100)
-!	end if
-!	end do
 	write(filename,'(i5.5,a9)') index2,'right.tmp'
 	call MPI_FILE_OPEN(MPI_COMM_WORLD,trim(filename),MPI_MODE_WRONLY+MPI_MODE_CREATE,MPI_INFO_NULL,thefile,ierr)
 	do i=norbs,index2,-1

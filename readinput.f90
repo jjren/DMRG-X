@@ -11,11 +11,11 @@
 	!link1 and link2 is the bondlink atom information
 
 	integer :: junk_natoms  
+	! to compare if the natoms is right 
 	character(len=2) :: symbol
 	character(len=1),allocatable :: packbuf(:)
 	integer(kind=4) :: position1
 	integer(kind=4) :: packsize
-	! to compare if the natoms is right 
 
 	! read the input file
 	! read file even unit
@@ -27,13 +27,21 @@
 	! default value
 	! default value
 	exscheme=0
+	! exscheme is the calculate excited states scheme
+	! if only ground state is need,exscheme==0
 	blocks=2
+	! blocks is the total number of blocks
+	! when blocks/=2 tree tensor
 	modeindex=0
+	! modeindex==0 is the standard mode
 	mode='s'
+	! mode=s means standard mode start from scratch
+	! mode=d means debug mode
+	! mode=r means restart mode
 
 	open(unit= 10,file="inp",status="old")
 	read(10,*) mode,modeindex ! which mode you want to use
-! including restart/debug/
+! including standard/restart/debug/
 ! in the restart mode we need the isweep,nleft,nright
 ! modeindex=1 the fromleftsweep 
 ! modeindex=-1 the from right sweep
@@ -58,7 +66,7 @@
 	read(10,*) nstate ! how many state wanted to get
 	read(10,*) energythresh ! the threshold of the total energy you want to get
 
-! sweepenergy is the total energy of every sweep
+! sweepenergy is the total energy of every sweep(lowest energy)
 	allocate(sweepenergy(0:sweeps,nstate),stat=error)
 	if(error/=0) stop
 	sweepenergy=0.0D0
@@ -69,19 +77,19 @@
 	nweight=1.0D0
 	
 	if(nstate/=1) then
-	  read(10,*) exscheme ! exschemem=1 average method =2 my new method
-	  if(exscheme==1) then
+	  read(10,*) exscheme ! exschemem=1 average method =2 my new specifc method =3 the dipole operator average method
+	  if(exscheme==1 .or. exscheme==3) then
 	  	read(10,*) nweight(1:nstate) ! nweight is the average DMRG excited state
 	  end if
 	end if
 
 	if(logic_tree==1) then
-	  read(10,*) blocks ! DMRG how many blocks . Tree tensor net work
+	  read(10,*) blocks ! DMRG how many blocks . Tree tensor network
 	end if
 
 
 	! if logic_spinreversal/=0 and totalsz/=0 then stop
-	if (logic_spinreversal/=0 .and. totalsz/=0 .and. myid==0) then
+	if (logic_spinreversal/=0 .and. totalsz/=0) then
 		write(*,*) "---------------------------------"
 		write(*,*) "spin reversal needs Sz=0, failed!"
 		write(*,*) "---------------------------------"
@@ -112,7 +120,7 @@
 	  allocate(nuclQ(natoms),stat=error)
 	  if(error/=0) stop
 	  
-	  if(natoms/=junk_natoms .and. myid==0) then
+	  if(natoms/=junk_natoms) then
 	    write(*,*) "--------------------------------------------------"
 	    write(*,*) "!the natoms has some problem natoms/=junk_natoms!"
 	    write(*,*) "--------------------------------------------------"
@@ -132,9 +140,9 @@
 ! integral of the system
 	open(unit=14,file="integral.inp",status="old")
 	if(logic_PPP==1) then
-		if(natoms/=norbs .and. myid==0) then
+		if(natoms/=norbs) then
 			write(*,*) "--------------------------------------------------"
-			write(*,*) "!Use PPP model, the norbs/=natoms Caution!"
+			write(*,*) "!Use PPP model, the norbs/=natoms failed!"
 			write(*,*) "--------------------------------------------------"
 			stop
 		end if
@@ -296,6 +304,7 @@
 !-----------------------------------------------------
 	if(myid==0) then
 		write(*,*) "----------the input information---------"
+		write(*,*) "mode,modeindex=",mode,modeindex
 		write(*,*) "norbs=",norbs
 		write(*,*) "natoms=",natoms
 		write(*,*) "nelectrons=",nelecs
@@ -303,6 +312,7 @@
 		write(*,*) "totalSz=",totalsz
 		write(*,*) "logic_PPP=",logic_PPP
 		write(*,*) "logic_spinreversal=",logic_spinreversal
+		write(*,*) "logic_C2=",logic_C2
 		write(*,*) "logic_tree=",logic_tree
 		write(*,*) "subM=",subM
 		write(*,*) "sweeps=",sweeps

@@ -41,6 +41,8 @@
 	end if
 	
 ! allocate the work space of every operator
+! operamatbig is the operator matrix in 4M basis
+! operamatsma is the operator matrix in M basis
 	if(myid/=0) then
 		if(myid<=orbid(norbs)) then
 			allocate(operamatbig(4*subM,4*subM,3*operanum),stat=error)

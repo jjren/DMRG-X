@@ -63,7 +63,10 @@ MODULE InitialGuess
 		end do
 
 		open(unit=106,file="singularvalue.tmp",status="old")
-		read(106,*) singularvalue(1:subM) 
+		read(106,*) singularvalue(1:subM)
+! let the singularvalue'sum be 1
+		norm=sum(singularvalue(1:subM))
+		singularvalue=singularvalue/norm
 		singularvalue=sqrt(singularvalue)
 
 ! be careful the finit initial guessvector
@@ -158,6 +161,7 @@ MODULE InitialGuess
 		end if
 
 		norm=dot(guesscoeff(1:ngoodstates),guesscoeff(1:ngoodstates))
+		write(*,*) "finit guesscoeff norm",norm
 		if(norm<1.0D-10) then
 			write(*,*) "--------------------------"
 			write(*,*) "initialfinit norm is < 1.0D-10,caution!"
@@ -187,6 +191,7 @@ MODULE InitialGuess
 	use mpi
 	use variables
 	use BLAS95
+	use f95_precision
 
 	implicit none
 
@@ -207,7 +212,7 @@ MODULE InitialGuess
 			guessvector(i)=randomx
 		end do
 
-! when L space Sz>0 then we need to make the symmetry pair using some coefficient
+! when L space Sz>0 then we need to make the symmetry pair using same coefficient
 ! when L space Sz=0 then we need to make the L+R space basis to have the specfic 
 ! spin parity. Then set others to zero
 		if(logic_spinreversal/=0) then

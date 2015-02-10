@@ -32,6 +32,8 @@
 
 ! we use a new schema to include symmetry
 ! logic_spinreversal=+-1
+! 1 is singlet
+! -1 is triplet
 	integer(kind=4) :: logic_spinreversal,logic_C2
 ! symmetrylink represent the symmetry link of every state
 ! the first variables means the states

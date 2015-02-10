@@ -41,11 +41,11 @@ Subroutine infinit_smallL
 			Hsma(4,4,1)=2*t(1,1)+hubbardU(1)
 			
 			if(logic_spinreversal/=0) then
-			symmlinksma(:,:,1)=0
-			symmlinksma(1,1,1)=1
-			symmlinksma(2,1,1)=3
-			symmlinksma(3,1,1)=2
-			symmlinksma(4,1,1)=-4
+				symmlinksma(:,:,1)=0
+				symmlinksma(1,1,1)=1
+				symmlinksma(2,1,1)=3
+				symmlinksma(3,1,1)=2
+				symmlinksma(4,1,1)=-4
 			end if
 			
 		!	adaptedsma(:,:,1)=0.0D0

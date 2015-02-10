@@ -20,30 +20,6 @@ Subroutine enviro_bigL
 	end if
 
 	! L+sigmaL space
-!	do i=1,nleft+1,1
-!	if(myid==orbid(i)) then
-!		reclength=2*16*subM*subM*3
-
-!----------------open a binary file-------------
-!		write(filename,'(i5.5,a8)') nleft+1,'left.tmp'
-!		inquire(file=trim(filename),exist=alive)
-!		if(alive) then
-!			open(unit=99,file=trim(filename),access="Direct",form="unformatted",recl=reclength,status="old")
-!		else
-!			write(*,*) trim(filename),"doesn't exist!"
-!			stop
-!		end if
-!-----------------------------------------------
-!		if(mod(i,nprocs-1)==0) then
-!			operaindex=i/(nprocs-1)
-!		else
-!			operaindex=i/(nprocs-1)+1
-!		end if
-
-!		read(99,rec=i) operamatbig(:,:,3*(operaindex-1)+1:3*operaindex)
-!		close(99)
-!	end if
-!	end do
 	
 	write(filename,'(i5.5,a8)') nleft+1,'left.tmp'
 	call MPI_FILE_OPEN(MPI_COMM_WORLD,trim(filename),MPI_MODE_RDONLY,MPI_INFO_NULL,thefile,ierr)

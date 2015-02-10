@@ -5,7 +5,6 @@ subroutine fromleftsweep
 	USE variables
 
 	implicit none
-	integer :: tmp
 
 	if(myid==0) then
 		write(*,*) "enter in subroutine fromleftsweep"
@@ -16,9 +15,6 @@ subroutine fromleftsweep
 		call system_bigL
 		call system_constructquantaL
 		call store_operatorL(nleft+1)
-	!	if(myid==0) then
-	!		read(*,*) tmp
-	!	end if
 	else
 		call enviro_bigL
 	end if
