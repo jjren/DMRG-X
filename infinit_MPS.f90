@@ -110,8 +110,13 @@
 			call infinit_smallR
 		end if
 ! construct the R+sigmaR subspace operator matrix
-		call system_bigR
-		call system_constructquantaR
+		if(logic_C2==0) then
+			call system_bigR
+			call system_constructquantaR
+		else
+			call system_bigRreverse
+			call system_constructquantaRreverse
+		end if
 ! construct the spin_reversal adapted matrix
 	!	if(logic_spinreversal/=0) then
 	!		call Spin_reversalmatL

@@ -277,6 +277,8 @@ subroutine splitsvdR(singularvalue,rightv,statebegin,stateend,indexRm1)
 	
 	! R space select states should be corresponse to the L space states
 	! so R space need to arrange again
+	! when nstate==1 we can find the corresponding state in the L and R state
+	! with the same eigenvalue , but when nstate/=1 there is no such condition
 	if(nstate==1) then
 	valueindex=0
 
