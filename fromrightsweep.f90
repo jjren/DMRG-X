@@ -12,8 +12,13 @@ subroutine fromrightsweep
 	
 	if(nright/=exactsite) then
 		call onesitematrix(norbs-nright)
-		call system_bigR
-		call system_constructquantaR
+		if(logic_C2==0) then
+			call system_bigR
+			call system_constructquantaR
+		else
+			call system_bigRreverse
+			call system_constructquantaRreverse
+		end if
 		call store_operatorR(norbs-nright)
 	else
 		call enviro_bigR

@@ -39,3 +39,24 @@ return
 
 end subroutine system_constructquantaR
 
+
+Subroutine system_constructquantaRreverse
+	use variables
+	use mpi
+
+	implicit none
+	
+
+!    R+sigmaR space
+	quantabigR(1:Rrealdim,1)=quantasmaR(1:Rrealdim,1)
+	quantabigR(Rrealdim+1:2*Rrealdim,1)=quantasmaR(1:Rrealdim,1)+1
+	quantabigR(2*Rrealdim+1:3*Rrealdim,1)=quantasmaR(1:Rrealdim,1)+1
+	quantabigR(3*Rrealdim+1:4*Rrealdim,1)=quantasmaR(1:Rrealdim,1)+2
+
+	quantabigR(1:Rrealdim,2)=quantasmaR(1:Rrealdim,2)
+	quantabigR(Rrealdim+1:2*Rrealdim,2)=quantasmaR(1:Rrealdim,2)+1
+	quantabigR(2*Rrealdim+1:3*Rrealdim,2)=quantasmaR(1:Rrealdim,2)-1
+	quantabigR(3*Rrealdim+1:4*Rrealdim,2)=quantasmaR(1:Rrealdim,2)
+
+return
+end subroutine system_constructquantaRreverse
