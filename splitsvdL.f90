@@ -12,8 +12,13 @@ subroutine splitsvdL(singularvalue,leftu,statebegin,stateend,indexlp1)
 
 	real(kind=8) :: leftu(4*Lrealdim,subM),singularvalue(subM),discard
 	integer :: statebegin,stateend,indexlp1
+	! statebegin is the index of the begin state
+	! stateend is the index of the end state
 	real(kind=8),allocatable :: valuework(:),coeffwork(:,:),coeffbuffer(:,:)&
 	,coeffresult(:,:),transform(:,:),coeffdummy(:,:)
+	! coeffbuffer is used to store the initial coeffwork
+	! coeffresult stores the output of the eigenvector of the density matrix
+	! transform stores the tranfer matrix when Sz==0
 	integer,allocatable :: valueindex(:),szzeroindex(:),quantabigLbuffer(:,:),symmlinkbigbuffer(:)
 	integer :: i,error,j,k,l,m,n,info,p,q,l1
 	integer :: szzero,szl0,himp1
@@ -54,7 +59,8 @@ subroutine splitsvdL(singularvalue,leftu,statebegin,stateend,indexlp1)
 	do i=1,4*Lrealdim,1
 	sum1=sum1+coeffwork(i,i)
 	end do
-
+	
+	write(*,*) "the norm of the coeff"
 	write(*,*) "sum1=",sum1
 		
 ! debug
@@ -156,7 +162,8 @@ subroutine splitsvdL(singularvalue,leftu,statebegin,stateend,indexlp1)
 					if(error/=0) stop
 					call gemm(coeffwork(1:m,1:m),transform,coeffdummy(1:m,1:m),'N','N',1.0D0,0.0D0)
 					call gemm(transform,coeffdummy(1:m,1:m),coeffwork(1:m,1:m),'T','N',1.0D0,0.0D0)
-
+				! swap the symmlink==1 to the first few columns 
+				! and the symmlink==-1 to the last few columns
 					himp1=0
 					do l=1,m,1
 						if(symmlinkbig(szzeroindex(l),1,1)==szzeroindex(l)) then
@@ -188,6 +195,8 @@ subroutine splitsvdL(singularvalue,leftu,statebegin,stateend,indexlp1)
 						stop
 					end if
 					symmlinkbigbuffer(n+1:n+himp1)=1
+					! symmlinkbigbuffer==1 means the symmlink is himself
+					! symmlinkbigbuffer==-1 means the symmlink is -himself
 					call syevd(coeffwork(himp1+1:m,himp1+1:m),valuework(n+himp1+1:n+m),'V','U',info)
 					if(info/=0) then
 						write(*,*) "left diagnolization failed! himm1"

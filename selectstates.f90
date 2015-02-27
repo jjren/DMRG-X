@@ -33,6 +33,7 @@ subroutine selectstates(valuework,dim1,valueindex,singularvalue,&
 			end do
 		end do
 !	write(*,*) valueindex
+! use the garnet chan proposed select states rule
 		percent=2.0+DBLE(isweep)*0.1
 	!	write(*,*) subspacenum
 		if(percent<1.0D0) then
