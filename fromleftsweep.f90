@@ -18,8 +18,12 @@ subroutine fromleftsweep
 	else
 		call enviro_bigL
 	end if
-
-	call enviro_bigR
+	
+	if(nleft==norbs/2-1 .and. logic_C2/=0) then
+		call C2_copy('l')
+	else
+		call enviro_bigR
+	end if
 	!if(logic_spinreversal/=0) then
 	!	call Spin_reversalmatL
 	!end if
