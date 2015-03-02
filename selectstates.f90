@@ -13,7 +13,7 @@ subroutine selectstates(valuework,dim1,valueindex,singularvalue,&
 	integer :: directly,syssite
 ! directly is the num of states we have selected
 	integer :: subspacenum(((syssite+1)*2+1)**2+1)
-	logical :: noequal,done,ifexist
+	logical :: noequal,done,ifexist,iffind
 
 	write(*,*) "enter in selectstates subroutine!"
 	singularvalue=0.0D0
@@ -127,6 +127,7 @@ subroutine selectstates(valuework,dim1,valueindex,singularvalue,&
 		end do
 
 		if(valueindex(subM)<=szl0) then
+			iffind=.false.
 			do i=szl0+szzero,szl0+1,-1
 			
 			do j=1,subM-1,1
@@ -141,9 +142,16 @@ subroutine selectstates(valuework,dim1,valueindex,singularvalue,&
 				if(done==.true.) then
 				valueindex(subM)=i
 				singularvalue(subM)=valuework(i)
+				iffind=.true.
 				exit
 				end if
 			end do
+			if(iffind==.false.) then
+				write(*,*) "-----------------------------------"
+				write(*,*) "did not find the last index valueindex=0"
+				write(*,*) "-----------------------------------"
+				stop
+			end if
 		end if
 	end if
 		write(*,*) "valueindex",valueindex

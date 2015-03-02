@@ -18,7 +18,7 @@ subroutine splitsvdR(singularvalue,rightv,statebegin,stateend,indexRm1)
 	symmlinkbigbuffer(:)
 	integer :: i,error,j,k,l,m,n,info,symm1,p,l1,q
 	integer :: szzero,szl0,himp1
-	logical :: done
+	logical :: done,ifexist,iffind
 	integer,allocatable :: subspacenum(:)
 	real(kind=8) :: diffzero,scale1
 	integer :: scalenum
@@ -269,6 +269,15 @@ subroutine splitsvdR(singularvalue,rightv,statebegin,stateend,indexRm1)
 		quantabigRbuffer(szl0+szzero+1:4*Rrealdim,2)=-1*quantabigRbuffer(1:szl0,2)
 		valuework(szl0+szzero+1:4*Rrealdim)=valuework(1:szl0)
 	end if
+	
+	do i=1,4*subM,1
+		if(valuework(i)<0.0D0) then
+			write(*,*) "-----------------------------"
+			write(*,*) "caution valuework<0.0D0",valuework(i)
+			write(*,*) "-----------------------------"
+			valuework(i)=0.0D0
+		end if
+	end do
 	!if(logic_spinreversal==0) then
 	!	call selectstates(valuework,4*Rrealdim,valueindex,singularvalue,subspacenum,nright)
 	!else
@@ -290,27 +299,59 @@ subroutine splitsvdR(singularvalue,rightv,statebegin,stateend,indexRm1)
 			if(singularvalue(i)>scale1) exit
 			scale1=scale1*0.1D0
 			scalenum=scalenum+1
+			if(scalenum>=100) then
+				write(*,*) "---------------------"
+				write(*,*) "caution! scalenum>100"
+				write(*,*) "---------------------"
+				exit
+			end if
 		end do
 		
 		if(logic_spinreversal==0) then
-			do j=1,subspacenum(1),1
-			if((quantasmaL(i,1)+quantabigRbuffer(sum(subspacenum(2:j+1)),1)==nelecs) .and. &
-			(quantasmaL(i,2)+quantabigRbuffer(sum(subspacenum(2:j+1)),2)==totalSz)) then
-				diffzero=1.0D-10*(0.1D0**scalenum)
-				do while(.true.)
-					do k=sum(subspacenum(2:j+1)),sum(subspacenum(2:j+1))-subspacenum(j+1)+1,-1
-						if(abs(valuework(k)-singularvalue(i))<diffzero) then
-							valueindex(i)=k
+			if(scalenum<100) then
+				do j=1,subspacenum(1),1
+				if((quantasmaL(i,1)+quantabigRbuffer(sum(subspacenum(2:j+1)),1)==nelecs) .and. &
+				(quantasmaL(i,2)+quantabigRbuffer(sum(subspacenum(2:j+1)),2)==totalSz)) then
+					diffzero=1.0D-10*(0.1D0**scalenum)
+					do while(.true.)
+						do k=sum(subspacenum(2:j+1)),sum(subspacenum(2:j+1))-subspacenum(j+1)+1,-1
+							if(abs(valuework(k)-singularvalue(i))<diffzero) then
+								Ifexist=.false.
+								do p=1,i-1,1
+									if(valueindex(p)==k) then
+										Ifexist=.true.
+										exit
+									end if
+								end do
+								if(Ifexist==.false.) then
+									valueindex(i)=k
+									exit
+								end if
+							end if
+						end do
+						if(valueindex(i)/=0) exit
+						diffzero=diffzero*10.0D0
+					end do
+					exit
+				end if
+				end do
+			else
+				do j=1,subM,1
+					ifexist=.false.
+					do k=1,i-1,1
+						if(valueindex(k)==j) then
+							ifexist=.true.
 							exit
 						end if
 					end do
-					if(valueindex(i)/=0) exit
-					diffzero=diffzero*10.0D0
+					if(ifexist==.false.) then
+						valueindex(i)=j
+						exit
+					end if
 				end do
-				exit
 			end if
-			end do
 		else
+		  if(scalenum<100) then
 			if(quantasmaL(i,2)<=0) then
 			do j=1,subspacenum(1),1
 			if((quantasmaL(i,1)+quantabigRbuffer(sum(subspacenum(2:j+1)),1)==nelecs) .and. &
@@ -319,6 +360,14 @@ subroutine splitsvdR(singularvalue,rightv,statebegin,stateend,indexRm1)
 				do while(.true.)
 					do k=sum(subspacenum(2:j+1)),sum(subspacenum(2:j+1))-subspacenum(j+1)+1,-1
 						if(abs(valuework(k)-singularvalue(i))<diffzero) then
+							Ifexist=.false.
+							do p=1,i-1,1
+								if(valueindex(p)==k) then
+									Ifexist=.true.
+									exit
+								end if
+							end do
+							if(Ifexist==.false.) then
 							if(quantasmaL(i,2)<0) then
 								valueindex(i)=k
 								valueindex(i-1)=k+szl0+szzero
@@ -326,6 +375,7 @@ subroutine splitsvdR(singularvalue,rightv,statebegin,stateend,indexRm1)
 							else if(quantasmaL(i,2)==0) then
 								valueindex(i)=k
 								exit
+							end if
 							end if
 						end if
 					end do
@@ -343,6 +393,48 @@ subroutine splitsvdR(singularvalue,rightv,statebegin,stateend,indexRm1)
 			write(*,*) "----------------------------"
 			stop
 			end if
+		  else
+			if(i<subM .and. valueindex(i)==0) then
+			do j=szl0+1,2*szl0+szzero,1
+				ifexist=.false.
+				do k=1,i-1,1
+					if(valueindex(k)==j) then
+						ifexist=.true.
+						exit
+					end if
+				end do
+				if(ifexist==.false.) then
+					valueindex(i)=j
+					if(j>szl0+szzero) then
+					valueindex(i+1)=j-(szzero+szl0)
+					end if
+					exit
+				end if
+			end do
+			else if(i==subM .and. valueindex(i)==0) then
+				iffind=.false.
+				do  j=szl0+1,szl0+szzero,1
+					ifexist=.false.
+					do k=1,i-1,1
+						if(valueindex(k)==j) then
+						ifexist=.true.
+						exit
+						end if
+					end do
+					if(ifexist==.false.) then
+						valueindex(i)=j
+						iffind=.true.
+						exit
+					end if
+				end do
+				if(iffind==.false.) then
+					write(*,*) "-----------------------------------"
+					write(*,*) "did not find the last index valueindex=0"
+					write(*,*) "-----------------------------------"
+					stop
+				end if
+			end if
+		  end if
 		end if
 	end do
 	else if(logic_spinreversal==0) then
@@ -350,11 +442,29 @@ subroutine splitsvdR(singularvalue,rightv,statebegin,stateend,indexRm1)
 	else
 		call selectstates(valuework,4*Rrealdim,valueindex,singularvalue,subspacenum,nright,szzero,szl0)
 	end if
+		
+	!	write(*,*) valueindex(1:subM)
+	!	write(*,*) valuework(valueindex(1:subM))
+! check if the valueindex is right
+	do i=1,subM,1
+		if(valueindex(i)==0) then
+			write(*,*) "----------------------------------"
+			write(*,*) "splitsvdR valueindex(i)==0",i
+			write(*,*) "----------------------------------"
+			stop
+		end if
+	end do
 
-		write(*,*) valuework(valueindex(1:subM))
-				
-				
-			
+	do i=1,subM,1
+		do j=i+1,subM,1
+			if(valueindex(i)==valueindex(j)) then
+				write(*,*) "----------------------------------"
+				write(*,*) "splitsvdR valueindex(i)=valueindex(j)",i,j,valueindex(i)
+				write(*,*) "----------------------------------"
+				stop
+			end if
+		end do
+	end do
 
 
 	if(4*Rrealdim>subM) then

@@ -39,7 +39,7 @@ Subroutine davidson_wrapper(direction,LIM,ILOW,IHIGH,ISELEC,NIV,MBLOCK,&
 	end do
 	ngoodstates=N
 	
-if(myid==0 .and. logic_spinreversal/=0) then
+if(myid==0 .and. (logic_spinreversal/=0 .or. logic_C2/=0)) then
 	allocate(symmlinkgood(ngoodstates,2),stat=error)
 	if(error/=0) stop
 ! in the good quantum number states space
@@ -86,7 +86,7 @@ end if
 ! 3  infinit
 ! we can add exscheme=2 and later
 	if(myid==0) then
-		if(direction/='i' .and. NIV==1 ) then
+		if(direction/='i' .and. NIV==1 .and. logic_C2==0) then
 			call Initialfinit(DavidWORK,direction)
 		else
 		!	call Initialunivector(HDIAG,DavidWORK,NIV)
@@ -194,7 +194,7 @@ end if
 		
 		deallocate(HDIAG)
 		deallocate(DavidWORK)
-		if(logic_spinreversal/=0) then
+		if(logic_spinreversal/=0 .or. logic_C2/=0) then
 			deallocate(symmlinkgood)
 		end if
 	end if
