@@ -1,5 +1,5 @@
 Subroutine davidson_wrapper(direction,LIM,ILOW,IHIGH,ISELEC,NIV,MBLOCK,&
-                           CRITE,CRITC,CRITR,ORTHO,MAXITER)
+                           CRITE,CRITC,CRITR,ORTHO,MAXITER,checksymm)
 ! this is the davidson wrapper to call DVDSON written by Andreas
 ! aim to allocate memory and set variables in the global array
 ! mainly allocate memory on 0 process
@@ -12,7 +12,9 @@ Subroutine davidson_wrapper(direction,LIM,ILOW,IHIGH,ISELEC,NIV,MBLOCK,&
 
 	integer :: error,i,j,k,m
 	integer :: N,LIM,ILOW,IHIGH,ISELEC,NIV,MBLOCK,NLOOPS,NMV,ierror,MAXITER
-	real(kind=8) :: CRITE,CRITC,CRITR,ORTHO
+	real(kind=8) :: CRITE,CRITC,CRITR,ORTHO,checksymm
+	! checksymm is used to check if the output wavefucntion fullfilled the
+	! symmetry. if not do iteration
 	logical :: HIEND
 	external op
 	real(kind=8),allocatable :: HDIAG(:),DavidWORK(:),dummycoeff(:),dummynewcoeff(:)
@@ -129,8 +131,9 @@ end if
 			stop
 		end if
 		
-		if(logic_spinreversal/=0) then
-			call spincorrect(DavidWORK(1:ngoodstates*nstate))
+		if(logic_spinreversal/=0 .or. (logic_C2/=0 .and. nleft==nright)) then
+		!	call spincorrect(DavidWORK(1:ngoodstates*nstate))
+			call statecorrect(DavidWORK(1:ngoodstates*nstate),checksymm)
 		end if
 		
 		coeffIF=0.0D0
@@ -198,5 +201,6 @@ end if
 			deallocate(symmlinkgood)
 		end if
 	end if
+	call MPI_bcast(checksymm,1,MPI_real8,0,MPI_COMM_WORLD,ierr)
 return
 end subroutine

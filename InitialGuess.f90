@@ -390,7 +390,8 @@ MODULE InitialGuess
 				end if
 			end do
 		end if
-		
+
+! the core part! find the link diagram
 		if((logic_C2/=0 .and. nleft==nright) .or. logic_spinreversal/=0) then
 			do i=1,ngoodstates,1
 				m=1

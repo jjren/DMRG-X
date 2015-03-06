@@ -8,7 +8,7 @@ subroutine hamiltonian(direction)
 
 	implicit none
 	integer :: lim,ilow,ihigh,niv,mblock,maxiter
-	real(kind=8) :: crite,critc,critr,ortho
+	real(kind=8) :: crite,critc,critr,ortho,checksymm
 	integer,allocatable :: iselec(:)
 	integer :: error
 	character(len=1) :: direction
@@ -50,9 +50,15 @@ subroutine hamiltonian(direction)
 	if(error/=0) stop
 	iselec=-1
 !-----------------------
-
-	call davidson_wrapper(direction,lim,ilow,ihigh,iselec,niv,mblock,crite,critc,critr,ortho,maxiter)
-
+	checksymm=1.0D0
+	do while(.true.)
+		call davidson_wrapper(direction,lim,ilow,ihigh,iselec,niv,mblock,crite,critc,critr,ortho,maxiter,checksymm)
+		if(abs(checksymm-1.0D0)<1.0D-3) then
+			exit
+		else
+			write(*,*) "checksymm not fullfilled!"
+		end if
+	end do
 	deallocate(iselec)
 return
 

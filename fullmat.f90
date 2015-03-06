@@ -90,11 +90,11 @@ subroutine fullmat
 	if(myid==0) then
 !debug			
 	!	read(*,*) tmp
-		open(unit=11,file="imme.tmp",status="old",position="append")
+	!	open(unit=11,file="imme.tmp",status="old",position="append")
 		do i=1,nleft+1,1
 		do j=norbs,norbs-nright,-1
 			if(bondlink(i,j)==1) then
-				open(unit=120,file="imme4.tmp",status="replace")
+	!			open(unit=120,file="imme4.tmp",status="replace")
 				do k=1,2,1
 					!write(120,*) buffermat0(:,:,k,j)
 					!read(*,*) tmp
@@ -230,8 +230,8 @@ call syevd(fullH(1:m,1:m),eigenvalue,'V','U',info)
 	!'U',z,vl,vu,1,1,m,isuppz,abstol,info)
 write(*,*) "info",info
 write(*,*) "syevd,direct diagonalizaiton result,energy=",eigenvalue(1:10)
-write(*,*) "eigenstate"
-write(*,*) fullH(1:m,1)
+!rite(*,*) "eigenstate"
+!write(*,*) fullH(1:m,1)
 	!call syevd(fullH2(1:m,1:m),eigenvalue,'V','U',info)
 	!'U',z,vl,vu,1,1,m,isuppz,abstol,info)
 	!write(*,*) "info",info
