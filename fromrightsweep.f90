@@ -23,7 +23,12 @@ subroutine fromrightsweep
 	else
 		call enviro_bigR
 	end if
-	call enviro_bigL
+
+	if(nright==norbs/2-1 .and. logic_C2/=0) then
+		call C2_copy('r')
+	else
+		call enviro_bigL
+	end if
 	!if(logic_spinreversal/=0) then
 	!	call Spin_reversalmatR
 	!end if

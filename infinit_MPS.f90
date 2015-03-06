@@ -103,19 +103,20 @@
 		call system_bigL
 ! construct the good quantum number Sz and occpuation
 		call system_constructquantaL
-! sigmaR subspace operator matrix
-		call onesitematrix(norbs-nright)
 ! R subspace initial
 		if(nright==1) then
 			call infinit_smallR
 		end if
 ! construct the R+sigmaR subspace operator matrix
 		if(logic_C2==0) then
+			! sigmaR subspace operator matrix
+			call onesitematrix(norbs-nright)
 			call system_bigR
 			call system_constructquantaR
 		else
-			call system_bigRreverse
-			call system_constructquantaRreverse
+			call C2_copy('i')
+		!	call system_bigRreverse
+		!	call system_constructquantaRreverse
 		end if
 ! construct the spin_reversal adapted matrix
 	!	if(logic_spinreversal/=0) then

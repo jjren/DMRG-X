@@ -286,14 +286,44 @@ subroutine splitsvdL(singularvalue,leftu,statebegin,stateend,indexlp1)
 		end do
 		quantabigLbuffer(szl0+szzero+1:4*Lrealdim,1)=quantabigLbuffer(1:szl0,1)
 		quantabigLbuffer(szl0+szzero+1:4*Lrealdim,2)=-1*quantabigLbuffer(1:szl0,2)
+		valuework(szl0+szzero+1:4*Lrealdim)=valuework(1:szl0)
 	end if
 
+	do i=1,4*subM,1
+		if(valuework(i)<0.0D0) then
+			write(*,*) "-----------------------------"
+			write(*,*) "caution valuework<0.0D0",valuework(i)
+			write(*,*) "-----------------------------"
+			valuework(i)=0.0D0
+		end if
+	end do
 
 	if(logic_spinreversal==0) then
 		call selectstates(valuework,4*Lrealdim,valueindex,singularvalue,subspacenum,nleft)
 	else
 		call selectstates(valuework,4*Lrealdim,valueindex,singularvalue,subspacenum,nleft,szzero,szl0)
 	end if
+! check if the valueindex is right
+	do i=1,subM,1
+		if(valueindex(i)==0) then
+			write(*,*) "----------------------------------"
+			write(*,*) "splitsvdL valueindex(i)==0",i
+			write(*,*) "----------------------------------"
+			stop
+		end if
+	end do
+
+	do i=1,subM,1
+		do j=i+1,subM,1
+			if(valueindex(i)==valueindex(j)) then
+				write(*,*) "----------------------------------"
+				write(*,*) "splitsvdL valueindex(i)=valueindex(j)",i,j,valueindex(i)
+				write(*,*) "----------------------------------"
+				stop
+			end if
+		end do
+	end do
+		
 ! when 4*Lrealdim<subM (in the debug mode)
 
 	if(4*Lrealdim>subM) then
