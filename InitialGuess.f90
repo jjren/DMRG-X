@@ -458,8 +458,8 @@ MODULE InitialGuess
 
 			end do
 		end if
-		write(*,*) "guessvector"
-		write(*,*) guessvector
+	!	write(*,*) "guessvector"
+	!	write(*,*) guessvector
 
 		norm=dot(guessvector(1:ngoodstates),guessvector(1:ngoodstates))
 		if(norm<1.0D-10) then

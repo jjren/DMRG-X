@@ -31,8 +31,10 @@
 	call infinit_MPS
 	! do finit DMRG
 	call finit_MPS
-  
 
+	if(nstate/=0) then
+		call transmoment
+	end if
 
 
 	endtime=MPI_WTIME()
