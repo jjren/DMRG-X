@@ -202,16 +202,16 @@
 ! Gram-Schmit Orthogonalization
 		if(nstate >= 2) then
 		do i=2,nstate,1
+			norm=dot(Davidwork((i-1)*ngoodstates+1:i*ngoodstates),&
+			Davidwork((i-1)*ngoodstates+1:i*ngoodstates))
+			write(*,*) "statecorrect state",i,"norm=",norm
+			if(abs(norm-1.0)>1.0D-2) then
+				write(*,*) "----------------------------------------"
+				write(*,*) "caution! the symmetry does not fullfill!"
+				write(*,*) "----------------------------------------"
+			end if
 			do j=1,i-1,1
 ! checkout if the symmetry is correct
-				norm=dot(Davidwork((i-1)*ngoodstates+1:i*ngoodstates),&
-				Davidwork((i-1)*ngoodstates+1:i*ngoodstates))
-				write(*,*) "statecorrect state",i,"norm=",norm
-				if(abs(norm-1.0)>1.0D-2) then
-					write(*,*) "----------------------------------------"
-					write(*,*) "caution! the symmetry does not fullfill!"
-					write(*,*) "----------------------------------------"
-				end if
 				norm=dot(Davidwork((i-1)*ngoodstates+1:i*ngoodstates),&
 				Davidwork((j-1)*ngoodstates+1:j*16*ngoodstates))
 				Davidwork((i-1)*ngoodstates+1:i*ngoodstates)=&
