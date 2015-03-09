@@ -203,6 +203,11 @@
 		if(nstate >= 2) then
 		do i=2,nstate,1
 			do j=1,i-1,1
+! checkout if the symmetry is correct
+				norm=dot(Davidwork((i-1)*ngoodstates+1:i*ngoodstates),&
+				Davidwork((i-1)*ngoodstates+1:i*ngoodstates))
+				write(*,*) "statecorrect state",i,"norm=",norm
+
 				norm=dot(Davidwork((i-1)*ngoodstates+1:i*ngoodstates),&
 				Davidwork((j-1)*ngoodstates+1:j*16*ngoodstates))
 				Davidwork((i-1)*ngoodstates+1:i*ngoodstates)=&
