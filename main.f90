@@ -32,7 +32,7 @@
 	! do finit DMRG
 	call finit_MPS
 
-	if(nstate/=0) then
+	if(nstate/=1) then
 		call transmoment
 	end if
 
