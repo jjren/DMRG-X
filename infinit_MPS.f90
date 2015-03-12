@@ -53,10 +53,13 @@
 		else
 			nelecs=(isystem+1)*2
 		end if
-	! in the last step we set the total electron to be real nelectrons
-		if(mod(norbs,2)==0 .and. isystem==(norbs/2-1)) then
-			nelecs=realnelecs
+		if(myid==0) then
+			write(*,*) "nelecs=",nelecs
 		end if
+!		! in the last step we set the total electron to be real nelectrons
+!		if(mod(norbs,2)==0 .and. isystem==(norbs/2-1)) then
+!			nelecs=realnelecs
+!		end if
 	!--------------------------
 		nleft=isystem
 		nright=isystem
@@ -82,8 +85,8 @@
 		if(nleft+1<norbs/2 .or. mod(norbs,2)/=0) then 
 		bondlink(nleft+1,norbs-nright)=1
 		bondlink(norbs-nright,nleft+1)=1
-		t(nleft+1,norbs-nright)=-2.4D0
-		t(norbs-nright,nleft+1)=-2.4D0
+		t(nleft+1,norbs-nright)=-1.0D0
+		t(norbs-nright,nleft+1)=-1.0D0
 		end if
 
 
@@ -145,7 +148,14 @@
 ! only add 1 orbital in the left space
 ! and the nelecs set to the the realnelecs
 	if(MOD(norbs,2)/=0) then
-		nelecs=realnelecs
+! add nelecs 2 by 2
+		nelecs=nelecs+2
+		if(nelecs>realnelecs) then
+			nelecs=realnelecs
+		end if
+		if(myid==0) then
+			write(*,*) "nelecs=",nelecs
+		end if
 		nleft=norbs/2
 		nright=norbs/2-1
 		if(4*Lrealdim>subM) then

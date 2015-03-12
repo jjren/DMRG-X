@@ -299,7 +299,7 @@ subroutine splitsvdR(singularvalue,rightv,statebegin,stateend,indexRm1)
 			if(singularvalue(i)>scale1) exit
 			scale1=scale1*0.1D0
 			scalenum=scalenum+1
-			if(scalenum>=100) then
+			if(scalenum>=15) then
 				write(*,*) "---------------------"
 				write(*,*) "caution! scalenum>100"
 				write(*,*) "---------------------"
@@ -308,7 +308,7 @@ subroutine splitsvdR(singularvalue,rightv,statebegin,stateend,indexRm1)
 		end do
 		
 		if(logic_spinreversal==0) then
-			if(scalenum<100) then
+			if(scalenum<15) then
 				do j=1,subspacenum(1),1
 				if((quantasmaL(i,1)+quantabigRbuffer(sum(subspacenum(2:j+1)),1)==nelecs) .and. &
 				(quantasmaL(i,2)+quantabigRbuffer(sum(subspacenum(2:j+1)),2)==totalSz)) then
@@ -351,7 +351,7 @@ subroutine splitsvdR(singularvalue,rightv,statebegin,stateend,indexRm1)
 				end do
 			end if
 		else
-		  if(scalenum<100) then
+		  if(scalenum<15) then
 			if(quantasmaL(i,2)<=0) then
 			do j=1,subspacenum(1),1
 			if((quantasmaL(i,1)+quantabigRbuffer(sum(subspacenum(2:j+1)),1)==nelecs) .and. &

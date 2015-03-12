@@ -16,6 +16,7 @@
 	character(len=1),allocatable :: packbuf(:)
 	integer(kind=4) :: position1
 	integer(kind=4) :: packsize
+	real(kind=8) :: dummyt
 
 	! read the input file
 	! read file even unit
@@ -104,12 +105,11 @@
 	  read(10,*) nbonds
 	  allocate(bondlink(norbs,norbs),stat=error)
 	  if(error/=0) stop
-	  bondlink=0
-	  do i=1,nbonds,1
-	    read(10,*) link1,link2
-	    bondlink(link1,link2)=1
-	    bondlink(link2,link1)=1
-	  end do
+!	  do i=1,nbonds,1
+!	    read(10,*) link1,link2
+!	    bondlink(link1,link2)=1
+!	    bondlink(link2,link1)=1
+!	  end do
 	
 
 	! coordiantes of the system
@@ -152,13 +152,22 @@
 		if(error/=0) stop
 	! be careful about the structure of the integral formatted
 		t=0.0D0
-		do i=1,norbs,1
-			do j=1,norbs,1
-			if(bondlink(j,i)==1) then
-				read(14,*) t(j,i)    ! read in every transfer integral
-			end if                 
-			end do
+		bondlink=0
+		do i=1,nbonds,1
+			read(14,*) link1,link2,dummyt
+			bondlink(link1,link2)=1
+			bondlink(link2,link1)=1
+			t(link1,link2)=dummyt
+			t(link2,link1)=dummyt
 		end do
+
+!		do i=1,norbs,1
+!			do j=1,norbs,1
+!			if(bondlink(j,i)==1) then
+!				read(14,*) t(j,i)    ! read in every transfer integral
+!			end if                 
+!			end do
+!		end do
 		
 		do i=1,norbs,1
 			bondlink(i,i)=2  ! bondlink=2 means that it is the site energy

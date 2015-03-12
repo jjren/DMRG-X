@@ -30,7 +30,6 @@ Subroutine finit_MPS
 		ibegin=norbs/2+1
 	end if
 	
-	nelecs=realnelecs
 	if(myid==0) then
 		if(ibegin/=nleft+1) then
 			write(*,*) "-----------------------------------------------------------"
@@ -41,6 +40,7 @@ Subroutine finit_MPS
 
 ! only used in the restart mode
 	if(mode=='r' .and. isweep/=0) then
+		nelecs=realnelecs
 		sweepbegin=isweep
 		isweep=isweep-1
 		nleft=ibegin-1
@@ -59,6 +59,19 @@ Subroutine finit_MPS
 	do isweep=sweepbegin,sweeps,1
 		
 		do isystem=ibegin,norbs-exactsite-2,1
+! add nelecs 2 by 2
+			formernelecs=nelecs
+			if(nelecs<realnelecs) then
+				nelecs=nelecs+2
+			end if
+			if(nelecs>realnelecs) then
+				nelecs=realnelecs
+			end if
+
+			if(myid==0) then
+				write(*,*) "nelecs=",nelecs
+			end if
+
 			nleft=isystem
 			nright=norbs-isystem-2
 			

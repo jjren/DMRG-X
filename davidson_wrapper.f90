@@ -88,7 +88,8 @@ end if
 ! 3  infinit
 ! we can add exscheme=2 and later
 	if(myid==0) then
-		if(direction/='i' .and. NIV==1 .and. logic_C2==0) then
+		if(direction/='i' .and. NIV==1 .and. logic_C2==0 .and. &
+		formernelecs==nelecs) then
 			call Initialfinit(DavidWORK,direction)
 		else
 		!	call Initialunivector(HDIAG,DavidWORK,NIV)
@@ -130,7 +131,8 @@ end if
 			write(*,*) "---------------------------"
 			stop
 		end if
-		
+! when the nelecs>nsite 
+! the nelecs is added 2 by 2
 		if(logic_spinreversal/=0 .or. (logic_C2/=0 .and. nleft==nright)) then
 		!	call spincorrect(DavidWORK(1:ngoodstates*nstate))
 			call statecorrect(DavidWORK(1:ngoodstates*nstate),checksymm)
@@ -188,11 +190,12 @@ end if
 		end if
 		
 ! update the sweepenergy
-		do i=1,IHIGH,1
-			if(DavidWORK(IHIGH*ngoodstates+i)<sweepenergy(isweep,i)) then
+! use the middle site as the sweepenergy
+		if(nleft==(norbs+1)/2-1) then
+			do i=1,IHIGH,1
 				sweepenergy(isweep,i)=DavidWORK(IHIGH*ngoodstates+i)
-			end if
-		end do
+			end do
+		end if
 
 		
 		deallocate(HDIAG)

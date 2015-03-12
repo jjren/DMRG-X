@@ -16,11 +16,12 @@
 
 
 	! system part
-	integer(kind=4) :: norbs,nelecs,natoms,ncharges,blocks,realnelecs,totalSz
+	integer(kind=4) :: norbs,nelecs,formernelecs,natoms,ncharges,blocks,realnelecs,totalSz
 	integer(kind=4),allocatable :: orbid(:)
 	real(kind=8),allocatable :: nuclQ(:)
 	! the orbid(:) is the process id every orbital
 	! totalSz is the up nelecs - down nelecs
+	! formernelecs is used to trace the former step the nelecs
 
 	integer(kind=4) :: logic_PPP,nbonds
 
