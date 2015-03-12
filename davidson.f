@@ -994,6 +994,12 @@ C
         ICUR=KPASS*N+1
 *
 *       .. do iv=1,nncv
+* jjren changed
+        if(logic_spinreversal/=0 .or.
+     :           (logic_C2/=0 .and. nleft==nright)) then
+        call statecorrect(BASIS(ICUR),checksymm,'N')
+        end if
+
         IV = 1
  30     CONTINUE
 C
