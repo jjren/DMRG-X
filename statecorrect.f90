@@ -1,4 +1,4 @@
-	Subroutine statecorrect(Davidwork,checksymm)
+	Subroutine statecorrect(Davidwork,checksymm,ifortho)
 	use mpi
 	use variables
 	use BLAS95
@@ -10,10 +10,13 @@
 	integer :: i,j,k,error,m,total,exsit
 	logical :: done,Ifexsit
 	integer :: spinline(ngoodstates,2),C2line(ngoodstates,2),fulline(4,2)
-
+	character(len=1),optional :: ifortho
 	
 	if(myid==0) then
-		write(*,*) "enter statecorrect subroutine"
+		! in the op subroutine do not print this infomation
+		if(ifortho/='N') then
+			write(*,*) "enter statecorrect subroutine"
+		end if
 		
 		spinline=10
 		C2line=10
@@ -188,7 +191,9 @@
 		end if
 !		write(*,*) "Davidwork"
 !		write(*,*) Davidwork
-
+		if(present(ifortho) .and. ifortho=='N') then
+!			write(*,*) 
+		else 
 		norm=dot(Davidwork(1:ngoodstates),Davidwork(1:ngoodstates))
 		write(*,*) "statecorrect state1 norm=",norm
 		checksymm=norm
@@ -202,16 +207,16 @@
 ! Gram-Schmit Orthogonalization
 		if(nstate >= 2) then
 		do i=2,nstate,1
+			norm=dot(Davidwork((i-1)*ngoodstates+1:i*ngoodstates),&
+			Davidwork((i-1)*ngoodstates+1:i*ngoodstates))
+			write(*,*) "statecorrect state",i,"norm=",norm
+			if(abs(norm-1.0)>1.0D-2) then
+				write(*,*) "----------------------------------------"
+				write(*,*) "caution! the symmetry does not fullfill!"
+				write(*,*) "----------------------------------------"
+			end if
 			do j=1,i-1,1
 ! checkout if the symmetry is correct
-				norm=dot(Davidwork((i-1)*ngoodstates+1:i*ngoodstates),&
-				Davidwork((i-1)*ngoodstates+1:i*ngoodstates))
-				write(*,*) "statecorrect state",i,"norm=",norm
-				if(abs(norm-1.0)>1.0D-2) then
-					write(*,*) "----------------------------------------"
-					write(*,*) "caution! the symmetry does not fullfill!"
-					write(*,*) "----------------------------------------"
-				end if
 				norm=dot(Davidwork((i-1)*ngoodstates+1:i*ngoodstates),&
 				Davidwork((j-1)*ngoodstates+1:j*16*ngoodstates))
 				Davidwork((i-1)*ngoodstates+1:i*ngoodstates)=&
@@ -227,7 +232,7 @@
 					Davidwork((i-1)*ngoodstates+1:i*ngoodstates)/sqrt(norm)
 		end do
 		end if
-
+		end if
 	end if
 
 	return
