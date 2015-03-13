@@ -191,9 +191,7 @@
 		end if
 !		write(*,*) "Davidwork"
 !		write(*,*) Davidwork
-		if(present(ifortho) .and. ifortho=='N') then
-!			write(*,*) 
-		else 
+		if(present(ifortho)==.false.) then
 		norm=dot(Davidwork(1:ngoodstates),Davidwork(1:ngoodstates))
 		write(*,*) "statecorrect state1 norm=",norm
 		checksymm=norm
