@@ -10,11 +10,11 @@
 	integer :: i,j,k,error,m,total,exsit
 	logical :: done,Ifexsit
 	integer :: spinline(ngoodstates,2),C2line(ngoodstates,2),fulline(4,2)
-	character(len=1),optional :: ifortho
+	character(len=1) :: ifortho
 	
 	if(myid==0) then
 		! in the op subroutine do not print this infomation
-		if(present(ifortho)==.false.) then
+		if(ifortho=='Y') then
 			write(*,*) "enter statecorrect subroutine"
 		end if
 		
@@ -191,7 +191,7 @@
 		end if
 !		write(*,*) "Davidwork"
 !		write(*,*) Davidwork
-		if(present(ifortho)==.false.) then
+		if(ifortho=='Y') then
 		norm=dot(Davidwork(1:ngoodstates),Davidwork(1:ngoodstates))
 		write(*,*) "statecorrect state1 norm=",norm
 		checksymm=norm

@@ -135,7 +135,7 @@ end if
 ! the nelecs is added 2 by 2
 		if(logic_spinreversal/=0 .or. (logic_C2/=0 .and. nleft==nright)) then
 		!	call spincorrect(DavidWORK(1:ngoodstates*nstate))
-			call statecorrect(DavidWORK(1:ngoodstates*nstate),checksymm)
+			call statecorrect(DavidWORK(1:ngoodstates*nstate),checksymm,'Y')
 		end if
 		
 		coeffIF=0.0D0
