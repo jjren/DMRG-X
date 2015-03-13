@@ -14,7 +14,7 @@
 	
 	if(myid==0) then
 		! in the op subroutine do not print this infomation
-		if(ifortho/='N') then
+		if(present(ifortho)==.false.) then
 			write(*,*) "enter statecorrect subroutine"
 		end if
 		
