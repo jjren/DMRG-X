@@ -29,7 +29,14 @@ subroutine fromleftsweep
 	!end if
 !	call fullmat
 	call hamiltonian('l')
-	call Renormalization(nleft+1,norbs-nright,'l')
+	if(isweep==sweeps .and. nleft==(norbs+1)/2) then
+		if(myid==0) then
+! this is to do the chan proposed trace excited algrithom
+			write(*,*) "In the last step, did not do Renormalization"
+		end if
+	else
+		call Renormalization(nleft+1,norbs-nright,'l')
+	end if
 
 return
 

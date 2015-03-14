@@ -47,7 +47,7 @@ Subroutine finit_MPS
 		nright=norbs-ibegin-1
 		Lrealdim=subM
 		Rrealdim=subM
-		sweepenergy(0:isweep-2,:)=0.0D0
+		sweepenergy(0:isweep-1,:)=0.0D0
 		call enviro_bigL
 		call enviro_bigR
 		call hamiltonian('i')

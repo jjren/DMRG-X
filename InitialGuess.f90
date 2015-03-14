@@ -6,6 +6,150 @@ MODULE InitialGuess
 ! procedure
 
 	contains
+
+!===========================================================
+	subroutine newinitialfinit(guesscoeff,direction)
+	! the Initial Guess can support nstate/=1
+	! the algrithom can be read from the manul
+	use mpi
+	use variables
+	USE BLAS95
+	USE F95_PRECISION
+
+	implicit none
+	real(kind=8) :: guesscoeff(ngoodstates*nstate)
+	real(kind=8),allocatable :: leftu(:,:),rightv(:,:)&
+	,LRcoeff(:,:,:),LRcoeff1(:,:,:)
+	logical :: alive
+	integer :: reclength
+	integer :: error,i,j,m,k
+	character(len=1) :: direction
+	integer :: logic_C2store
+	real(kind=8) :: checksymm
+
+	if(myid==0) then
+		write(*,*) "enter newInitialfinit subroutine"
+		! two site dmrg
+		if((nright+nleft+2)/=norbs) then
+			write(*,*) "-----------------------------------"
+			write(*,*) "two site dmrg nright+nleft+2/=norbs"
+			write(*,*) "-----------------------------------"
+			stop
+		end if
+
+		allocate(leftu(4*Lrealdim,subM),stat=error)
+		if(error/=0) stop
+		allocate(rightv(subM,4*Rrealdim),stat=error)
+		if(error/=0) stop
+
+		reclength=2*subM*subM
+
+		inquire(file="wavefunction.tmp",exist=alive)
+		if(alive) then
+			open(unit=105,file="wavefunction.tmp",access="Direct",form="unformatted",recl=reclength,status="old")
+		else
+			write(*,*) "wavefunction.tmp doesn't exist"
+			stop
+		end if
+		if(direction=='l' .and. nleft>exactsite) then
+			do i=1,4,1
+				read(105,rec=4*(nleft-1)+i) leftu((i-1)*Lrealdim+1:i*Lrealdim,1:subM)
+			end do
+			do i=1,4,1
+				read(105,rec=4*(nleft+1)+i) rightv(1:subM,i:4*Rrealdim:4)
+			end do
+		else if(direction=='r' .and. nright>exactsite) then
+			do i=1,4,1
+				read(105,rec=4*nleft+i) leftu((i-1)*Lrealdim+1:i*Lrealdim,1:subM)
+			end do
+			do i=1,4,1
+				read(105,rec=4*(nleft+2)+i) rightv(1:subM,i:4*Rrealdim:4)
+			end do
+		end if
+
+
+		allocate(LRcoeff(4*Lrealdim,4*Rrealdim,nstate),stat=error)
+		if(error/=0) stop
+		allocate(LRcoeff1(4*Lrealdim,4*Rrealdim,nstate),stat=error)
+		if(error/=0) stop
+
+		if(direction=='l' .and. nleft>exactsite) then
+			if(Lrealdim/=subM) then
+				write(*,*) "-----------------------------------"
+				write(*,*) "newguessfinit, Lrealdim/=subM failed!",Lrealdim,subM
+				write(*,*) "-----------------------------------"
+				stop
+			end if
+
+			do i=1,nstate,1
+				call gemm(leftu,coeffIF(:,:,i),LRcoeff(1:subM,:,i),'T','N',1.0D0,0.0D0)
+				do j=1,subM,1
+					do k=1,4,1
+					LRcoeff1(subM*(k-1)+1:subM*k,j,i)=LRcoeff(1:subM,(j-1)*4+k,i)
+					end do
+				end do
+				call gemm(LRcoeff1(:,1:subM,i),rightv,LRcoeff(:,:,i),'N','N',1.0D0,0.0D0)
+			end do
+
+		else if(direction=='r' .and. nright>exactsite) then
+			if(Rrealdim/=subM) then
+				write(*,*) "-----------------------------------"
+				write(*,*) "newguessfinit, Rreadlim/=subM failed!"
+				write(*,*) "-----------------------------------"
+				stop
+			end if
+			do i=1,nstate,1
+				call gemm(coeffIF(:,:,i),rightv,LRcoeff(:,1:subM,i),'N','T',1.0D0,0.0D0)
+				do j=1,subM,1
+					do k=1,4,1
+						LRcoeff1(1:subM,(j-1)*4+k,i)=LRcoeff((k-1)*subM+1:k*subM,j,i)
+					end do
+				end do
+				call gemm(leftu,LRcoeff1(1:subM,:,i),LRcoeff(:,:,i),'N','N',1.0D0,0.0D0)
+			end do
+
+		else if((direction=='l' .and. nleft==exactsite) .or. (direction=='r' .and. nright==exactsite)) then
+			LRcoeff=coeffIF
+		end if
+
+		m=1
+		do i=1,4*Rrealdim,1
+		do j=1,4*Lrealdim,1
+			if((quantabigL(j,1)+quantabigR(i,1)==nelecs) .and. &
+				quantabigL(j,2)+quantabigR(i,2)==totalSz) then
+				do k=1,nstate,1
+					guesscoeff(m+(k-1)*ngoodstates)=LRcoeff(j,i,k)
+				end do
+				m=m+1
+			end if
+		end do
+		end do
+		m=m-1
+
+		if(m/=ngoodstates) then
+			write(*,*) "----------------------------------------------"
+			write(*,*) "guesscoeff good quantum states number wrong! failed!"
+			write(*,*) "----------------------------------------------"
+			stop
+		end if
+		
+		if(logic_spinreversal/=0) then
+			logic_C2store=logic_C2
+			logic_C2=0
+			call statecorrect(guesscoeff,checksymm,'Y')
+			logic_C2=logic_C2store
+		else
+			call statecorrect(guesscoeff,checksymm,'S')
+		end if
+
+
+		deallocate(leftu)
+		deallocate(rightv)
+		deallocate(LRcoeff1)
+		deallocate(LRcoeff)
+	end if
+	end subroutine
+
 !===========================================================
 	Subroutine Initialfinit(guesscoeff,direction)
 	! when nstate=1 then we can use the last stored matrix to

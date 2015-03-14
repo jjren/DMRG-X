@@ -21,6 +21,7 @@ Subroutine davidson_wrapper(direction,LIM,ILOW,IHIGH,ISELEC,NIV,MBLOCK,&
 	integer :: smadim,IWRSZ
 	character(len=1) :: direction
 	logical :: done
+	integer :: reclength
 
 ! check how many states fullfill good quantum number
 ! every process do it
@@ -91,6 +92,8 @@ end if
 		if(direction/='i' .and. NIV==1 .and. logic_C2==0 .and. &
 		formernelecs==nelecs) then
 			call Initialfinit(DavidWORK,direction)
+		else if(direction/='i') then
+			call newinitialfinit(DavidWORK,direction)
 		else
 		!	call Initialunivector(HDIAG,DavidWORK,NIV)
 			call Initialrandomweight(DavidWORK,NIV)
@@ -153,6 +156,13 @@ end if
 		end do
 		end do
 		end do
+! write the coeffIF
+		reclength=nstate*32*subM*subM
+		open(unit=109,file="coeffIF.tmp",access="Direct",form="unformatted",recl=reclength,status="replace")
+		write(109,rec=1) coeffIF
+		close(109)
+
+
 
 ! check if the good quantum number Sz and nelecs if fullfilled
 !		do k=1,IHIGH,1
