@@ -1,6 +1,9 @@
 module MathLib
 	
 	use kinds_mod
+	use blas95
+	use f95_precision
+
 	implicit none
 	contains
 !=============================================================================
@@ -39,8 +42,6 @@ subroutine GramSchmit(nvector,lvector,vectorwork,normwork)
 ! input - vectorwork :: the workmemory of vectors
 ! output - normwork :: the norm of every vector after orthogonalization
 
-	use blas95
-	use f95_precision
 
 	implicit none
 	integer :: nvector,lvector
@@ -70,6 +71,31 @@ subroutine GramSchmit(nvector,lvector,vectorwork,normwork)
 	return
 
 end subroutine GramSchmit
+
 !=============================================
 
+subroutine ScaleMatrix(mat,rows,cols,scaling,op)
+! this subroutine use mkl mkl_?imatcopy to do scaling a matrix
+
+	implicit none
+	include "mkl_trans.fi"
+
+	integer :: rows,cols
+	real(kind=r8) :: mat(rows,cols),scaling
+	character(len=1) :: op
+	integer :: src_lda,dst_lda
+	
+	src_lda=rows
+	if(op=='T' .or. op=='t' .or. op=='C' .or. op=='c') then
+		dst_lda=rows
+	else if(op=='N' .or. op=='n' .or. op=='R' .or. op=='r') then
+		dst_lda=cols
+	end if
+
+	call mkl_dimatcopy('C',op,rows,cols,scaling,mat,src_lda,dst_lda)
+
+return
+end subroutine  ScaleMatrix
+
+!=============================================
 end module MathLib

@@ -19,18 +19,20 @@ subroutine op(bigdim,smadim,coeff,newcoeff)
 	use mpi
 	use variables
 	use symmetry
+	use mathlib
 	use BLAS95
 	use F95_PRECISION
 
 	implicit none
 
 	integer :: bigdim,smadim
-	real(kind=8) :: coeff(bigdim*smadim),newcoeff(bigdim*smadim)
+	real(kind=r8) :: coeff(bigdim*smadim),newcoeff(bigdim*smadim)
 	
 	! local
 	integer :: operaindex
-	real(kind=8),allocatable :: LRcoeffin(:,:,:),LRcoeffout(:,:,:),coeffnosymm(:),coeffnosymmreduce(:)
-	real(kind=8),allocatable :: hopmat(:,:,:,:),pppVmat(:,:,:),buffmat(:,:)
+	real(kind=r8),allocatable :: LRcoeffin(:,:,:),LRcoeffout(:,:,:),coeffnosymm(:),coeffnosymmreduce(:)
+	real(kind=r8),allocatable :: hopmat(:,:,:,:),pppVmat(:,:,:),buffmat(:,:)
+	real(kind=r8),allocatable :: phase(:)
 	integer :: error,i,j,k,l,m
 	
 	logical :: ifhop,ifhopsend,ifpppVsend
@@ -239,13 +241,39 @@ subroutine op(bigdim,smadim,coeff,newcoeff)
 						end if
 					end do
 				end do
-			
+			!---------------------------------------------------------
 				! the +1 -1 phase added to l' of hopmat
-				do m=1,4*Lrealdim,1
-					hopmat(m,:,1:2,:)=hopmat(m,:,1:2,:)*((-1.0D0)**(mod(quantabigL(m,1),2)))
-					!transfer from al*ar^(+) to ar^(+)*al
-					hopmat(m,:,3:4,:)=hopmat(m,:,3:4,:)*((-1.0D0)**(mod(quantabigL(m,1),2)))*(-1.0D0)
+				allocate(phase(4*Lrealdim),stat=error)
+				if(error/=0) stop
+
+				do j=1,4*Lrealdim,1
+					phase(j)=(-1.0D0)**(mod(quantabigL(j,1),2))
 				end do
+
+				do m=1,smadim,1
+				do l=1,2,1
+				do k=1,4*Rrealdim,1
+				do j=1,4*Lrealdim,1
+					hopmat(j,k,l,m)=hopmat(j,k,l,m)*phase(j)
+				end do
+				end do
+				end do
+				end do
+
+				phase=phase*(-1.0D0)
+				do m=1,smadim,1
+				do l=3,4,1
+				do k=1,4*Rrealdim,1
+				do j=1,4*Lrealdim,1
+					!transfer from al*ar^(+) to ar^(+)*al
+					hopmat(j,k,l,m)=hopmat(j,k,l,m)*phase(j)
+				end do
+				end do
+				end do
+				end do
+
+				deallocate(phase)
+			!-----------------------------------------------------------
 
 				! send the hopmat
 				hoptouched=0
@@ -301,7 +329,8 @@ subroutine op(bigdim,smadim,coeff,newcoeff)
 					! buffmat is to save the intermediate matrix
 					call gemm(operamatbig(1:4*Lrealdim,1:4*Lrealdim,operaindex*3),pppVmat(:,:,j)&
 						,buffmat,'N','N',1.0D0,0.0D0)
-					LRcoeffout(:,:,j)=buffmat*pppV(i,l)+LRcoeffout(:,:,j)
+					call ScaleMatrix(buffmat,4*Lrealdim,4*Rrealdim,pppV(i,l),'N')
+					LRcoeffout(:,:,j)=buffmat+LRcoeffout(:,:,j)
 				end do
 			end if
 		end do
@@ -335,7 +364,8 @@ subroutine op(bigdim,smadim,coeff,newcoeff)
 							call gemm(operamatbig(1:4*Lrealdim,1:4*Lrealdim,(operaindex-1)*3+k-2),hopmat(:,:,k,j)&
 								,buffmat,'T','N',1.0D0,0.0D0)
 						end if
-						LRcoeffout(:,:,j)=buffmat*t(i,l)+LRcoeffout(:,:,j)
+						call ScaleMatrix(buffmat,4*Lrealdim,4*Rrealdim,t(i,l),'N')
+						LRcoeffout(:,:,j)=buffmat+LRcoeffout(:,:,j)
 					end do
 				end do
 			end if
