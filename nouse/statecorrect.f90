@@ -17,7 +17,7 @@
 		if(ifortho=='Y') then
 			write(*,*) "enter statecorrect subroutine"
 		end if
-		
+		if(ifortho/='S') then
 		spinline=10
 		C2line=10
 		fulline=10
@@ -189,9 +189,11 @@
 
 			end do
 		end if
+		end if
 !		write(*,*) "Davidwork"
 !		write(*,*) Davidwork
-		if(ifortho=='Y') then
+! ifortho=='S' means Gram Schmit orthogonalization
+		if(ifortho=='Y' .or. ifortho=='S') then
 		norm=dot(Davidwork(1:ngoodstates),Davidwork(1:ngoodstates))
 		write(*,*) "statecorrect state1 norm=",norm
 		checksymm=norm

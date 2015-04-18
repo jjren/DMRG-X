@@ -9,14 +9,15 @@ Subroutine system_bigRreverse
 	use variables
 	use mpi
 	use mathlib
+	use communicate
 
 	implicit none
 	
-	integer :: operaindex,error,i,j,k,l
-	real(kind=8),allocatable :: Hbuffer(:,:),operabuffer(:,:,:)
+	integer :: operaindex,error,i,j,k,l,ierr
+	real(kind=r8),allocatable :: Hbuffer(:,:),operabuffer(:,:,:)
 	integer :: status(MPI_STATUS_SIZE)
-	real(kind=8) :: I1(4,4),Im(subM,subM)
-	integer(kind=4),allocatable :: phase(:,:)
+	real(kind=r8) :: II(4,4),Im(subM,subM)
+	integer(kind=i4),allocatable :: phase(:,:)
 	
 	
 
@@ -28,9 +29,9 @@ Subroutine system_bigRreverse
 	if(error/=0) stop
 
 	! construct the unit matrix
-	I1=0.0D0
+	II=0.0D0
 	do i=1,4,1
-		I1(i,i)=1.0D0
+		II(i,i)=1.0D0
 	end do
 	Im=0.0D0
 	do i=1,subM,1
@@ -48,7 +49,7 @@ Subroutine system_bigRreverse
 		end if
 		
 		do j=1,3,1
-		call directproduct(operamatsma(1:Rrealdim,1:Rrealdim,3*(operaindex-1)+j),Rrealdim,I1,4,operamatbig(1:Rrealdim*4,1:Rrealdim*4,3*(operaindex-1)+j))
+		call directproduct(operamatsma(1:Rrealdim,1:Rrealdim,3*(operaindex-1)+j),Rrealdim,II,4,operamatbig(1:Rrealdim*4,1:Rrealdim*4,3*(operaindex-1)+j))
 		end do
 		!write(*,*) "myid=",myid,"i will send operamatsma"
 		call MPI_SEND(operamatsma(:,:,3*(operaindex-1)+1:3*(operaindex-1)+3),3*subM*subM,mpi_real8,0,i,MPI_COMM_WORLD,ierr)
@@ -90,7 +91,7 @@ Subroutine system_bigRreverse
 		
 !     R Hamiltonian contribute
 		Hbig(:,:,2)=0.0D0
-		call directproduct(Hsma(1:Rrealdim,1:Rrealdim,2),Rrealdim,I1,4,Hbuffer(1:4*Rrealdim,1:4*Rrealdim))
+		call directproduct(Hsma(1:Rrealdim,1:Rrealdim,2),Rrealdim,II,4,Hbuffer(1:4*Rrealdim,1:4*Rrealdim))
 		Hbig(1:4*Rrealdim,1:4*Rrealdim,2)=Hbuffer(1:4*Rrealdim,1:4*Rrealdim)
 !-------------------------------------------------------
 !     R sigmaR interaction operator contribute

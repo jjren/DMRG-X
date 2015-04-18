@@ -3,6 +3,7 @@ Subroutine infinit_smallR
 
 	use variables
 	use mpi
+	use communicate
 
 	implicit none
 
@@ -50,12 +51,7 @@ Subroutine infinit_smallR
 				symmlinksma(3,1,2)=2
 				symmlinksma(4,1,2)=-4
 			end if
-
-			!adaptedsma(:,:,2)=0.0D0
-			!adaptedsma(1,1,2)=1.0D0
-			!adaptedsma(4,4,2)=-1.0D0
-			!adaptedsma(2,3,2)=1.0D0
-			!adaptedsma(3,2,2)=1.0D0
+		
 		end if
 	end if
 return

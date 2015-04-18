@@ -3,23 +3,17 @@ subroutine fromrightsweep
 ! right space is the system
 	USE mpi
 	USE variables
+	use communicate
 
 	implicit none
 	
-	if(myid==0) then
-		write(*,*) "enter in subroutine fromrightsweep"
-	end if
+	call master_print_message("enter in subroutine fromrightsweep")
 	
 	if(nright/=exactsite) then
-		call onesitematrix(norbs-nright)
-		if(logic_C2==0) then
-			call system_bigR
-			call system_constructquantaR
-		else
-			call system_bigRreverse
-			call system_constructquantaRreverse
-		end if
-		call store_operatorR(norbs-nright)
+		call OnesiteMatrix(norbs-nright)
+		call System_Big('R')
+		call System_Constructquanta('R')
+		call Store_Operator('R')
 	else
 		call enviro_bigR
 	end if
@@ -29,10 +23,6 @@ subroutine fromrightsweep
 	else
 		call enviro_bigL
 	end if
-	!if(logic_spinreversal/=0) then
-	!	call Spin_reversalmatR
-	!end if
-!	call fullmat
 	call hamiltonian('r')
 	call Renormalization(nleft+1,norbs-nright,'r')
 

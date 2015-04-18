@@ -1,16 +1,15 @@
 Subroutine infinit_smallL
-! construct the L subspace operator matrix 
+! construct the L subspace operator matrix initially
 
 	use variables
-	use mpi
+	use communicate
 
 	implicit none
-
+	
+	! local
 	integer :: i
 	
-	if(myid==0) then
-		write(*,*) "enter in subroutine infinit_smallL"
-	end if
+	call master_print_message("enter in subroutine infinit_smallL")
 
 	if(nleft==1) then
 		quantasmaL=0
@@ -25,7 +24,8 @@ Subroutine infinit_smallL
 		if(myid==orbid(1)) then
 			operamatsma(:,:,1:3)=0.0D0
 			! here only this matrix is set to zero
-			! do not touch other matrix
+			! do not touch other matrix( the R space matrix )
+			! store the create operator
 			operamatsma(2,1,1)=1.0D0
 			operamatsma(4,3,1)=1.0D0
 			operamatsma(3,1,2)=1.0D0
@@ -48,11 +48,6 @@ Subroutine infinit_smallL
 				symmlinksma(4,1,1)=-4
 			end if
 			
-		!	adaptedsma(:,:,1)=0.0D0
-		!	adaptedsma(1,1,1)=1.0D0
-		!	adaptedsma(4,4,1)=-1.0D0
-		!	adaptedsma(2,3,1)=1.0D0
-		!	adaptedsma(3,2,1)=1.0D0
 		end if
 	end if
 return

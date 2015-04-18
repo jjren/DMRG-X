@@ -3,18 +3,17 @@ subroutine fromleftsweep
 ! left space is the system
 	USE mpi
 	USE variables
+	use communicate
 
 	implicit none
-
-	if(myid==0) then
-		write(*,*) "enter in subroutine fromleftsweep"
-	end if
+	
+	call master_print_message("enter in subroutine fromleftsweep")
 	
 	if(nleft/=exactsite) then
-		call onesitematrix(nleft+1)
-		call system_bigL
-		call system_constructquantaL
-		call store_operatorL(nleft+1)
+		call OnesiteMatrix(nleft+1)
+		call System_Big('L')
+		call System_Constructquanta('L')
+		call Store_Operator('L')
 	else
 		call enviro_bigL
 	end if
@@ -24,10 +23,6 @@ subroutine fromleftsweep
 	else
 		call enviro_bigR
 	end if
-	!if(logic_spinreversal/=0) then
-	!	call Spin_reversalmatL
-	!end if
-!	call fullmat
 	call hamiltonian('l')
 	if(isweep==sweeps .and. nleft==(norbs+1)/2) then
 		if(myid==0) then

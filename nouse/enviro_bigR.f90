@@ -3,10 +3,11 @@ Subroutine enviro_bigR
 ! all the operamatbig(does not need operamatsma) read from disc
 	USE mpi
 	USE variables
+	use communicate
 
 	implicit none
 
-	integer :: i
+	integer :: i,ierr
 	integer :: reclength,operaindex
 	logical :: alive
 	character(len=50) :: filename

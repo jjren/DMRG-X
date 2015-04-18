@@ -10,16 +10,18 @@ subroutine op(bigdim,smadim,coeff,newcoeff)
 	use variables
 	use BLAS95
 	use F95_PRECISION
+	use symmetry
+	use communicate
 
 	implicit none
 
-	integer :: error,i,j,k,l,m,i1,j1,m1,l1
+	integer :: error,i,j,k,l,m,ii,j1,m1,l1,ierr
 	integer :: bigdim,smadim
 	! bigdim is the totaldim 16M*M,smadim is the davidson small block dimension
 	! bigdim may be < 16M*M because we use spin reversal symmetry, and the dimension is smaller may be half
 	! if groud state smadim=1
 	! if gs+ex smadim may be >1
-	real(kind=8) :: coeff(bigdim*smadim),newcoeff(bigdim*smadim)
+	real(kind=8) :: coeff(bigdim*smadim),coeffnosymm(ngoodstates*smadim),newcoeff(bigdim*smadim)
 	! coeff is the input coefficient and in the 1-d arrary format
 	! new coeff is H cross C result
 	integer :: operaindex
@@ -55,11 +57,20 @@ subroutine op(bigdim,smadim,coeff,newcoeff)
 	if( myid==0 ) then
 	!	write(*,*) "enter H*C OP subroutine"
 		
-		if(bigdim/=ngoodstates) then
-			write(*,*) "------------------------------------"
-			write(*,*) "op bigdim/=ngoodstates wrong!"
-			write(*,*) "------------------------------------"
-			stop
+	!!	if(bigdim/=ngoodstates) then
+	!		write(*,*) "------------------------------------"
+	!		write(*,*) "op bigdim/=ngoodstates wrong!"
+	!		write(*,*) "------------------------------------"
+	!		stop
+	!	end if
+
+		if(logic_spinreversal/=0 .or. (logic_C2/=0 .and. nleft==nright)) then
+		do i=1,smadim,1
+			call symmetrizestate(ngoodstates,coeffnosymm(ngoodstates*(i-1)+1:i*ngoodstates),&
+				coeff(bigdim*(i-1)+1:i*bigdim),'u')
+		end do
+		else
+			coeffnosymm=coeff
 		end if
 
 !-----------------------------------------------------------------------------
@@ -72,23 +83,24 @@ subroutine op(bigdim,smadim,coeff,newcoeff)
 			do j=1,4*Lrealdim,1
 				if((quantabigL(j,1)+quantabigR(i,1)==nelecs) .and. &
 					quantabigL(j,2)+quantabigR(i,2)==totalSz) then
-					LRcoeff(j,i,k)=coeff(m)
+					LRcoeff(j,i,k)=coeffnosymm(m)
 					m=m+1
 				end if
 			end do
 			end do
 		end do
-		m=m-1
-		if(m/=smadim*ngoodstates) then
-			write(*,*) "------------------------------------"
-			write(*,*) "op good quantum states number wrong!"
-			write(*,*) "------------------------------------"
-			stop
-		end if
+	!	m=m-1
+	!	if(m/=smadim*ngoodstates) then
+	!		write(*,*) "------------------------------------"
+	!		write(*,*) "op good quantum states number wrong!"
+	!		write(*,*) "------------------------------------"
+	!		stop
+	!	end if
 	end if
 
 
 	call MPI_bcast(LRcoeff,16*Lrealdim*Rrealdim*smadim,MPI_real8,0,MPI_COMM_WORLD,ierr)
+	coeffnosymm=0.0D0
 !  calculate HL*1 and 1*HR 
 	if(myid==0) then 
 		do k=1,2,1
@@ -109,7 +121,7 @@ subroutine op(bigdim,smadim,coeff,newcoeff)
 			do j=1,4*Lrealdim,1
 				if((quantabigL(j,1)+quantabigR(i,1)==nelecs) .and. &
 					quantabigL(j,2)+quantabigR(i,2)==totalSz) then
-					newcoeff(m)=componentmat(j,i,6,l)+newcoeff(m)
+					coeffnosymm(m)=componentmat(j,i,6,l)+coeffnosymm(m)
 					m=m+1
 				end if
 			end do
@@ -203,20 +215,34 @@ subroutine op(bigdim,smadim,coeff,newcoeff)
 				call MPI_RECV(componentmat(:,:,6,:),16*Lrealdim*Rrealdim*smadim,mpi_real8,orbid(l),l,MPI_COMM_WORLD,status,ierr)
 				m1=1
 				do l1=1,smadim,1
-				do i1=1,4*Rrealdim,1
+				do ii=1,4*Rrealdim,1
 				do j1=1,4*Lrealdim,1
-					if((quantabigL(j1,1)+quantabigR(i1,1)==nelecs) .and. &
-						quantabigL(j1,2)+quantabigR(i1,2)==totalSz) then
-						newcoeff(m1)=componentmat(j1,i1,6,l1)+newcoeff(m1)
+					if((quantabigL(j1,1)+quantabigR(ii,1)==nelecs) .and. &
+						quantabigL(j1,2)+quantabigR(ii,2)==totalSz) then
+						coeffnosymm(m1)=componentmat(j1,ii,6,l1)+coeffnosymm(m1)
 						m1=m1+1
 					end if
 				end do
 				end do
 				end do
-
 			end if
 		end do
 	end do
+		if(myid==0) then
+			newcoeff=0.0D0
+			if(logic_spinreversal/=0 .or. (logic_C2/=0 .and. nleft==nright)) then
+				do j=1,smadim,1
+					call symmetrizestate(ngoodstates,coeffnosymm(ngoodstates*(j-1)+1:j*ngoodstates),&
+						newcoeff(bigdim*(j-1)+1:j*bigdim),'s')
+				end do
+			else
+				newcoeff=coeffnosymm
+			end if
+!				open(unit=200,file="tmp2.tmp",status="old",position="append")
+!				write(200,*) "=============================="
+!				write(200,*) newcoeff
+!				close(200)
+		end if
 ! let the non good quantum coeff to be zero
 	!if(myid==0) then
 	!	do j=1,4*Rrealdim,1
