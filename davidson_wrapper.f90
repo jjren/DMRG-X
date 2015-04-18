@@ -1,5 +1,5 @@
-Subroutine davidson_wrapper(direction,LIM,ILOW,IHIGH,ISELEC,NIV,MBLOCK,&
-                           CRITE,CRITC,CRITR,ORTHO,MAXITER,checksymm)
+Subroutine Davidson_Wrapper(direction,lim,ilow,ihigh,iselec,niv,mblock,&
+				   crite,critc,critr,ortho,maxiter)
 ! this is the davidson wrapper to call DVDSON written by Andreas
 ! aim to allocate memory and set variables in the global array
 ! mainly allocate memory on 0 process
@@ -7,111 +7,99 @@ Subroutine davidson_wrapper(direction,LIM,ILOW,IHIGH,ISELEC,NIV,MBLOCK,&
 	USE mpi
 	USE variables
 	USE InitialGuess
+	USE symmetry
+	use communicate
 
 	implicit none
 
-	integer :: error,i,j,k,m
-	integer :: N,LIM,ILOW,IHIGH,ISELEC,NIV,MBLOCK,NLOOPS,NMV,ierror,MAXITER
-	real(kind=8) :: CRITE,CRITC,CRITR,ORTHO,checksymm
-	! checksymm is used to check if the output wavefucntion fullfilled the
-	! symmetry. if not do iteration
-	logical :: HIEND
-	external op
-	real(kind=8),allocatable :: HDIAG(:),DavidWORK(:),dummycoeff(:),dummynewcoeff(:)
-	integer :: smadim,IWRSZ
 	character(len=1) :: direction
-	logical :: done
+	integer :: lim,ilow,ihigh,niv,mblock,maxiter
+	integer :: iselec(lim)
+	real(kind=8) :: crite,critc,critr,ortho
+
+	! local
+	! davidson parameter
+	integer :: dimN,nloops,nmv,ierror,smadim,IWRSZ
+	logical :: hiend
+	external op
+
+	real(kind=r8),allocatable :: HDIAG(:),DavidWORK(:)
+	real(kind=r8),allocatable :: dummycoeff(:),dummynewcoeff(:) ! have no use in fact
+	real(kind=r8),allocatable :: nosymmout(:)
 	integer :: reclength
-
-! check how many states fullfill good quantum number
-! every process do it
-! N is the number of good quantum number states
-
-	if(myid==0) then
-		write(*,*) "enter in davidson diagonalization subroutine"
-	end if
-
-	N=0
-	do i=1,4*Rrealdim,1
-	do j=1,4*Lrealdim,1
-		if((quantabigL(j,1)+quantabigR(i,1)==nelecs) .and. &
-		quantabigL(j,2)+quantabigR(i,2)==totalSz) then
-		N=N+1
-		end if
-	end do
-	end do
-	ngoodstates=N
+	integer :: error,i,j,k,m
 	
-if(myid==0 .and. (logic_spinreversal/=0 .or. logic_C2/=0)) then
-	allocate(symmlinkgood(ngoodstates,2),stat=error)
-	if(error/=0) stop
-! in the good quantum number states space
-! get the symmetry link information
-! symmlinkgood(m,1) means the left space index in 4M basis
-! symmlinkgood(m,2) means the right space index in 4M basis
+	integer :: ierr ! MPI flag
 
-	m=1
+	call master_print_message("enter in davidson diagonalization subroutine")
+
+	! check how many states fullfill good quantum number
+	! every process do it
+	! ngoodstates is the number of good quantum number states
+
+	ngoodstates=0
 	do i=1,4*Rrealdim,1
 	do j=1,4*Lrealdim,1
 		if((quantabigL(j,1)+quantabigR(i,1)==nelecs) .and. &
 		quantabigL(j,2)+quantabigR(i,2)==totalSz) then
-		symmlinkgood(m,1)=j
-		symmlinkgood(m,2)=i
-		m=m+1
+			ngoodstates=ngoodstates+1
 		end if
 	end do
 	end do
-		if(m-1/=ngoodstates) then
-			write(*,*) "-----------------------------"
-			write(*,*) "symmlinkgood m-1/=ngoodstates"
-			write(*,*) "-----------------------------"
-			stop
-		end if
-end if
+	dimN=ngoodstates
+	
+	if((logic_spinreversal/=0 .or. &
+		(logic_C2/=0 .and. nleft==nright))) then
+		! construct the symmlinkgood 
+		call CreatSymmlinkgood
+		! construct the symmetry matrix S in sparse format
+		call SymmetryMat
+		dimN=nsymmstate
+	end if
+	call master_print_message(ngoodstates,"ngoodstates:")
+	call master_print_message(dimN,"total Hamiltonian dimension:")
 
+!---------------------------------------------------
+! can do direct diagonalization
+!	call fullmat
 !-----------------------------------------------------
-	!IWRSZ=2*N*LIM+LIM*LIM+(nstate+10)*LIM+nstate
-	IWRSZ=LIM*(2*N+LIM+9)+LIM*(LIM+1)/2+nstate+100
 
+! allocate the davidson workarray needed by DVDSON
+	IWRSZ=lim*(2*dimN+lim+9)+lim*(lim+1)/2+nstate+100
 	if(myid==0) then
-		write(*,*) "number of good quantum number states",N
-		allocate(HDIAG(N),stat=error)
+		allocate(HDIAG(dimN),stat=error)
 		if(error/=0) stop
 		allocate(DavidWORK(IWRSZ),stat=error)
 		if(error/=0) stop
 	end if
-
+	
+! Get the diagonal element of hamiltonian
+	if(logic_spinreversal/=0 .or. &
+		(logic_C2/=0 .and. nleft==nright)) then
+		call SymmHDiag(HDIAG)
+	else 
 		call GetHDiag(HDIAG)
-! get the intital vector
-! here we only consider
-! 1. nstate=1 finit
-! 2. nstate>1 finit exscheme=1
-! 3  infinit
-! we can add exscheme=2 and later
-	if(myid==0) then
-		if(direction/='i' .and. NIV==1 .and. logic_C2==0 .and. &
-		formernelecs==nelecs) then
-			call Initialfinit(DavidWORK,direction)
-		else if(direction/='i') then
-			call newinitialfinit(DavidWORK,direction)
-		else
-		!	call Initialunivector(HDIAG,DavidWORK,NIV)
-			call Initialrandomweight(DavidWORK,NIV)
-		end if
 	end if
 
+! Get the Initialcoeff Guess
+	if(myid==0) then
+		call InitialStarter(direction,dimN,niv,DavidWORK)
+	end if
+
+!---------------------------------------------------------------------
+! The core part of davidson diagnolization
 	
 	if(myid==0) then
-		call DVDSON(op,N,LIM,HDIAG,ILOW,IHIGH,ISELEC &
-		    ,NIV,MBLOCK,CRITE,CRITC,CRITR,ORTHO,MAXITER,DavidWORK,&
-		    IWRSZ,HIEND,NLOOPS,NMV,ierror)
+		call DVDSON(op,dimN,lim,HDIAG,ilow,ihigh,iselec &
+		    ,niv,mblock,crite,critc,critr,ortho,maxiter,DavidWORK,&
+		    IWRSZ,hiend,nloops,nmv,ierror)
 		    smadim=0
-		call MPI_bcast(smadim,1,MPI_integer,0,MPI_COMM_WORLD,ierr)
+		call MPI_BCAST(smadim,1,MPI_integer,0,MPI_COMM_WORLD,ierr)
 	end if
 
 	if(myid/=0) then
 		do while(.true.)
-			call MPI_bcast(smadim,1,MPI_integer,0,MPI_COMM_WORLD,ierr)
+			call MPI_BCAST(smadim,1,MPI_integer,0,MPI_COMM_WORLD,ierr)
 			if(smadim>0) then
 				allocate(dummycoeff(smadim),stat=error)
 				if(error/=0) stop
@@ -126,31 +114,36 @@ end if
 		end do
 	end if
 
-
+!-----------------------------------------------------------------------------
+	
 	if(myid==0) then
-		if(HIEND/=.false.) then
-			write(*,*) "---------------------------"
-			write(*,*) "didn't get the lowest state"
-			write(*,*) "---------------------------"
+		if(hiend/=.false.) then
+			call master_print_message("didn't get the lowest state")
 			stop
 		end if
-! when the nelecs>nsite 
-! the nelecs is added 2 by 2
+		
+		! transfer the symmetry state to the non-symmetry state S*fai
+		allocate(nosymmout(ngoodstates*niv),stat=error)
+		if(error/=0) stop
+
 		if(logic_spinreversal/=0 .or. (logic_C2/=0 .and. nleft==nright)) then
-		!	call spincorrect(DavidWORK(1:ngoodstates*nstate))
-			call statecorrect(DavidWORK(1:ngoodstates*nstate),checksymm,'Y')
+			do i=1,niv
+				call SymmetrizeState(ngoodstates,&
+					nosymmout((i-1)*ngoodstates+1:i*ngoodstates),Davidwork((i-1)*nsymmstate+1:i*nsymmstate),'u')
+			end do
+		else
+			nosymmout=DavidWORK(1:ngoodstates*niv)
 		end if
 		
 		coeffIF=0.0D0
-! the DavidWORK only contains the ngoodstates coeff.
-! other nongoodstates should be set to 0
+! the DavidWORK only contains the ngoodstates coeff other nongoodstates should be set to 0
 		m=1
 		do k=1,IHIGH,1
 		do i=1,4*Rrealdim,1
 		do j=1,4*Lrealdim,1
 			if((quantabigL(j,1)+quantabigR(i,1)==nelecs) .and. &
 				quantabigL(j,2)+quantabigR(i,2)==totalSz) then
-				coeffIF(j,i,k)=DavidWORK(m)
+				coeffIF(j,i,k)=nosymmout(m)
 				m=m+1
 			end if
 		end do
@@ -162,58 +155,43 @@ end if
 		write(109,rec=1) coeffIF
 		close(109)
 
-
-
-! check if the good quantum number Sz and nelecs if fullfilled
-!		do k=1,IHIGH,1
-!		do i=1,4*Rrealdim,1
-!		do j=1,4*Lrealdim,1
-!			if((quantabigL(j,1)+quantabigR(i,1)/=nelecs) .or. &
-!				(quantabigL(j,2)+quantabigR(i,2)/=totalSz)) then
-!				if(abs(coeffIF(j,i,k))>relazero) then
-!					write(*,*) "------------------------------------"
-!					write(*,*) "did not fullfill good quantum number",coeffIF(j,i,k)
-!					write(*,*) "------------------------------------"
-!				end if
-!			end if
-!		end do
-!		end do
-!		end do
-!--------------------------------------------------------------
+!=================================================================================
+! write the final out
 
 		write(*,*) "low state energy"
-		do i=1,IHIGH,1
-!		write(*,*) DavidWORK((i-1)*ngoodstates+1:i*ngoodstates)
-		write(*,*) nleft+1,norbs-nright,i,"th energy=",DavidWORK(IHIGH*ngoodstates+i)
-		write(*,*) "energy converge:",DavidWORK(IHIGH*ngoodstates+IHIGH+i)
-		write(*,*) "residual norm:",DavidWORK(IHIGH*ngoodstates+2*IHIGH+IHIGH+i)
+		do i=1,ihigh,1
+			write(*,*) nleft+1,norbs-nright,i,"th energy=",DavidWORK(IHIGH*dimN+i)
+			write(*,*) "energy converge:",DavidWORK(IHIGH*dimN+IHIGH+i)
+			write(*,*) "residual norm:",DavidWORK(IHIGH*dimN+2*IHIGH+IHIGH+i)
 		end do
-		write(*,*) "NLOOPS=",NLOOPS
-		Write(*,*) "IERROR=",IERROR
-		write(*,*) "NMV=",NMV
+		write(*,*) "NLOOPS=",nloops
+		Write(*,*) "IERROR=",ierror
+		write(*,*) "NMV=",nmv
 
-		if(IERROR/=0) then
-			write(*,*) "---------------------------"
-			write(*,*) "failed! IERROR=",IERROR
-			write(*,*) "---------------------------"
+		if(ierror/=0) then
+			call master_print_message("failed! IERROR/=0")
 			stop
 		end if
+
+!==================================================================================
 		
 ! update the sweepenergy
 ! use the middle site as the sweepenergy
 		if(nleft==(norbs+1)/2-1) then
-			do i=1,IHIGH,1
-				sweepenergy(isweep,i)=DavidWORK(IHIGH*ngoodstates+i)
+			do i=1,ihigh,1
+				sweepenergy(isweep,i)=DavidWORK(ihigh*dimN+i)
 			end do
 		end if
-
 		
 		deallocate(HDIAG)
 		deallocate(DavidWORK)
-		if(logic_spinreversal/=0 .or. logic_C2/=0) then
-			deallocate(symmlinkgood)
-		end if
+		deallocate(nosymmout)
 	end if
-	call MPI_bcast(checksymm,1,MPI_real8,0,MPI_COMM_WORLD,ierr)
+
+! deallocate symmetry workarray
+	if(logic_spinreversal/=0 .or. (logic_C2/=0 .and. nleft==nright)) then
+		call DestorySymm
+	end if
+
 return
-end subroutine
+end subroutine Davidson_Wrapper

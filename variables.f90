@@ -1,85 +1,99 @@
-	Module Variables
-	USE MPI
-
+module variables
+	
+	use kinds_mod
 	implicit none
 
-
-	! MPI part
-	integer(kind=4) :: ierr,myid,nprocs,version,subversion
-
+!=================================================
 	character(len=1) :: mode
-	integer(kind=4) :: modeindex
+	integer(kind=i4) :: modeindex
 	! mode=s standard 
 	! mode=d debug
 	! mode=r restart
+!=================================================
+
+	! molecule part
+	integer(kind=i4) :: &
+	norbs, &                   ! how many orbitals
+	nelecs, &                  ! how many electrons
+	formernelecs, &            ! the last step electron number
+	natoms, &                  ! how many atoms
+	ncharges, &                ! how many extra charges (+1,add one electron)
+	realnelecs, &              ! ncharges+nelecs
+	totalSz, &                 ! totalSz component up nelecs - down nelecs
+	nbonds , &                 ! how many bonds
+	nstate                     ! how many targeted states
+	real(kind=r8),allocatable :: &    
+	nuclQ(:) , &                      ! nuclear Q :: chemical potential :: e.g carbon +1
+	coord(:,:) , &                    ! coordinate(natoms,1:3)
+	nweight(:)                        ! excited states average method nweight
+	integer(kind=i4),allocatable :: bondlink(:,:)  ! bondlink information
+
+!========================================================
 	
+	! control part
+	integer(kind=i4) :: &
+	logic_PPP, &            ! if use PPP model    
+	logic_tree, &           ! if use tree tensor algorithm, how many blocks                
+	blocks, &
+	logic_spinreversal,&    ! if use spinreversal symmetry :: +1 singlet -1 triplet 0 none
+	logic_C2                ! if use C2 like symmetry :: +1 A ;-1 B ; 0 none
+	integer(kind=i4),allocatable :: treelink(:,:)  ! treelink information
 
-
-	! system part
-	integer(kind=4) :: norbs,nelecs,formernelecs,natoms,ncharges,blocks,realnelecs,totalSz
-	integer(kind=4),allocatable :: orbid(:)
-	real(kind=8),allocatable :: nuclQ(:)
-	! the orbid(:) is the process id every orbital
-	! totalSz is the up nelecs - down nelecs
-	! formernelecs is used to trace the former step the nelecs
-
-	integer(kind=4) :: logic_PPP,nbonds
-
-	integer(kind=4) :: logic_tree
-	! if use tree tensor algorithm
-
-	real(kind=8),allocatable :: coord(:,:)
-	integer(kind=4),allocatable :: bondlink(:,:)
-
-! we use a new schema to include symmetry
-! logic_spinreversal=+-1
-! 1 is singlet
-! -1 is triplet
-	integer(kind=4) :: logic_spinreversal,logic_C2
-! symmetrylink represent the symmetry link of every state
-! the first variables means the states
-! the second means different symmetry spin_reversal electron-hole
-! the third is the L and R space
-! symmlinkgood means the good quantum number states symmetry link information
-	integer(kind=2),allocatable :: symmlinksma(:,:,:),symmlinkbig(:,:,:),symmlinkgood(:,:)
-	!real(kind=8),allocatable :: adaptedsma(:,:,:),adaptedbig(:,:,:)
-
-	! this is the onesite spin_reversal operator matrix
-	!real(kind=8) :: parityonesitemat(4,4)
+!=========================================================
 	
-	
+	! loadbalance part
+	integer(kind=i4),allocatable :: orbid(:)         ! the orbid(norbs) is the process id every orbital
+
+!=========================================================
 
 	! DMRG part
-	integer(kind=4) :: subM,sweeps,exactsite,isweep
-	integer(kind=4),allocatable :: treelink(:,:)
-	real(kind=8) :: energythresh
-	real(kind=8),allocatable :: sweepenergy(:,:)
+	integer(kind=i4) :: exscheme         ! target excited state scheme
+	integer(kind=i4) :: &
+	subM , &                             ! DMRG subspace M 
+	sweeps , &                           ! finite DMRG sweeps
+	exactsite , &                        ! the number of exact discrible sites
+	isweep                               ! the at present isweep
+	real(kind=r8) :: energythresh        ! energy convegence threshold in the middle of every sweep
+	real(kind=r8),allocatable :: sweepenergy(:,:)  ! store every sweep energy in the middle
+	integer(kind=i4) :: Lrealdim,Rrealdim   ! L/R space real dimension
+	integer(kind=i4) :: nleft,nright        ! L/R space site number L+sigmaL+sigmaR+R
+	integer(kind=i4) :: ngoodstates         ! the number of basis fullfill the good quantum number
+
+!=========================================================
 
 	! Hamiltonian part
+	real(kind=r8),allocatable :: & 
+	t(:,:) , &                    ! transfer integral in PPP/one electron integral  
+	v(:,:,:,:) , &                ! two electron integral full Quantum Chemistry
+	hubbardU(:) , &               ! hubbard term
+	pppV(:,:) , &                 ! PPP term
+	operamatbig(:,:,:) , &        ! operator matrix in 4M basis a+(up),a+(down),n  
+	Hbig(:,:,:) , &               ! subspace HL and HR in 4M basis
+	operamatsma(:,:,:) , &        ! operator matrix in M basis a+(up),a+(down),n
+	Hsma(:,:,:)                   ! subspace HL and HR in 4M basis
+	integer(kind=i4),allocatable :: &
+	quantasmaL(:,:) , &           ! L space good quantum number (N and Sz)in M basis
+	quantasmaR(:,:) , &           ! R space good quantum number (N and Sz)in M basis
+	quantabigL(:,:) , &           ! L space good quantum number (N and Sz)in 4M basis
+	quantabigR(:,:)               ! R space good quantum number (N and Sz)in 4M basis
+	real(kind=r8) :: onesitemat(4,4,5)            ! one site matrix in 4*4 basis 
+	real(kind=r8),allocatable :: coeffIF(:,:,:)   ! coeffIF is the inital and final wavefunction coefficient 
 
-	real(kind=8),allocatable :: t(:,:),v(:,:,:,:) !full Quantum Chemistry
-	real(kind=8),allocatable :: hubbardU(:),pppV(:,:) ! PPP model 
+!============================================================
 
-	real(kind=8),allocatable :: operamatbig(:,:,:),Hbig(:,:,:)
-	real(kind=8),allocatable :: operamatsma(:,:,:),Hsma(:,:,:)
-	integer(kind=4),allocatable :: quantasmaL(:,:),quantasmaR(:,:),quantabigL(:,:),quantabigR(:,:)
-	! quanta is the good quantum number such as number of electron and number
-	! of Sz
-	real(kind=8) :: onesitemat(4,4,5)
-	integer(kind=4) :: Lrealdim,Rrealdim
+	! symmetry part
+	integer(kind=i2),allocatable :: symmlinksma(:,:,:),symmlinkbig(:,:,:),symmlinkgood(:,:)
+	! symmetrylink represent the symmetry link of every state
+	! the first variable means the states 4M or M
+	! the second means different symmetry spin_reversal/electron-hole
+	! the third is the L/1 and R/2 space
+	! symmlinkgood means the good quantum number states symmetry link information
 
-	integer(kind=4) :: nleft,nright,ngoodstates
-	! nleft is the number of orbs in the L space
-	! without sigmaL
-	integer(kind=4) :: nstate,exscheme
-	real(kind=8),allocatable :: nweight(:)
-	real(kind=8),allocatable :: coeffIF(:,:,:)
-	! coeffIF is the inital and final coefficient 
+!============================================================
 
-! constant
-	!real(kind=8),parameter :: quantaconst=0.1
-	real(kind=8),parameter :: relazero=1.0D-8
+	! constant
+	real(kind=r8),parameter :: relazero=1.0D-8   ! relative zero
 
+!============================================================
 
-
-	end Module
+end Module variables

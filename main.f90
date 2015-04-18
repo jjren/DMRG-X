@@ -1,46 +1,42 @@
-	program main
+program main
 	! This is a DMRG_MPS program quantum chemistry
 	! only PPP model has been written
 
-	USE MPI
-	USE Variables
+	USE variables
+	use communicate
+	use exit_mod
+	use mpi, only : MPI_WTIME
 
 	implicit none
-	real(kind=8) :: starttime,endtime,ticktime
+	! local 
+	real(kind=r8) :: starttime,endtime
 
-	call MPI_INIT(ierr)
+	call init_communicate
 	starttime=MPI_WTIME()
-	call MPI_COMM_RANK(MPI_COMM_WORLD,myid,ierr)
-	call MPI_COMM_SIZE(MPI_COMM_WORLD,nprocs,ierr)
-	call MPI_GET_VERSION(VERSION,SUBVERSION,ierr)
-	write(*,*) "myid=",myid,"version=",version,"subversion=",subversion
-	call MPI_Barrier(MPI_COMM_WORLD,ierr)
-
-	!read the input files
-	call readinput
-	! allocate the operator to different process
-	! allocate the needed memory
-	call loadbalance
-
-	! construct onesite parity matrix
-	!if(myid==0 .and. logic_spinreversal/=0) then
-	!	call parity_onesitematrix
-	!end if
 	
-	! do infinit DMRG
-	call infinit_MPS
-	! do finit DMRG
-	call finit_MPS
-
-	if(nstate/=1) then
-		call transmoment
+	if(nprocs<2) then
+		call exit_DMRG(sigAbort,"nprocs<2 failed!")
 	end if
 
+	! read the input files
+	call ReadInput
+
+	! allocate the operator to different process
+	call LoadBalance
+	
+	! do infinit DMRG process
+	call Infinit_MPS
+
+	! do finit DMRG process
+	call Finit_MPS
+	
+	! calculate transition moment between gs and ex if nstate/=1
+	if(nstate/=1) then
+		call TransMoment
+	end if
 
 	endtime=MPI_WTIME()
-	ticktime=MPI_WTICK()
-	call MPI_Barrier(MPI_COMM_WORLD,ierr)
-	write(*,*) "myid=",myid,"totaltime=",endtime-starttime,"ticktime=",ticktime
-	call MPI_FINALIZE(ierr)
+	call master_print_message(endtime-starttime,"RUMTIME:")
+	call exit_DMRG(0,"Program DMRG-X end successfully")
 
-	end program main
+end program main

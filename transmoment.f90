@@ -5,11 +5,12 @@ subroutine transmoment
 	use variables
 	use blas95
 	use f95_precision
+	use communicate
 
 	implicit none
 
 	integer :: operaindex
-	integer :: i,j,k,error
+	integer :: i,j,k,error,ierr
 	integer :: status(MPI_STATUS_SIZE)
 	real(kind=8),allocatable :: midmat(:,:)
 	real(kind=8),allocatable :: imoment(:),zeromoment(:,:)

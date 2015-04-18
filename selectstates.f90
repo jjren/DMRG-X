@@ -19,7 +19,7 @@ subroutine selectstates(valuework,dim1,valueindex,singularvalue,&
 	singularvalue=0.0D0
 	valueindex=0
 	write(*,*) "dim1=",dim1
-	write(*,*) "valuework",valuework
+	!write(*,*) "valuework",valuework
 	if(logic_spinreversal==0) then
 		do i=1,dim1,1
 			do j=1,subM,1

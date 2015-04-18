@@ -1,166 +1,124 @@
-subroutine store_operatorL(index1)
-! this subroutine is to store the operator of every site(L space)
+subroutine Store_Operator(domain)
+! this subroutine is to store the operator of every site L/R space
 ! in fact only the 4M basis operator matrix need to be store
-! index1 is the sigmaL index
 	use variables
 	use mpi
+	use communicate
+	use exit_mod
 
 	implicit none
 
-	integer :: index1
-	integer :: i,reclength,operaindex
-	character(len=50) :: filename
+	character(len=1) :: domain
+	! local
+	integer :: i
+	integer :: reclength,operaindex,Hindex,recindex
+	integer :: orbstart,orbend,orbref,orbnow
+	! orbref is the reference orbindex 1 or norbs
+	! orbnow is nleft+1 or norbs-nright
+	character(len=50) :: filename,Hfilename,symmfilename,quantafilename
 	logical :: alive
-	integer :: thefile,status(MPI_STATUS_SIZE)
-	integer(kind=MPI_OFFSET_KIND) :: offset
 
-	! reclength is the length of direct io
+	integer :: thefile , status(MPI_STATUS_SIZE) ! MPI_flag
+	integer(kind=MPI_OFFSET_KIND) :: offset
+	integer :: ierr
+
+	! in fortran io, reclength is the length of direct io
 	! ifort use 4byte as 1 by default
 	
-	if(myid==0) then
-		write(*,*) "enter in store_operatorL subroutine"
-	end if
+	call master_print_message("enter in store_operator subroutine")
 	
-	! L+sigmaL space
-! parallel io
-	write(filename,'(i5.5,a8)') index1,'left.tmp'
-	call MPI_FILE_OPEN(MPI_COMM_WORLD,trim(filename),MPI_MODE_WRONLY+MPI_MODE_CREATE,MPI_INFO_NULL,thefile,ierr)
-	do i=1,index1,1
-	if(myid==orbid(i)) then
-		if(mod(i,nprocs-1)==0) then
-			operaindex=i/(nprocs-1)
-		else
-			operaindex=i/(nprocs-1)+1
-		end if
-		offset=(i-1)*16*subM*subM*3*8
-		call MPI_FILE_WRITE_AT(thefile,offset,operamatbig(:,:,3*(operaindex-1)+1:3*operaindex),16*subM*subM*3,mpi_real8,status,ierr)
+	! L+sigmaL/R+sigmaR space operator
+	! MPI parallel io
+
+	if(domain=='L') then
+		orbnow=nleft+1
+		write(filename,'(i5.5,a8)') orbnow,'left.tmp'
+		orbstart=1
+		orbend=nleft+1
+		orbref=1
+	else if (domain=='R') then
+		orbnow=norbs-nright
+		write(filename,'(i5.5,a9)') orbnow,'right.tmp'
+		orbstart=norbs-nright
+		orbend=norbs
+		orbref=norbs
+	else
+		call exit_DMRG(sigAbort,"domain/=L .and. domain/='R' failed!")
 	end if
+
+	call MPI_FILE_OPEN(MPI_COMM_WORLD,trim(filename),MPI_MODE_WRONLY+MPI_MODE_CREATE,MPI_INFO_NULL,thefile,ierr)
+	do i=orbstart,orbend,1
+		if(myid==orbid(i)) then
+			if(mod(i,nprocs-1)==0) then
+				operaindex=i/(nprocs-1)
+			else
+				operaindex=i/(nprocs-1)+1
+			end if
+			offset=abs(i-orbref)*16*subM*subM*3*8
+			call MPI_FILE_WRITE_AT(thefile,offset,operamatbig(1,1,3*operaindex-2),16*subM*subM*3,mpi_real8,status,ierr)
+		end if
 	end do
 	call MPI_FILE_CLOSE(thefile,ierr)
-		
+
+!=====================================================
+
 	if(myid==0) then
-		reclength=2*16*subM*subM
+		if(domain=='L') then
+			Hfilename="0-left.tmp"
+			symmfilename="symmlink-left.tmp"
+			quantafilename="quantabigL.tmp"
+			Hindex=1
+		else if(domain=='R') then
+			Hfilename="0-right.tmp"
+			symmfilename="symmlink-right.tmp"
+			quantafilename="quantabigR.tmp"
+			Hindex=2
+		end if
+		recindex=abs(orbnow-orbref)+1
 !----------------open a binary file-------------
-		inquire(file="0-left.tmp",exist=alive)
+		reclength=2*16*subM*subM
+		inquire(file=trim(Hfilename),exist=alive)
 		if(alive) then
-			open(unit=101,file="0-left.tmp",access="Direct",form="unformatted",recl=reclength,status="old")
+			open(unit=101,file=trim(Hfilename),access="Direct",form="unformatted",recl=reclength,status="old")
 		else
-			open(unit=101,file="0-left.tmp",access="Direct",form="unformatted",recl=reclength,status="replace")
+			open(unit=101,file=trim(Hfilename),access="Direct",form="unformatted",recl=reclength,status="replace")
 		end if
-		
 !-----------------------------------------------
-		write(101,rec=index1) Hbig(:,:,1)
+		! sigmaR index =norbs is 1; norbs-1 is 2
+		write(101,rec=recindex) Hbig(:,:,Hindex)
 		close(101)
-!------------------------------write the parity matrix---
+!------------------------------write the symmetry matrix---
 		if(logic_spinreversal/=0) then
-		reclength=2*subM
-		! we use integer kind=2 in this symmlink matrix
-		inquire(file="symmlink-left.tmp",exist=alive)
-		if(alive) then
-			open(unit=103,file="symmlink-left.tmp",access="Direct",form="unformatted",recl=reclength,status="old")
-		else
-			open(unit=103,file="symmlink-left.tmp",access="Direct",form="unformatted",recl=reclength,status="replace")
+			reclength=2*subM
+			! we use integer kind=2 in this symmlink matrix
+			inquire(file=trim(symmfilename),exist=alive)
+			if(alive) then
+				open(unit=103,file=trim(symmfilename),access="Direct",form="unformatted",recl=reclength,status="old")
+			else
+				open(unit=103,file=trim(symmfilename),access="Direct",form="unformatted",recl=reclength,status="replace")
+			end if
+			write(103,rec=recindex) symmlinkbig(:,1,Hindex)
+			close(103)
 		end if
-		write(103,rec=index1) symmlinkbig(:,1,1)
-		close(103)
-		end if
-!------------------------------write the quantabigL(4*subM,2)---
+!------------------------------write the quantabigL/R(4*subM,2)---
 		reclength=4*subM*2
 		! quantabigL is  integer(kind=4) so without *2
-		inquire(file="quantabigL.tmp",exist=alive)
+		inquire(file=trim(quantafilename),exist=alive)
 		if(alive) then
-			open(unit=107,file="quantabigL.tmp",access="Direct",form="unformatted",recl=reclength,status="old")
+			open(unit=107,file=trim(quantafilename),access="Direct",form="unformatted",recl=reclength,status="old")
 		else
-			open(unit=107,file="quantabigL.tmp",access="Direct",form="unformatted",recl=reclength,status="replace")
+			open(unit=107,file=trim(quantafilename),access="Direct",form="unformatted",recl=reclength,status="replace")
 		end if
-		write(107,rec=index1) quantabigL
+		if(domain=='L') then
+			write(107,rec=recindex) quantabigL
+		else if(domain=='R') then
+			write(107,rec=recindex) quantabigR
+		end if
 		close(107)
 	end if
 
-
 return
 
-end subroutine store_operatorL
+end subroutine Store_Operator
 
 
-
-subroutine store_operatorR(index2)
-! this subroutine is to store the operator of every site(R space)
-! in fact only the 4M basis operator matrix need to be store
-! index2 is the sigma R index
-	use variables
-	use mpi
-
-	implicit none
-
-	integer :: index2
-	integer :: i,reclength,operaindex
-	character(len=50) :: filename
-	logical :: alive
-	integer :: thefile,status(MPI_STATUS_SIZE)
-	integer(kind=MPI_OFFSET_KIND) ::offset
-
-	if(myid==0) then
-		write(*,*) "enter in store_operatorR subroutine"
-	end if
-
-	! reclength is the length of direct io
-	! ifort use 4byte as 1 by default
-
-	write(filename,'(i5.5,a9)') index2,'right.tmp'
-	call MPI_FILE_OPEN(MPI_COMM_WORLD,trim(filename),MPI_MODE_WRONLY+MPI_MODE_CREATE,MPI_INFO_NULL,thefile,ierr)
-	do i=norbs,index2,-1
-	if(myid==orbid(i)) then
-		if(mod(i,nprocs-1)==0) then
-			operaindex=i/(nprocs-1)
-		else
-			operaindex=i/(nprocs-1)+1
-		end if
-		offset=(norbs-i)*16*subM*subM*3*8
-		call MPI_FILE_WRITE_AT(thefile,offset,operamatbig(:,:,3*(operaindex-1)+1:3*operaindex),16*subM*subM*3,mpi_real8,status,ierr)
-	end if
-	end do
-	call MPI_FILE_CLOSE(thefile,ierr)
-		
-	if(myid==0) then
-		reclength=2*16*subM*subM
-!----------------open a binary file-------------
-		inquire(file="0-right.tmp",exist=alive)
-		if(alive) then
-			open(unit=102,file="0-right.tmp",access="Direct",form="unformatted",recl=reclength,status="old")
-		else
-			open(unit=102,file="0-right.tmp",access="Direct",form="unformatted",recl=reclength,status="replace")
-		end if
-!-----------------------------------------------
-! sigmaR index =norbs is 1; norbs-1 is 2
-		write(102,rec=norbs+1-index2) Hbig(:,:,2)
-		close(102)
-!------------------------------write the parity matrix---
-		if(logic_spinreversal/=0) then
-		reclength=2*subM
-		inquire(file="symmlink-right.tmp",exist=alive)
-		if(alive) then
-			open(unit=104,file="symmlink-right.tmp",access="Direct",form="unformatted",recl=reclength,status="old")
-		else
-			open(unit=104,file="symmlink-right.tmp",access="Direct",form="unformatted",recl=reclength,status="replace")
-		end if
-		write(104,rec=norbs+1-index2) symmlinkbig(:,1,2)
-		close(104)
-		end if
-!------------------------------write the quantabigR(4*subM,2)---
-		reclength=4*subM*2
-		! quantabigR is  integer(kind=4) so without *2
-		inquire(file="quantabigR.tmp",exist=alive)
-		if(alive) then
-			open(unit=108,file="quantabigR.tmp",access="Direct",form="unformatted",recl=reclength,status="old")
-		else
-			open(unit=108,file="quantabigR.tmp",access="Direct",form="unformatted",recl=reclength,status="replace")
-		end if
-		write(108,rec=norbs+1-index2) quantabigR
-		close(108)
-	end if
-
-
-return
-
-end subroutine store_operatorR

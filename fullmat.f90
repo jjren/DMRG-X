@@ -8,17 +8,22 @@ subroutine fullmat
 	USE BLAS95
 	USE LAPACK95
 	USE F95_PRECISION
+	use symmetry
+	use communicate
 
 	implicit none
 	integer :: i,j,k,l,m,operaindex,tmp
-	integer :: error
+	integer :: error,ierr
 	integer :: status(MPI_STATUS_SIZE)
-	real(kind=8),allocatable :: buffermat(:,:,:),buffermat0(:,:,:,:),fullH(:,:),fullH2(:,:),fullHdummy(:,:),I4M(:,:),goodH(:,:)
+	real(kind=8),allocatable :: buffermat(:,:,:),buffermat0(:,:,:,:),&
+	fullH(:,:),fullH2(:,:),fullHdummy(:,:),I4M(:,:),goodH(:,:)&
+	,fullHsymm(:,:),eigenvaluesymm(:),fullHsymmdumm(:,:)
 	real(kind=8),allocatable :: eigenvalue(:)!,z(:,:)
 	!real(kind=8) :: vl,vu,abstol
 	!integer,allocatable :: isuppz(:)
 	integer :: info
-	integer :: i1,j1
+	integer :: i11,j1
+	integer :: test
 	
 	
 
@@ -91,7 +96,7 @@ subroutine fullmat
 !debug			
 	!	read(*,*) tmp
 	!	open(unit=11,file="imme.tmp",status="old",position="append")
-		do i=1,nleft+1,1
+	do i=1,nleft+1,1
 		do j=norbs,norbs-nright,-1
 			if(bondlink(i,j)==1) then
 	!			open(unit=120,file="imme4.tmp",status="replace")
@@ -111,10 +116,10 @@ subroutine fullmat
 					fullHdummy=fullHdummy*(-1.0D0)
 				!	write(120,*) fullHdummy
 					!write(11,*) "ar+al",k
-					!do i1=1,16*Lrealdim*Rrealdim,1
+					!do i11=1,16*Lrealdim*Rrealdim,1
 					!do j1=1,16*Lrealdim*Rrealdim,1
-					!	if(abs(fullHdummy(j1,i1))>0.1D-3) then
-					!	write(11,*) fullHdummy(j1,i1),j1,i1
+					!	if(abs(fullHdummy(j1,i11))>0.1D-3) then
+					!	write(11,*) fullHdummy(j1,i11),j1,i11
 					!end if
 					!end do
 					!end do
@@ -131,10 +136,10 @@ subroutine fullmat
 						fullHdummy(:,l:16*Lrealdim*Rrealdim:4*Lrealdim)*((-1.0D0)**(mod(quantabigL(l,1),2)))
 					end do
 					!write(11,*) "al+ar",k
-					!do i1=1,16*Lrealdim*Rrealdim,1
+					!do i11=1,16*Lrealdim*Rrealdim,1
 					!do j1=1,16*Lrealdim*Rrealdim,1
-					!	if(abs(fullHdummy(j1,i1))>0.1D-3) then
-					!	write(11,*) fullHdummy(j1,i1),j1,i1
+					!	if(abs(fullHdummy(j1,i11))>0.1D-3) then
+					!	write(11,*) fullHdummy(j1,i11),j1,i11
 					!end if
 					!end do
 					!end do
@@ -143,10 +148,10 @@ subroutine fullmat
 				end do
 
 				fullHdummy=fullH-fullH2
-			!	do i1=1,16*Lrealdim*Rrealdim,1
+			!	do i11=1,16*Lrealdim*Rrealdim,1
 			!	do j1=1,16*Lrealdim*Rrealdim,1
-			!		if(abs(fullHdummy(j1,i1))>0.1D-3) then
-			!			write(11,*) fullHdummy(j1,i1),j1,i1
+			!		if(abs(fullHdummy(j1,i11))>0.1D-3) then
+			!			write(11,*) fullHdummy(j1,i11),j1,i11
 			!		end if
 			!	end do
 			!	end do
@@ -174,6 +179,7 @@ subroutine fullmat
 		Hbig(1:Rrealdim*4,1:Rrealdim*4,2),4*Rrealdim,fullHdummy)
 		fullH=fullH+fullHdummy
 		fullH2=fullH2+fullHdummy
+	!	write(*,*) Hbig
 
 ! write the full Hamiltonian out-----------------------------
 		!write(*,*) "the full hamiltonian"
@@ -207,6 +213,41 @@ subroutine fullmat
 	!open(unit=999,file="H.tmp",status="replace")
 	!write(999,*) fullH(1:m,1:m)
 	!close(999)
+	if(logic_spinreversal/=0 .or. (logic_C2/=0 .and. nleft==nright)) then
+		allocate(fullHsymm(nsymmstate,nsymmstate),stat=error)
+		if(error/=0) stop
+		allocate(fullHsymmdumm(m,m),stat=error)
+		if(error/=0) stop
+		fullHsymmdumm=fullH(1:m,1:m)
+		call symmetrizematrix(m,fullHsymmdumm,fullHsymm)
+	!	do i=1,nsymmstate,1
+	!		write(*,*) "================state=",i,rowindex(i+1)-rowindex(i)
+	!		do j=rowindex(i),rowindex(i+1)-1,1
+	!		do k=rowindex(i),rowindex(i+1)-1,1
+	!			write(*,*) fullH(columnindex(k),columnindex(j))
+	!		end do
+	!		end do
+	!		write(*,*) "================"
+	!	end do
+	!	write(*,*) "fullHsymm"
+	!	write(*,*) fullHsymm
+
+	!	write(*,*)  "true diagnal"
+	!	write(*,*) "====================="
+	!	do i=1,nsymmstate,1
+	!		write(*,*) fullHsymm(i,i)
+	!	end do
+	!	write(*,*) "====================="
+		allocate(eigenvaluesymm(nsymmstate),stat=error)
+		if(error/=0) stop
+		call syevd(fullHsymm,eigenvaluesymm,'V','U',info)
+		write(*,*) "info",info
+		write(*,*) "syevd,direct diagonalizaiton symm result,energy="&
+			,eigenvaluesymm(1:10)
+		deallocate(fullHsymm)
+		deallocate(fullHsymmdumm)
+		deallocate(eigenvaluesymm)
+	end if
 
 
 	allocate(eigenvalue(m),stat=error)
@@ -246,6 +287,7 @@ write(*,*) "syevd,direct diagonalizaiton result,energy=",eigenvalue(1:10)
 	if(myid==0) then
 	deallocate(buffermat0)
 	deallocate(fullH)
+	deallocate(fullH2)
 	deallocate(fullHdummy)
 	deallocate(I4M)
 	end if

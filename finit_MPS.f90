@@ -1,19 +1,20 @@
-Subroutine finit_MPS
+Subroutine Finit_MPS
 ! this subroutine is do finit DMRG
+
 	USE MPI
 	USE variables
+	use communicate
 
 	implicit none
 
 	integer :: isystem,ibegin,i,sweepbegin
 	logical :: converged
+	integer :: ierr ! MPI_flag
 
+	call master_print_message("enter in subroutine finit_MPS")
 
-	if(myid==0) then
-		write(*,*) "enter in subroutine finit_MPS"
-	end if
-
-! the exactsite refer to the space that L space or R space(without sigmaL and sigmaR)
+! the exactsite refer to the space that L space or R space that can be accurately discribe
+! (without sigmaL and sigmaR)
 	exactsite=1
 	do while(.true.)
 		if(4**exactsite<=subM) then
@@ -23,7 +24,8 @@ Subroutine finit_MPS
 			exit
 		end if
 	end do
-! ibegin is the initial L space index(without out sigmaL)
+
+! ibegin is the initial L space index(without sigmaL)
 	if(mod(norbs,2)==0) then
 		ibegin=norbs/2
 	else
@@ -32,9 +34,8 @@ Subroutine finit_MPS
 	
 	if(myid==0) then
 		if(ibegin/=nleft+1) then
-			write(*,*) "-----------------------------------------------------------"
-			write(*,*) "finit MPS initial L space index nleft+1/=ibegin failed!"
-			write(*,*) "-----------------------------------------------------------"
+			call master_print_message("finit MPS initial L space index nleft+1/=ibegin failed!")
+			stop
 		end if
 	end if
 
@@ -48,9 +49,9 @@ Subroutine finit_MPS
 		Lrealdim=subM
 		Rrealdim=subM
 		sweepenergy(0:isweep-1,:)=0.0D0
-		call enviro_bigL
-		call enviro_bigR
-		call hamiltonian('i')
+		call Enviro_Big('L')
+		call Enviro_Big('R')
+		call Hamiltonian('i')
 		call Renormalization(nleft+1,norbs-nright,'i')
 	else
 		sweepbegin=1
@@ -59,7 +60,7 @@ Subroutine finit_MPS
 	do isweep=sweepbegin,sweeps,1
 		
 		do isystem=ibegin,norbs-exactsite-2,1
-! add nelecs 2 by 2
+			! add nelecs 2 by 2 if the nelecs does not reach realnelecs
 			formernelecs=nelecs
 			if(nelecs<realnelecs) then
 				nelecs=nelecs+2
@@ -67,10 +68,8 @@ Subroutine finit_MPS
 			if(nelecs>realnelecs) then
 				nelecs=realnelecs
 			end if
-
-			if(myid==0) then
-				write(*,*) "nelecs=",nelecs
-			end if
+			
+			call master_print_message(nelecs,"nelecs=")
 
 			nleft=isystem
 			nright=norbs-isystem-2
@@ -85,9 +84,11 @@ Subroutine finit_MPS
 			else
 				Rrealdim=subM
 			end if
-			call fromleftsweep
+			call Sweep('l')
 		end do
-		
+
+! we assume the nelecs have reach realnelecs now
+
 		do isystem=exactsite,norbs-exactsite-2,1
 			nleft=norbs-isystem-2
 			nright=isystem
@@ -101,7 +102,7 @@ Subroutine finit_MPS
 			else
 				Rrealdim=subM
 			end if
-			call fromrightsweep
+			call Sweep('r')
 		end do
 
 		do isystem=exactsite,ibegin-1,1
@@ -117,12 +118,12 @@ Subroutine finit_MPS
 			else
 				Rrealdim=subM
 			end if
-			call fromleftsweep
+			call Sweep('l')
 		end do
 
 		if(myid==0) then
 			write(*,*) isweep,"finit MPS end!"
-			write(*,*) "the lowest energy is",sweepenergy(isweep,:)
+			write(*,*) "the energy in the middle is",sweepenergy(isweep,:)
 			converged=.true.
 			do i=1,nstate,1
 				if(abs(sweepenergy(isweep-1,i)-sweepenergy(isweep,i))>energythresh) then
@@ -131,6 +132,7 @@ Subroutine finit_MPS
 				end if
 			end do
 		end if
+
 		call MPI_bcast(converged,1,MPI_logical,0,MPI_COMM_WORLD,ierr)
 		
 		if(converged==.true.) then
@@ -139,16 +141,14 @@ Subroutine finit_MPS
 	end do
 
 	if(myid==0) then
-	if(converged==.true.) then
-		write(*,*) "energy converged! at sweep",isweep
-		write(*,*) sweepenergy(0:isweep,:)
-	else
-		write(*,*) "maxiter reached!"
-		write(*,*) sweepenergy(0:sweeps,:)
-	end if
+		if(converged==.true.) then
+			write(*,*) "energy converged! at sweep",isweep
+			write(*,*) sweepenergy(0:isweep,:)
+		else
+			write(*,*) "maxiter reached!"
+			write(*,*) sweepenergy(0:sweeps,:)
+		end if
 	end if
 		
-	
 return
-
-end subroutine
+end subroutine Finit_MPS

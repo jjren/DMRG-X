@@ -1,24 +1,23 @@
-Subroutine GetHDiag(HDIAG)
-! This subroutine is to get the diagonal element of the Hamiltonian
+Subroutine GetHDiag(HDIAGnosymm)
+! This subroutine is to get the diagonal element of the Hamiltonian(no symmetry)
 ! from all the process which can be used in davidson diagonalization
 ! the hopping term did not contribute anyting to the diagnal term 
 ! because the number of electrons is not equal
 ! so the diagnol term only need the PPP term operator
+
 	use mpi
 	use variables
+	use communicate
 
 	implicit none
-
-	real(kind=8) :: HDIAG(ngoodstates)
+	
+	real(kind=8) :: HDIAGnosymm(ngoodstates)
 	real(kind=8),allocatable :: buffermat(:),buffermat0(:,:),Hdiagdummy(:)
 	integer :: operaindex
-	integer :: status(MPI_STATUS_SIZE)
+	integer :: status(MPI_STATUS_SIZE),ierr
 	integer :: i,error,j,k,m
 
-
-	if(myid==0) then
-		write(*,*) "enter in GetHDiag subroutine"
-	end if
+	call master_print_message("enter in GetHDiag subroutine")
 
 	if(myid/=0) then
 		allocate(buffermat(4*subM),stat=error)
@@ -30,10 +29,9 @@ Subroutine GetHDiag(HDIAG)
 		buffermat0=0.0D0
 		allocate(Hdiagdummy(16*Lrealdim*Rrealdim),stat=error)
 		if(error/=0) stop
-		Hdiagdummy=0.0D0
 	end if
 
-! L space
+	! L space
 	do i=1,nleft+1,1
 		if(myid==orbid(i)) then
 			if(mod(i,nprocs-1)==0) then
@@ -48,10 +46,11 @@ Subroutine GetHDiag(HDIAG)
 ! send the diagonal element to the 0 process
 			call MPI_SEND(buffermat,4*subM,mpi_real8,0,i,MPI_COMM_WORLD,ierr)
 		else if(myid==0) then
-			call MPI_RECV(buffermat0(:,i),4*subM,mpi_real8,orbid(i),i,MPI_COMM_WORLD,status,ierr)
+			call MPI_RECV(buffermat0(1,i),4*subM,mpi_real8,orbid(i),i,MPI_COMM_WORLD,status,ierr)
 		end if
 	end do
-! R space
+
+	! R space
 	do j=norbs,norbs-nright,-1
 		if(myid==orbid(j)) then
 			if(mod(j,nprocs-1)==0) then
@@ -66,7 +65,7 @@ Subroutine GetHDiag(HDIAG)
 ! send the diagonal element to the 0 process
 			call MPI_SEND(buffermat,4*subM,mpi_real8,0,j,MPI_COMM_WORLD,ierr)
 		else if(myid==0) then
-			call MPI_RECV(buffermat0(:,j),4*subM,mpi_real8,orbid(j),j,MPI_COMM_WORLD,status,ierr)
+			call MPI_RECV(buffermat0(1,j),4*subM,mpi_real8,orbid(j),j,MPI_COMM_WORLD,status,ierr)
 		end if
 	end do
 
@@ -83,23 +82,6 @@ Subroutine GetHDiag(HDIAG)
 			Hdiagdummy((i-1)*4*Lrealdim+1:i*4*Lrealdim)=Hbig(i,i,2)+Hdiagdummy((i-1)*4*Lrealdim+1:i*4*Lrealdim)
 		end do
 ! transfer integral contribution the contribute is zero
-!		do i=1,nleft+1,1
-!		do j=norbs,norbs-nright,-1
-!			if(bondlink(i,j)==1) then
-! add the phase al^+*ar
-!				do m=1,4*Lrealdim,1
-!				buffermat0(m,1:2,i)=buffermat0(m,1:2,i)*((-1.0D0)**(mod(quantabigL(m,1),2)))
-!				end do
-! m represents up and down
-!				do m=1,2,1
-!				do k=1,4*Rrealdim,1
-!					Hdiagdummy((k-1)*4*Lrealdim+1:k*4*Lrealdim)=buffermat0(1:4*Lrealdim,m,i)*buffermat0(k,m,j)*t(i,j)*2.0D0&
-!											+Hdiagdummy((k-1)*4*Lrealdim+1:k*4*Lrealdim)
-!				end do
-!				end do
-!			end if
-!		end do
-!		end do
 ! PPP term contribution
 		if(logic_PPP==1) then
 			do i=1,nleft+1,1
@@ -118,7 +100,7 @@ Subroutine GetHDiag(HDIAG)
 		do j=1,4*Lrealdim,1
 			if((quantabigL(j,1)+quantabigR(i,1)==nelecs) .and. &
 				quantabigL(j,2)+quantabigR(i,2)==totalSz) then
-				HDIAG(m)=Hdiagdummy((i-1)*4*Lrealdim+j)
+				HDIAGnosymm(m)=Hdiagdummy((i-1)*4*Lrealdim+j)
 				m=m+1
 			end if
 		end do
@@ -126,16 +108,9 @@ Subroutine GetHDiag(HDIAG)
 		
 		m=m-1
 		if(m/=ngoodstates) then
-			write(*,*) "----------------------------------------------"
-			write(*,*) "HDIAG number wrong! failed!,m=",m
-			write(*,*) "----------------------------------------------"
-			stop
+			call master_print_message(m,"HDIAGnosymm number wrong! failed!,m=")
 		end if
-
-	
 	end if
-
-
 
 	if(myid==0) then
 		deallocate(buffermat0)
@@ -144,7 +119,6 @@ Subroutine GetHDiag(HDIAG)
 		deallocate(buffermat)
 	end if
 
-
 return
 
-end subroutine
+end subroutine GetHDiag

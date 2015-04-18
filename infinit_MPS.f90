@@ -1,23 +1,28 @@
-	subroutine infinit_MPS
+subroutine Infinit_MPS
 
-	USE Variables
-	USE MPI
+	use variables
+	use mpi
+	use communicate
+	use exit_mod
 	
 	implicit none
-	integer :: isystem,i,j,error
-	real(kind=8),allocatable :: treal(:,:)
-	integer(kind=4),allocatable :: bondlinkreal(:,:)
+	! local
+	integer :: error,ierr
+	integer :: isystem,i,j
+	real(kind=r8),allocatable :: treal(:,:)
+	integer(kind=i4),allocatable :: bondlinkreal(:,:)
+	! treal bondlinkreal store the initial real value
+	
+	call master_print_message("enter subroutine infinit_MPS")
 
-	if(myid==0) then 
-		write(*,*) "enter subroutine infinit_MPS"
-	end if
 ! if mode==r and isweep/=0 means the infinit DMRG is finished
+! isweep means the initial finit-MPS stage
 	if(mode=='r' .and. isweep/=0) then
 		return
 	else
-! isweep means the initial finit-MPS stage
 		isweep=0
 	end if
+
 ! when construct the infinit MPS, let the small left space and 
 ! right space to link together and simulate the real condition
 
@@ -28,39 +33,29 @@
 	treal=t
 	bondlinkreal=bondlink
 
+
+! be careful that the norbs may be odd
+! when doing infinit MPS we use half filled system until arrive the realnelecs
 	do isystem=1,norbs/2-1,1
-		
 		if(mode=='r') then
 			if(isystem<nleft) then
 				cycle
 			else if(isystem==nleft) then
-				call enviro_bigL
-				call enviro_bigR
-				call hamiltonian('i')
+				call Enviro_Big('L')
+				call Enviro_Big('R')
+				call Hamiltonian('i')
 				call Renormalization(nleft+1,norbs-nright,'i')
 				cycle
 			end if
 		end if
 
-		t=treal
-		bondlink=bondlinkreal
-! be careful that the norbs may be odd
-
-	! when doing infinit MPS we use half filled system until arrive the realnelecs
-		
 		if((isystem+1)*2>realnelecs) then
 			nelecs=realnelecs
 		else
 			nelecs=(isystem+1)*2
 		end if
-		if(myid==0) then
-			write(*,*) "nelecs=",nelecs
-		end if
-!		! in the last step we set the total electron to be real nelectrons
-!		if(mod(norbs,2)==0 .and. isystem==(norbs/2-1)) then
-!			nelecs=realnelecs
-!		end if
-	!--------------------------
+		call master_print_message(nelecs,"nelecs=")
+		
 		nleft=isystem
 		nright=isystem
 		
@@ -68,94 +63,92 @@
 			Lrealdim=1
 			Rrealdim=1
 		end if
-
 		if(4*Lrealdim>subM) then
 			Lrealdim=subM
 		else
 			Lrealdim=Lrealdim*4
 		end if
-
 		if(4*Rrealdim>subM) then
 			Rrealdim=subM
 		else
 			Rrealdim=Rrealdim*4
 		end if
+		if(Lrealdim/=Rrealdim) then
+			call exit_DMRG(sigAbort,"infinit DMRG Lrealdim/=Rrealdim failed!")
+		end if
+
 ! add the quasi link between the left and right small space
 ! to let the boundry be more real
+		t=treal
+		bondlink=bondlinkreal
 		if(nleft+1<norbs/2 .or. mod(norbs,2)/=0) then 
-		bondlink(nleft+1,norbs-nright)=1
-		bondlink(norbs-nright,nleft+1)=1
-		t(nleft+1,norbs-nright)=-1.0D0
-		t(norbs-nright,nleft+1)=-1.0D0
+			bondlink(nleft+1,norbs-nright)=1
+			bondlink(norbs-nright,nleft+1)=1
+			t(nleft+1,norbs-nright)=-1.0D0
+			t(norbs-nright,nleft+1)=-1.0D0
 		end if
-
-
-		if(Lrealdim/=Rrealdim .and. myid==0) then
-			write(*,*) "---------------------------------------"
-			write(*,*) "infinit DMRG Lrealdim/=Rrealdim failed!"
-			write(*,*) "---------------------------------------"
-			stop
-		end if
+!====================L space=================================
 ! sigmaL subspace operator matrix
-		call onesitematrix(nleft+1)
+		call OnesiteMatrix(nleft+1)
 ! L subspace initial
 		if(nleft==1) then
-			call infinit_smallL
+			call Infinit_InitMat('L')
 		end if
 ! construct the L+sigmaL subspace operator matrix
-		call system_bigL
+		call System_Big('L')
+		!call System_BigL
 ! construct the good quantum number Sz and occpuation
-		call system_constructquantaL
-! R subspace initial
-		if(nright==1) then
-			call infinit_smallR
-		end if
-! construct the R+sigmaR subspace operator matrix
+		call System_Constructquanta('L')
+! store the operator matrix and the good quantum number
+		call Store_Operator('L')
+!============================================================
+
+!===================R space==================================
 		if(logic_C2==0) then
+			! R subspace initial
+			if(nright==1) then
+				call Infinit_InitMat('R')
+			end if
 			! sigmaR subspace operator matrix
-			call onesitematrix(norbs-nright)
-			call system_bigR
-			call system_constructquantaR
+			call OnesiteMatrix(norbs-nright)
+			! construct the R+sigmaR subspace operator matrix
+			call System_Big('R')
+		!	call System_BigR
+			call System_Constructquanta('R')
 		else
 			call C2_copy('i')
-		!	call system_bigRreverse
-		!	call system_constructquantaRreverse
 		end if
-! construct the spin_reversal adapted matrix
-	!	if(logic_spinreversal/=0) then
-	!		call Spin_reversalmatL
-	!		call Spin_reversalmatR
-	!	end if
-! store the operator matrix and the good quantum number
-		call store_operatorL(nleft+1)
-		call store_operatorR(norbs-nright)
-! direct diagonalization
+		call Store_Operator('R')
+!============================================================
+
+!	 direct diagonalization
 !		call fullmat
 
-		if(4*Lrealdim>subM) then
 ! construct the total H(direct method) and davidson diagnalization
-		call hamiltonian('i')
+		if(4*Lrealdim>subM) then
+			call Hamiltonian('i')
 		end if
+
 ! Renormalization all the operator matrix
 		call Renormalization(nleft+1,norbs-nright,'i')
 		
-!	call MPI_barrier(MPI_COMM_WORLD,ierr)
 	end do
 
+! set t and bondlink to real value
 	t=treal
 	bondlink=bondlinkreal
+
 ! when the norbs is odd. Then in the last process of infinit MPS.
 ! only add 1 orbital in the left space
-! and the nelecs set to the the realnelecs
 	if(MOD(norbs,2)/=0) then
-! add nelecs 2 by 2
+		! add nelecs 2 by 2
 		nelecs=nelecs+2
 		if(nelecs>realnelecs) then
 			nelecs=realnelecs
 		end if
-		if(myid==0) then
-			write(*,*) "nelecs=",nelecs
-		end if
+
+		call master_print_message(nelecs,"nelecs=")
+		
 		nleft=norbs/2
 		nright=norbs/2-1
 		if(4*Lrealdim>subM) then
@@ -163,16 +156,15 @@
 		else
 			Lrealdim=Lrealdim*4
 		end if
+
 ! caution here may be some problem ? because the right space using the
 ! last step operamatbig quantabigR and so on HbigR
-		call onesitematrix(nleft+1)
-		call system_bigL
-		call system_constructquantaL
-		!if(logical_spinreversal/=0) then
-		!	call Spin_reversalmatL
-		!end if
-		call store_operatorL(nleft+1)
-		call hamiltonian('i')
+
+		call OnesiteMatrix(nleft+1)
+		call System_Big('L')
+		call System_Constructquanta('L')
+		call Store_Operator('L')
+		call Hamiltonian('i')
 		call Renormalization(nleft+1,norbs-nright,'i')
 	end if
 
@@ -182,8 +174,8 @@
 
 	call MPI_barrier(MPI_COMM_WORLD,ierr)
 
-	return
-	end subroutine infinit_MPS
+return
+end subroutine Infinit_MPS
 
 
 

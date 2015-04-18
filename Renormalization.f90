@@ -10,13 +10,14 @@ Subroutine Renormalization(indexLp1,indexRm1,direction)
 
 	USE mpi
 	USE variables
+	use communicate
 	USE BLAS95
 	USE LAPACK95
 	USE F95_PRECISION
 
 	implicit none
 	
-	integer :: i,error,info,j,k
+	integer :: i,error,info,j,k,ierr
 	integer :: operaindex
 	! integer :: mindim
 	! mindim is the SVD minimun dimension
@@ -126,8 +127,8 @@ Subroutine Renormalization(indexLp1,indexRm1,direction)
 			!	stop
 			!end if
 			call splitsvdL(singularvalue,leftu,1,nstate,indexlp1)
-			write(*,*) "Lsingular"
-			write(*,*) singularvalue(1:subM)
+			!write(*,*) "Lsingular"
+			!write(*,*) singularvalue(1:subM)
 			call splitsvdR(singularvalue,rightv,1,nstate,indexRm1)
 			!write(*,*) "Rsingular"
 			!write(*,*) singularvalue(1:subM)

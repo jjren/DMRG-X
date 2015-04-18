@@ -4,16 +4,15 @@ subroutine C2_copy(direction)
 ! direction is 'i' 'l' 'r'
 	use mpi
 	use variables
+	use communicate
 
 	implicit none
 	character(len=1) :: direction
-	integer :: i,j
+	integer :: i,j,ierr
 	integer :: operaindex1,operaindex2
 	integer :: status(MPI_STATUS_SIZE)
 	
-	if(myid==0) then 
-		write(*,*) "enter in C2_copy subroutine"
-	end if
+	call master_print_message("enter in C2_copy subroutine")
 
 	if(direction=='i' .or. (direction=='l' .and. nleft==norbs/2-1)) then
 		do i=1,nleft+1,1
