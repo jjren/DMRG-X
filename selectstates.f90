@@ -84,7 +84,7 @@ subroutine selectstates(valuework,dim1,valueindex,singularvalue,&
 		do i=1,szzero+szl0,1
 			do j=1,subM,1
 				if(valuework(i)>singularvalue(j)) then
-					if(i<=szl0) then
+					if(i<=szl0 .and. j<subM) then
 						valueindex(j+2:subM)=valueindex(j:subM-2)
 						valueindex(j)=i
 						valueindex(j+1)=szl0+szzero+i

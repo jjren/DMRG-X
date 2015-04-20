@@ -96,7 +96,6 @@ subroutine Infinit_MPS
 		end if
 ! construct the L+sigmaL subspace operator matrix
 		call System_Big('L')
-		!call System_BigL
 ! construct the good quantum number Sz and occpuation
 		call System_Constructquanta('L')
 ! store the operator matrix and the good quantum number
@@ -113,16 +112,12 @@ subroutine Infinit_MPS
 			call OnesiteMatrix(norbs-nright)
 			! construct the R+sigmaR subspace operator matrix
 			call System_Big('R')
-		!	call System_BigR
 			call System_Constructquanta('R')
 		else
 			call C2_copy('i')
 		end if
 		call Store_Operator('R')
 !============================================================
-
-!	 direct diagonalization
-!		call fullmat
 
 ! construct the total H(direct method) and davidson diagnalization
 		if(4*Lrealdim>subM) then

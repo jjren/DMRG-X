@@ -47,7 +47,7 @@ subroutine Sweep(direction)
 		call Enviro_Big(envirodomain)
 	end if
 	call Hamiltonian(direction)
-	
+
 	if(isweep==sweeps .and. direction=='l' .and. nleft==(norbs-1)/2) then
 		! this is to do the chan proposed trace excited algrithom
 		call master_print_message("In the last step, did not do Renormalization")

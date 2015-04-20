@@ -78,7 +78,7 @@ subroutine ScaleMatrix(mat,rows,cols,scaling,op)
 ! this subroutine use mkl mkl_?imatcopy to do scaling a matrix
 
 	implicit none
-	include "mkl_trans.fi"
+	include "mkl.fi"
 
 	integer :: rows,cols
 	real(kind=r8) :: mat(rows,cols),scaling
@@ -87,9 +87,9 @@ subroutine ScaleMatrix(mat,rows,cols,scaling,op)
 	
 	src_lda=rows
 	if(op=='T' .or. op=='t' .or. op=='C' .or. op=='c') then
-		dst_lda=rows
-	else if(op=='N' .or. op=='n' .or. op=='R' .or. op=='r') then
 		dst_lda=cols
+	else if(op=='N' .or. op=='n' .or. op=='R' .or. op=='r') then
+		dst_lda=rows
 	end if
 
 	call mkl_dimatcopy('C',op,rows,cols,scaling,mat,src_lda,dst_lda)

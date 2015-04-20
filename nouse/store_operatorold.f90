@@ -4,10 +4,11 @@ subroutine store_operatorL(index1)
 ! index1 is the sigmaL index
 	use variables
 	use mpi
+	use communicate
 
 	implicit none
 
-	integer :: index1
+	integer :: index1,ierr
 	integer :: i,reclength,operaindex
 	character(len=50) :: filename
 	logical :: alive
@@ -90,11 +91,12 @@ subroutine store_operatorR(index2)
 ! index2 is the sigma R index
 	use variables
 	use mpi
+	use communicate
 
 	implicit none
 
 	integer :: index2
-	integer :: i,reclength,operaindex
+	integer :: i,reclength,operaindex,ierr
 	character(len=50) :: filename
 	logical :: alive
 	integer :: thefile,status(MPI_STATUS_SIZE)

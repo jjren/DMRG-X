@@ -86,9 +86,8 @@ Subroutine Davidson_Wrapper(direction,lim,ilow,ihigh,iselec,niv,mblock,&
 		call InitialStarter(direction,dimN,niv,DavidWORK)
 	end if
 
-!---------------------------------------------------------------------
+!--------------------------------------------------------------------
 ! The core part of davidson diagnolization
-	
 	if(myid==0) then
 		call DVDSON(op,dimN,lim,HDIAG,ilow,ihigh,iselec &
 		    ,niv,mblock,crite,critc,critr,ortho,maxiter,DavidWORK,&

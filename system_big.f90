@@ -18,7 +18,7 @@ Subroutine System_Big(domain)
 	! local
 	integer :: error,ierr
 	integer :: i,j,k,j1,j2
-	integer :: operaindex,orbstart,orbend,orbadd,Hindex,realdim
+	integer :: operaindex,orbstart,orbend,orbadd,Hindex,dim1
 	! orbstart is from 1 or norbs-nright+1
 	! orbend is nleft or norbs
 	! orbadd is nleft+1 or norbs-nright
@@ -35,13 +35,13 @@ Subroutine System_Big(domain)
 		orbstart=1
 		orbend=nleft
 		orbadd=nleft+1
-		realdim=Lrealdim
+		dim1=Lrealdim
 		Hindex=1
 	else if(domain=='R') then
 		orbstart=norbs-nright+1
 		orbend=norbs
 		orbadd=norbs-nright
-		realdim=Rrealdim
+		dim1=Rrealdim
 		Hindex=2
 	else
 		call exit_DMRG(sigAbort,"domain/=L .and. domain/R failed!")
@@ -52,16 +52,16 @@ Subroutine System_Big(domain)
 	allocate(phase(4*subM),stat=error)
 	if(error/=0) stop
 	if(domain=='R' .and. logic_C2==0) then
-		phase(1:4*realdim:4)=1
-		phase(2:4*realdim:4)=-1
-		phase(3:4*realdim:4)=-1
-		phase(4:4*realdim:4)=1
+		phase(1:4*dim1:4)=1
+		phase(2:4*dim1:4)=-1
+		phase(3:4*dim1:4)=-1
+		phase(4:4*dim1:4)=1
 	else
-		do j=1,4*realdim,1
-			if(mod(j,realdim)==0) then
-				k=realdim
+		do j=1,4*dim1,1
+			if(mod(j,dim1)==0) then
+				k=dim1
 			else
-				k=mod(j,realdim)
+				k=mod(j,dim1)
 			end if
 			if(domain=='L') then
 				phase(j)=(-1)**(mod(quantasmaL(k,1),2))
@@ -103,21 +103,21 @@ Subroutine System_Big(domain)
 			do j=1,3,1
 				if(j<=2) then
 					call DirectProduct(II,4, &
-						operamatsma(1:realdim,1:realdim,3*(operaindex-1)+j),realdim, &
-						operamatbig(1:realdim*4,1:realdim*4,3*(operaindex-1)+j))
-					do k=1,4*realdim
+						operamatsma(1:dim1,1:dim1,3*(operaindex-1)+j),dim1, &
+						operamatbig(1:dim1*4,1:dim1*4,3*(operaindex-1)+j))
+					do k=1,4*dim1
 						operamatbig(:,k,3*(operaindex-1)+j)=operamatbig(:,k,3*(operaindex-1)+j)*DBLE(phase(k))
 					end do
 				else
 					call DirectProduct(II,4, &
-						operamatsma(1:realdim,1:realdim,3*(operaindex-1)+j),realdim, &
-						operamatbig(1:realdim*4,1:realdim*4,3*(operaindex-1)+j))
+						operamatsma(1:dim1,1:dim1,3*(operaindex-1)+j),dim1, &
+						operamatbig(1:dim1*4,1:dim1*4,3*(operaindex-1)+j))
 				end if
 			end do
 		else
 			do j=1,3,1
-				call DirectProduct(operamatsma(1:realdim,1:realdim,3*(operaindex-1)+j),realdim, &
-					II,4,operamatbig(1:realdim*4,1:realdim*4,3*(operaindex-1)+j))
+				call DirectProduct(operamatsma(1:dim1,1:dim1,3*(operaindex-1)+j),dim1, &
+					II,4,operamatbig(1:dim1*4,1:dim1*4,3*(operaindex-1)+j))
 			end do
 		end if
 	end if
@@ -132,10 +132,10 @@ Subroutine System_Big(domain)
 			operaindex=orbadd/(nprocs-1)+1
 		end if
 		
-		operamatbig(1:4*realdim,1:4*realdim,3*operaindex-2:3*operaindex)=0.0D0
+		operamatbig(1:4*dim1,1:4*dim1,3*operaindex-2:3*operaindex)=0.0D0
 		if(domain=='R' .and. logic_C2==0) then
 			do i=1,3,1
-				do j=1,4*realdim,4
+				do j=1,4*dim1,4
 					operamatbig(j:j+3,j:j+3,3*(operaindex-1)+i)=onesitemat(:,:,i)
 				end do
 			end do
@@ -143,11 +143,11 @@ Subroutine System_Big(domain)
 			do i=1,3,1
 				do j1=1,4,1 ! column
 				do j2=1,4,1 ! row
-					do k=1,realdim,1
+					do k=1,dim1,1
 						if(i<=2) then
-							operamatbig(k+(j2-1)*realdim,k+(j1-1)*realdim,3*operaindex-3+i)=onesitemat(j2,j1,i)*DBLE(phase(k))
+							operamatbig(k+(j2-1)*dim1,k+(j1-1)*dim1,3*operaindex-3+i)=onesitemat(j2,j1,i)*DBLE(phase(k))
 						else
-							operamatbig(k+(j2-1)*realdim,k+(j1-1)*realdim,3*operaindex-3+i)=onesitemat(j2,j1,i)
+							operamatbig(k+(j2-1)*dim1,k+(j1-1)*dim1,3*operaindex-3+i)=onesitemat(j2,j1,i)
 						end if
 					end do
 				end do
@@ -176,32 +176,32 @@ Subroutine System_Big(domain)
 !     L/R Hamiltonian contribute
 		if(domain=='R' .and. logic_C2==0) then
 			call directproduct(II,4, &
-				Hsma(1:realdim,1:realdim,Hindex),realdim, &
-				Hbuffer(1:4*realdim,1:4*realdim))
+				Hsma(1:dim1,1:dim1,Hindex),dim1, &
+				Hbuffer(1:4*dim1,1:4*dim1))
 		else
-			call directproduct(Hsma(1:realdim,1:realdim,Hindex),realdim, &
-				II,4,Hbuffer(1:4*realdim,1:4*realdim))
+			call directproduct(Hsma(1:dim1,1:dim1,Hindex),dim1, &
+				II,4,Hbuffer(1:4*dim1,1:4*dim1))
 		end if
-		Hbig(1:4*realdim,1:4*realdim,Hindex)=Hbuffer(1:4*realdim,1:4*realdim)
+		Hbig(1:4*dim1,1:4*dim1,Hindex)=Hbuffer(1:4*dim1,1:4*dim1)
 
 !===========================================================
 
 !     sigmaL Hamiltonian contribute. site energy+HubbardU
 		Hbuffer=0.0D0
 		if(domain=='R' .and. logic_C2==0) then
-			do i=1,4*realdim,4
+			do i=1,4*dim1,4
 				Hbuffer(i+1,i+1)=t(orbadd,orbadd)
 				Hbuffer(i+2,i+2)=t(orbadd,orbadd)
 				Hbuffer(i+3,i+3)=2.0D0*t(orbadd,orbadd)+HubbardU(orbadd)
 			end do
 		else
-			do i=1,realdim,1
-				Hbuffer(1*realdim+i,1*realdim+i)=t(orbadd,orbadd)
-				Hbuffer(2*realdim+i,2*realdim+i)=t(orbadd,orbadd)
-				Hbuffer(3*realdim+i,3*realdim+i)=2.0D0*t(orbadd,orbadd)+HubbardU(orbadd)
+			do i=1,dim1,1
+				Hbuffer(1*dim1+i,1*dim1+i)=t(orbadd,orbadd)
+				Hbuffer(2*dim1+i,2*dim1+i)=t(orbadd,orbadd)
+				Hbuffer(3*dim1+i,3*dim1+i)=2.0D0*t(orbadd,orbadd)+HubbardU(orbadd)
 			end do
 		end if
-		Hbig(1:4*realdim,1:4*realdim,Hindex)=Hbuffer(1:4*realdim,1:4*realdim)+Hbig(1:4*realdim,1:4*realdim,Hindex)
+		Hbig(1:4*dim1,1:4*dim1,Hindex)=Hbuffer(1:4*dim1,1:4*dim1)+Hbig(1:4*dim1,1:4*dim1,Hindex)
 
 !===========================================================
 
@@ -234,37 +234,37 @@ Subroutine System_Big(domain)
 			do j=1,2,1
 				if(domain=='R' .and. logic_C2==0) then
 					call directproduct(onesitemat(:,:,j+3),4, &
-						operabuffer(1:realdim,1:realdim,j),realdim, &
-						Hbuffer(1:4*realdim,1:4*realdim))
-					do k=1,4*realdim,1
+						operabuffer(1:dim1,1:dim1,j),dim1, &
+						Hbuffer(1:4*dim1,1:4*dim1))
+					do k=1,4*dim1,1
 						Hbuffer(:,k)=Hbuffer(:,k)*DBLE(phase(k))*(-1.0D0)
 					end do
 				else
-					call directproduct(operabuffer(1:realdim,1:realdim,j),realdim, &
+					call directproduct(operabuffer(1:dim1,1:dim1,j),dim1, &
 						onesitemat(:,:,3+j),4, &
-						Hbuffer(1:4*realdim,1:4*realdim))
-					do k=1,4*realdim,1
+						Hbuffer(1:4*dim1,1:4*dim1))
+					do k=1,4*dim1,1
 						Hbuffer(:,k)=Hbuffer(:,k)*DBLE(phase(k))
 					end do
 				end if
-				Hbig(1:4*realdim,1:4*realdim,Hindex)=Hbig(1:4*realdim,1:4*realdim,Hindex)+&
-						(Hbuffer(1:4*realdim,1:4*realdim)+transpose(Hbuffer(1:4*realdim,1:4*realdim)))*t(recvtag,orbadd)
+				Hbig(1:4*dim1,1:4*dim1,Hindex)=Hbig(1:4*dim1,1:4*dim1,Hindex)+&
+						(Hbuffer(1:4*dim1,1:4*dim1)+transpose(Hbuffer(1:4*dim1,1:4*dim1)))*t(recvtag,orbadd)
 			end do
 			end if
 		! ppp term
 			if(domain=='R' .and. logic_C2==0) then
-				call directproduct(onesitemat(:,:,3),4,operabuffer(1:realdim,1:realdim,3),realdim,Hbuffer(1:4*realdim,1:4*realdim))
+				call directproduct(onesitemat(:,:,3),4,operabuffer(1:dim1,1:dim1,3),dim1,Hbuffer(1:4*dim1,1:4*dim1))
 			else
-				call directproduct(operabuffer(1:realdim,1:realdim,3),realdim,onesitemat(:,:,3),4,Hbuffer(1:4*realdim,1:4*realdim))
+				call directproduct(operabuffer(1:dim1,1:dim1,3),dim1,onesitemat(:,:,3),4,Hbuffer(1:4*dim1,1:4*dim1))
 			end if
-			Hbig(1:4*realdim,1:4*realdim,Hindex)=Hbig(1:4*realdim,1:4*realdim,Hindex)+&
-				Hbuffer(1:4*realdim,1:4*realdim)*pppV(recvtag,orbadd)
+			Hbig(1:4*dim1,1:4*dim1,Hindex)=Hbig(1:4*dim1,1:4*dim1,Hindex)+&
+				Hbuffer(1:4*dim1,1:4*dim1)*pppV(recvtag,orbadd)
 		end do
 !=========================================================================
 	
 	! construct the symmmlinkbig
 		if(logic_spinreversal/=0) then
-			call Creatsymmlinkbig(realdim,domain,Hindex)
+			call Creatsymmlinkbig(dim1,domain,Hindex)
 		end if
 
 		deallocate(Hbuffer)

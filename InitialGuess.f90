@@ -215,8 +215,8 @@ end subroutine InitialStarter
 	integer :: reclength
 	integer :: error,i,j,m
 	real(kind=8) :: norm
-
-	write(*,*) "enter SingleInitialFinite subroutine"
+	
+	call master_print_message("enter SingleInitialFinite subroutine")
 	! two site dmrg
 	if((nright+nleft+2)/=norbs) then
 		write(*,*) "-----------------------------------"

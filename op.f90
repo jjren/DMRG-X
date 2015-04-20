@@ -58,6 +58,7 @@ subroutine op(bigdim,smadim,coeff,newcoeff)
 					! 256M if nstate=2 M=1000
 					allocate(LRcoeffin(4*Lrealdim,4*Rrealdim,smadim),stat=error)   ! coeff to LR format
 					if(error/=0) stop
+					exit
 				end if
 			end if
 		end do
@@ -67,6 +68,7 @@ subroutine op(bigdim,smadim,coeff,newcoeff)
 				if( .not. allocated(LRcoeffout)) then
 					allocate(LRcoeffout(4*Lrealdim,4*Rrealdim,smadim),stat=error)  ! newcoeff to LR format
 					if(error/=0) stop
+					exit
 				end if
 			end if
 		end do
@@ -430,7 +432,7 @@ subroutine op(bigdim,smadim,coeff,newcoeff)
 			newcoeff=coeffnosymmreduce
 		end if
 	end if
-
+	
 	if(allocated(coeffnosymm)) deallocate(coeffnosymm)
 	if(allocated(coeffnosymmreduce)) deallocate(coeffnosymmreduce)
 

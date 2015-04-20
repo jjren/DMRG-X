@@ -5,6 +5,7 @@ subroutine op(bigdim,smadim,coeff,newcoeff)
 
 ! input bigdim,smadim,coeff
 ! output newcoeff
+!!
 
 	use mpi
 	use variables
@@ -238,10 +239,14 @@ subroutine op(bigdim,smadim,coeff,newcoeff)
 			else
 				newcoeff=coeffnosymm
 			end if
-!				open(unit=200,file="tmp2.tmp",status="old",position="append")
-!				write(200,*) "=============================="
-!				write(200,*) newcoeff
-!				close(200)
+			if(myid==0) then
+				if(nleft==7) then
+				open(unit=200,file="tmp2.tmp",status="old",position="append")
+				write(200,*) "=============================="
+				write(200,*) newcoeff
+				close(200)
+				end if
+			end if
 		end if
 ! let the non good quantum coeff to be zero
 	!if(myid==0) then
