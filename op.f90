@@ -39,7 +39,8 @@ subroutine op(bigdim,smadim,coeff,newcoeff)
 	integer :: hoptouched(nprocs-1),hopntouched,pppVtouched(nprocs-1),pppVntouched
 	
 	! MPI flag
-	integer :: status(MPI_STATUS_SIZE),hopsendrequest(nprocs-1),pppVsendrequest(nprocs-1),hoprecvrequest
+	!integer :: status(MPI_STATUS_SIZE),hopsendrequest(nprocs-1),pppVsendrequest(nprocs-1),hoprecvrequest
+	integer :: status(MPI_STATUS_SIZE),hopsendrequest(nprocs-1),hoprecvrequest
 	integer :: ierr
 
 !============================================================
@@ -214,7 +215,10 @@ subroutine op(bigdim,smadim,coeff,newcoeff)
 					if(ifpppVsend==.false.) then
 						pppVntouched=pppVntouched+1
 						pppVtouched(pppVntouched)=orbid(l)
-						call MPI_ISEND(pppVmat,16*Lrealdim*Rrealdim*smadim,MPI_real8,orbid(l),i,MPI_COMM_WORLD,pppVsendrequest(pppVntouched),ierr)
+						call MPI_SEND(pppVmat,16*Lrealdim*Rrealdim*smadim,MPI_real8,orbid(l),i,MPI_COMM_WORLD,ierr)
+					!	call MPI_ISEND(pppVmat,16*Lrealdim*Rrealdim*smadim,MPI_real8,orbid(l),i,MPI_COMM_WORLD,pppVsendrequest(pppVntouched),ierr)
+					! some problem in the isend, maybe the system buffer size limitation
+					! use bsend is possible
 					end if
 				end if
 			end do
@@ -375,9 +379,9 @@ subroutine op(bigdim,smadim,coeff,newcoeff)
 		
 		! confirm that the pppVmat and hopmat can be used again without problem
 		if(myid==orbid(i) .and. ifhop==.true.) then
-			do j=1,pppVntouched,1
-				call MPI_WAIT(pppVsendrequest(j),status,ierr)
-			end do
+		!	do j=1,pppVntouched,1
+		!		call MPI_WAIT(pppVsendrequest(j),status,ierr)
+		!	end do
 			do j=1,hopntouched,1
 				call MPI_WAIT(hopsendrequest(j),status,ierr)
 			end do
