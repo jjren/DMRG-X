@@ -569,6 +569,7 @@ subroutine SymmHDiag(HDIAG)
 		end do
 	end if
 
+
 	! caculate Sij * Hjk *Ski
 	if(myid/=0) then
    300	call MPI_RECV(bufmat,48*(norbs+1),mpi_real8,0,MPI_ANY_TAG,MPI_COMM_WORLD,status,ierr)
@@ -632,7 +633,7 @@ subroutine SymmHDiag(HDIAG)
 						! add phase
 						do ir=1,nrbasis,1
 						do il=1,nlbasis,1
-							workdummy(:,ir*(nlbasis-1)+il)=workdummy(:,ir*(nlbasis-1)+il)&
+							workdummy(:,(ir-1)*nlbasis+il)=workdummy(:,(ir-1)*nlbasis+il)&
 								*((-1.0D0)**(mod(quantabigL(indexall(il,1,isymm),1),2)))
 						end do
 						end do
@@ -663,14 +664,14 @@ subroutine SymmHDiag(HDIAG)
 			do j=1,nrbasis*nlbasis,1
 				if((symmlinkgood(columnindex(i),1)==indexall(indexsymm(1,j),1,isymm)) &
 				.and. (symmlinkgood(columnindex(i),2)==indexall(indexsymm(2,j),2,isymm))) then
-					call swap(workarray(j,:),workarray(i-rowindex(isymm)+1,:))
-					call swap(workarray(:,j),workarray(:,i-rowindex(isymm)+1))
-					
-					! swap the index
-					indexbuf=indexsymm(:,j)
-					indexsymm(:,j)=indexsymm(:,i-rowindex(isymm)+1)
-					indexsymm(:,i-rowindex(isymm)+1)=indexbuf
-					
+					if(j/=i-rowindex(isymm)+1) then
+						call swap(workarray(j,:),workarray(i-rowindex(isymm)+1,:))
+						call swap(workarray(:,j),workarray(:,i-rowindex(isymm)+1))
+						! swap the index
+						indexbuf=indexsymm(:,j)
+						indexsymm(:,j)=indexsymm(:,i-rowindex(isymm)+1)
+						indexsymm(:,i-rowindex(isymm)+1)=indexbuf
+					end if
 					iffind=.true.
 					exit
 				end if
@@ -683,7 +684,6 @@ subroutine SymmHDiag(HDIAG)
 			end if
 		end do
 		deallocate(indexsymm)
-
 		nosymmat=workarray(1:dim1,1:dim1)  !Hjk
 		call gemv(nosymmat,symmat(rowindex(isymm):rowindex(isymm+1)-1),vecdummy,1.0D0,0.0D0,'N')  ! Hjk*Ski
 		output=dot(symmat(rowindex(isymm):rowindex(isymm+1)-1),vecdummy) !Sij *Hjk *Ski
