@@ -44,21 +44,20 @@ Subroutine Enviro_Big(domain)
 	! L/R + sigmaL/R space
 
 	call MPI_FILE_OPEN(MPI_COMM_WORLD,trim(filename),MPI_MODE_RDONLY,MPI_INFO_NULL,thefile,ierr)
-	do i=orbstart,orbend,1
-	if(myid==orbid(i)) then
-		if(mod(i,nprocs-1)==0) then
-			operaindex=i/(nprocs-1)
-		else
-			operaindex=i/(nprocs-1)+1
+	if(myid/=0) then
+		do i=orbstart,orbend,1
+		if(myid==orbid(i)) then
+			if(mod(i,nprocs-1)==0) then
+				operaindex=i/(nprocs-1)
+			else
+				operaindex=i/(nprocs-1)+1
+			end if
+			offset=abs(i-orbref)*16*subM*subM*3*8
+			call MPI_FILE_READ_AT(thefile,offset,operamatbig(1,1,3*operaindex-2),16*subM*subM*3,mpi_real8,status,ierr)
 		end if
-		offset=abs(i-orbref)*16*subM*subM*3*8
-		call MPI_FILE_READ_AT(thefile,offset,operamatbig(1,1,3*operaindex-2),16*subM*subM*3,mpi_real8,status,ierr)
-	end if
-	end do
-	call MPI_FILE_CLOSE(thefile,ierr)
-	
+		end do
 	! 0 process
-	if(myid==0) then
+	else if(myid==0) then
 		if(domain=='L') then
 			Hfilename="0-left.tmp"
 			symmfilename="symmlink-left.tmp"
@@ -118,12 +117,14 @@ Subroutine Enviro_Big(domain)
 		close(108)
 	end if
 
-! broadcast the quantabigR/L to other process
+	! broadcast the quantabigR/L to other process
 	if(domain=='L') then
 		call MPI_bcast(quantabigL,4*subM*2,MPI_integer4,0,MPI_COMM_WORLD,ierr)
 	else if(domain=='R') then
 		call MPI_bcast(quantabigR,4*subM*2,MPI_integer4,0,MPI_COMM_WORLD,ierr)
 	end if
+
+	call MPI_FILE_CLOSE(thefile,ierr)
 return
 
 end Subroutine Enviro_Big

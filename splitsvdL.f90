@@ -110,7 +110,10 @@ subroutine splitsvdL(singularvalue,leftu,statebegin,stateend,indexlp1)
 		do i=0,2*(nleft+1),1
 			
 			m=0
-			coeffwork=coeffbuffer
+		!	coeffwork=coeffbuffer
+			do k=1,subM,1
+				call copy(coeffbuffer(:,k),coeffwork(:,k))
+			end do
 			
 			if(logic_spinreversal/=0) then
 				szzeroindex=0

@@ -47,22 +47,19 @@ subroutine Store_Operator(domain)
 	end if
 
 	call MPI_FILE_OPEN(MPI_COMM_WORLD,trim(filename),MPI_MODE_WRONLY+MPI_MODE_CREATE,MPI_INFO_NULL,thefile,ierr)
-	do i=orbstart,orbend,1
-		if(myid==orbid(i)) then
-			if(mod(i,nprocs-1)==0) then
-				operaindex=i/(nprocs-1)
-			else
-				operaindex=i/(nprocs-1)+1
+	if(myid/=0) then
+		do i=orbstart,orbend,1
+			if(myid==orbid(i)) then
+				if(mod(i,nprocs-1)==0) then
+					operaindex=i/(nprocs-1)
+				else
+					operaindex=i/(nprocs-1)+1
+				end if
+				offset=abs(i-orbref)*16*subM*subM*3*8
+				call MPI_FILE_WRITE_AT(thefile,offset,operamatbig(1,1,3*operaindex-2),16*subM*subM*3,mpi_real8,status,ierr)
 			end if
-			offset=abs(i-orbref)*16*subM*subM*3*8
-			call MPI_FILE_WRITE_AT(thefile,offset,operamatbig(1,1,3*operaindex-2),16*subM*subM*3,mpi_real8,status,ierr)
-		end if
-	end do
-	call MPI_FILE_CLOSE(thefile,ierr)
-
-!=====================================================
-
-	if(myid==0) then
+		end do
+	else if(myid==0) then
 		if(domain=='L') then
 			Hfilename="0-left.tmp"
 			symmfilename="symmlink-left.tmp"
@@ -116,6 +113,10 @@ subroutine Store_Operator(domain)
 		end if
 		close(107)
 	end if
+	call MPI_FILE_CLOSE(thefile,ierr)
+
+!=====================================================
+
 
 return
 
