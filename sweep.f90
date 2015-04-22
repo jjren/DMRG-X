@@ -41,7 +41,7 @@ subroutine Sweep(direction)
 		call Enviro_Big(domain)
 	end if
 	
-	if(nsysorb==norbs/2-1 .and. logic_C2/=0) then
+	if(nleft==nright .and. logic_C2/=0) then
 		call C2_Copy(direction)
 	else
 		call Enviro_Big(envirodomain)

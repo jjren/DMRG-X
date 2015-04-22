@@ -35,7 +35,7 @@ Subroutine System_Constructquanta(domain)
 		quantabigL(2*Lrealdim+1:3*Lrealdim,2)=quantasmaL(1:Lrealdim,2)-1
 		quantabigL(3*Lrealdim+1:4*Lrealdim,2)=quantasmaL(1:Lrealdim,2)
 
-	else if(domain=='L') then
+	else if(domain=='R') then
 	!    Rreverse+sigmaR space
 		quantabigR(1:Rrealdim,1)=quantasmaR(1:Rrealdim,1)
 		quantabigR(Rrealdim+1:2*Rrealdim,1)=quantasmaR(1:Rrealdim,1)+1

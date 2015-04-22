@@ -93,7 +93,7 @@ subroutine splitsvdR(singularvalue,rightv,statebegin,stateend,indexRm1)
 
 			m=0
 			!coeffwork=coeffbuffer
-			do k=1,subM,1
+			do k=1,4*subM,1
 				call copy(coeffbuffer(:,k),coeffwork(:,k))
 			end do
 
