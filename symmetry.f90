@@ -729,7 +729,7 @@ subroutine SymmetrizeState(nnosymmstate,bigvector,smallvector,operation)
 	
 	formation(1)='G'
 	formation(2)='L'
-	formation(3)='L'
+	formation(3)='N'
 	formation(4)='F'
 	
 	if(operation=='s') then
@@ -775,7 +775,7 @@ subroutine SymmetrizeMatrix(nnosymmstate,bigmat,smallmat)
 	
 	operation(1)='G'
 	operation(2)='L'
-	operation(3)='L'
+	operation(3)='N'
 	operation(4)='F'
 	
 	call mkl_dcsrmm('N',nsymmstate,nnosymmstate,nnosymmstate,1.0D0,operation,symmat,columnindex,rowindex(1:nsymmstate),&
