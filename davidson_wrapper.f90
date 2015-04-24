@@ -133,7 +133,10 @@ Subroutine Davidson_Wrapper(direction,lim,ilow,ihigh,iselec,niv,mblock,&
 		else
 			nosymmout=DavidWORK(1:ngoodstates*niv)
 		end if
-		
+		!  no need do GramSchmit; the result fullfill orthnormal
+		!  call GramSchmit(niv,ngoodstates,nosymmout,norm)
+		!  write(*,*) "davidson nosymmout norm=",norm
+		 
 		coeffIF=0.0D0
 ! the DavidWORK only contains the ngoodstates coeff other nongoodstates should be set to 0
 		m=1

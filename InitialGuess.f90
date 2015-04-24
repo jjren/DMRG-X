@@ -24,7 +24,11 @@ subroutine InitialStarter(direction,lvector,nvector,initialcoeff)
 	real(kind=8) :: initialcoeff(lvector*nvector),norm(nvector)
 	real(kind=8),allocatable :: nosymmguess(:)
 	integer :: i,error
-
+	
+	if(nvector/=nstate) then
+		call master_print_message(nvector,"nvector/=nstate")
+		stop
+	end if
 
 	if(direction/='i' .and. logic_C2==0 .and. &
 	formernelecs==nelecs) then
@@ -64,6 +68,7 @@ end subroutine InitialStarter
 	subroutine MoreInitialFinite(guesscoeff,lvector,direction)
 	! the new Initial Guess can support nstate/=1
 	! the algrithom can be read from the manual
+	! the guesscoeff could be approximated as U+CB though UU+/=I
 
 	USE BLAS95
 	USE F95_PRECISION
@@ -75,6 +80,7 @@ end subroutine InitialStarter
 	,LRcoeff(:,:,:),LRcoeff1(:,:,:)
 	logical :: alive
 	integer :: reclength
+	integer :: subMbefore
 	integer :: error,i,j,m,k
 	character(len=1) :: direction
 
@@ -87,9 +93,9 @@ end subroutine InitialStarter
 		stop
 	end if
 
-	allocate(leftu(4*Lrealdim,subM),stat=error)
+	allocate(leftu(4*subM,subM),stat=error)
 	if(error/=0) stop
-	allocate(rightv(subM,4*Rrealdim),stat=error)
+	allocate(rightv(subM,4*subM),stat=error)
 	if(error/=0) stop
 
 	reclength=2*subM*subM
@@ -102,25 +108,40 @@ end subroutine InitialStarter
 		stop
 	end if
 	if(direction=='l' .and. nleft>exactsite) then
+		if(nleft==exactsite+1) then   ! the last step Lrealdim
+			subMbefore=4**exactsite
+		else
+			subMbefore=subM
+		end if
+
 		do i=1,4,1
-			read(105,rec=4*(nleft-1)+i) leftu((i-1)*Lrealdim+1:i*Lrealdim,1:subM)
+			read(105,rec=4*(nleft-1)+i) leftu((i-1)*subMbefore+1:i*subMbefore,1:subM)
 		end do
+
 		do i=1,4,1
 			read(105,rec=4*(nleft+1)+i) rightv(1:subM,i:4*Rrealdim:4)
 		end do
 	else if(direction=='r' .and. nright>exactsite) then
+		
 		do i=1,4,1
 			read(105,rec=4*nleft+i) leftu((i-1)*Lrealdim+1:i*Lrealdim,1:subM)
 		end do
+		
+		if(nright==exactsite+1) then ! the last step Rrealdim
+			subMbefore=4**exactsite
+		else
+			subMbefore=subM
+		end if
+		
 		do i=1,4,1
-			read(105,rec=4*(nleft+2)+i) rightv(1:subM,i:4*Rrealdim:4)
+			read(105,rec=4*(nleft+2)+i) rightv(1:subM,i:4*subMbefore:4)
 		end do
 	end if
 
 
-	allocate(LRcoeff(4*Lrealdim,4*Rrealdim,nstate),stat=error)
+	allocate(LRcoeff(4*subM,4*subM,nstate),stat=error)
 	if(error/=0) stop
-	allocate(LRcoeff1(4*Lrealdim,4*Rrealdim,nstate),stat=error)
+	allocate(LRcoeff1(4*subM,4*subM,nstate),stat=error)
 	if(error/=0) stop
 
 	if(direction=='l' .and. nleft>exactsite) then
@@ -132,13 +153,13 @@ end subroutine InitialStarter
 		end if
 
 		do i=1,nstate,1
-			call gemm(leftu,coeffIF(:,:,i),LRcoeff(1:subM,:,i),'T','N',1.0D0,0.0D0)
+			call gemm(leftu(1:4*subMbefore,:),coeffIF(1:4*subMbefore,:,i),LRcoeff(1:subM,:,i),'T','N',1.0D0,0.0D0)   ! do U+*C
 			do j=1,subM,1
 				do k=1,4,1
-				LRcoeff1(subM*(k-1)+1:subM*k,j,i)=LRcoeff(1:subM,(j-1)*4+k,i)
+				LRcoeff1(subM*(k-1)+1:subM*k,j,i)=LRcoeff(1:subM,(j-1)*4+k,i)   ! tranfer U+C to new form
 				end do
 			end do
-			call gemm(LRcoeff1(:,1:subM,i),rightv,LRcoeff(:,:,i),'N','N',1.0D0,0.0D0)
+			call gemm(LRcoeff1(:,1:subM,i),rightv,LRcoeff(:,1:4*Rrealdim,i),'N','N',1.0D0,0.0D0)  !U+C*V
 		end do
 
 	else if(direction=='r' .and. nright>exactsite) then
@@ -149,34 +170,33 @@ end subroutine InitialStarter
 			stop
 		end if
 		do i=1,nstate,1
-			call gemm(coeffIF(:,:,i),rightv,LRcoeff(:,1:subM,i),'N','T',1.0D0,0.0D0)
+			call gemm(coeffIF(:,1:4*subMbefore,i),rightv(:,1:4*subMbefore),LRcoeff(:,1:subM,i),'N','T',1.0D0,0.0D0)
 			do j=1,subM,1
 				do k=1,4,1
 					LRcoeff1(1:subM,(j-1)*4+k,i)=LRcoeff((k-1)*subM+1:k*subM,j,i)
 				end do
 			end do
-			call gemm(leftu,LRcoeff1(1:subM,:,i),LRcoeff(:,:,i),'N','N',1.0D0,0.0D0)
+			call gemm(leftu,LRcoeff1(1:subM,:,i),LRcoeff(1:4*Lrealdim,:,i),'N','N',1.0D0,0.0D0)
 		end do
 
 	else if((direction=='l' .and. nleft==exactsite) .or. (direction=='r' .and. nright==exactsite)) then
-		LRcoeff=coeffIF
+		LRcoeff=coeffIF  ! directly use the last step result
 	end if
 
-	m=1
+	m=0
+	do k=1,nstate,1
 	do i=1,4*Rrealdim,1
 	do j=1,4*Lrealdim,1
 		if((quantabigL(j,1)+quantabigR(i,1)==nelecs) .and. &
 			quantabigL(j,2)+quantabigR(i,2)==totalSz) then
-			do k=1,nstate,1
-				guesscoeff(m+(k-1)*lvector)=LRcoeff(j,i,k)
-			end do
 			m=m+1
+			guesscoeff(m)=LRcoeff(j,i,k)
 		end if
 	end do
 	end do
-	m=m-1
+	end do
 
-	if(m/=lvector) then
+	if(m/=lvector*nstate) then
 		write(*,*) "----------------------------------------------"
 		write(*,*) "guesscoeff good quantum states number wrong! failed!"
 		write(*,*) "----------------------------------------------"
@@ -280,19 +300,26 @@ end subroutine InitialStarter
 		do i=1,subM,1
 			rightv(:,(i-1)*4+1:i*4)=rightv(:,(i-1)*4+1:i*4)*singularvalue(i)
 		end do
-
-	else if((direction=='l' .and. nleft==exactsite) .or. (direction=='r' .and. nright==exactsite)) then
-
-		do i=1,subM,1
-			rightv(i,:)=rightv(i,:)*singularvalue(i)
-		end do
 	end if
+
 		
-	! recombine the two site sigmaL sigmaR coefficient
-	
 	allocate(LRcoeff(4*Lrealdim,4*Rrealdim),stat=error)
 	if(error/=0) stop
-	call gemm(leftu,rightv,LRcoeff,'N','N',1.0D0,0.0D0)
+	
+	if((direction=='l' .and. nleft==exactsite) .or. (direction=='r' .and. nright==exactsite)) then
+		! direct use the last step result
+		if(nstate==1) then
+			LRcoeff=coeffIF(1:4*Lrealdim,1:4*Rrealdim,1)
+		else
+			write(*,*) "================================="
+			write(*,*) "garnet chan's specific algorithom"
+			write(*,*) "================================="
+			stop
+		end if
+	else
+		! recombine the two site sigmaL sigmaR coefficient
+		call gemm(leftu,rightv,LRcoeff,'N','N',1.0D0,0.0D0)
+	end if
 
 	m=1
 	do i=1,4*Rrealdim,1
@@ -340,8 +367,8 @@ Subroutine InitialRandom(guessvector,lvector,num)
 	integer :: num,lvector
 	real(kind=8) :: guessvector(num*lvector),randomx
 	integer :: i
-
-	write(*,*) "enter InitialRandom subroutine"
+	
+	call master_print_message("enter InitialRandom subroutine")
 	call random_seed()
 
 	do i=1,num*lvector,1

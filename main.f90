@@ -34,6 +34,9 @@ program main
 	if(nstate/=1) then
 		call TransMoment
 	end if
+	
+	! count if the matrix operamat is sparse or not
+	!call countnonzero
 
 	endtime=MPI_WTIME()
 	call master_print_message(endtime-starttime,"RUMTIME:")
