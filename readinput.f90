@@ -288,7 +288,7 @@ Subroutine ReadInput
 		write(*,*) "nstates=",nstate
 		write(*,*) "exscheme=",exscheme
 		write(*,*) "nweight=",nweight
-		write(*,*) "energythresh",energythresh
+		write(*,*) "energythresh",energythresh ! other process do not know this number
 		write(*,*) "nbonds=",nbonds,"bondlink="
 		do i=1,norbs,1
 		write(*,*) bondlink(:,i)
