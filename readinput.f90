@@ -76,6 +76,7 @@ Subroutine ReadInput
 		read(10,*) exscheme ! exschemem=1 average method =2 my new specifc method =3 the dipole operator average method
 		if(exscheme==1 .or. exscheme==3) then
 			read(10,*) nweight(1:nstate) ! nweight is the average DMRG excited state
+			nweight=nweight/sum(nweight)
 		end if
 	end if
 
