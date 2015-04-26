@@ -67,9 +67,9 @@ module variables
 	v(:,:,:,:) , &                ! two electron integral full Quantum Chemistry
 	hubbardU(:) , &               ! hubbard term
 	pppV(:,:) , &                 ! PPP term
-	operamatbig(:,:,:) , &        ! operator matrix in 4M basis a+(up),a+(down),n  
+!	operamatbig(:,:,:) , &        ! operator matrix in 4M basis a+(up),a+(down),n  
 	Hbig(:,:,:) , &               ! subspace HL and HR in 4M basis
-	operamatsma(:,:,:) , &        ! operator matrix in M basis a+(up),a+(down),n
+!	operamatsma(:,:,:) , &        ! operator matrix in M basis a+(up),a+(down),n
 	Hsma(:,:,:)                   ! subspace HL and HR in 4M basis
 	integer(kind=i4),allocatable :: &
 	quantasmaL(:,:) , &           ! L space good quantum number (N and Sz)in M basis
