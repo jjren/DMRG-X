@@ -36,7 +36,7 @@ program main
 	end if
 	
 	! count if the matrix operamat is sparse or not
-	!call countnonzero
+	call countnonzero
 
 	endtime=MPI_WTIME()
 	call master_print_message(endtime-starttime,"RUMTIME:")
