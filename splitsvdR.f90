@@ -487,7 +487,7 @@ subroutine splitsvdR(singularvalue,rightv,statebegin,stateend,indexRm1)
 					symmlinksma(i,1,2)=i+1
 				end if
 			else if(valueindex(i)>szl0 .and. valueindex(i)<=szl0+szzero) then
-				if(symmlinkbigbuffer(valueindex(i)==0)) then
+				if(symmlinkbigbuffer(valueindex(i))==0) then
 					write(*,*) "----------------------------------------"
 					write(*,*) "R symmlinkbigbuffer(valueindex(i)==0 failed!"
 					write(*,*) "----------------------------------------"
