@@ -98,4 +98,21 @@ return
 end subroutine  ScaleMatrix
 
 !=============================================
+!=============================================
+
+subroutine Diagsyev(dim1,mat,eigenvalue,eigenvector)
+	use lapack95
+	use f95_precision
+	implicit none
+	
+	integer :: dim1
+	real(kind=r8) :: mat(dim1,dim1),eigenvalue(dim1),eigenvector(dim1,dim1)
+
+	call syevr(mat,eigenvalue,'U',eigenvector)
+
+return
+
+end subroutine diagsyev
+
+!=============================================
 end module MathLib

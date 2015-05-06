@@ -33,6 +33,7 @@ module variables
 	! control part
 	integer(kind=i4) :: &
 	logic_PPP, &            ! if use PPP model    
+	logic_meanfield , &     ! if do meanfield scf procedure
 	logic_tree, &           ! if use tree tensor algorithm, how many blocks                
 	blocks, &
 	logic_spinreversal,&    ! if use spinreversal symmetry :: +1 singlet -1 triplet 0 none

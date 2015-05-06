@@ -5,11 +5,13 @@ program main
 	USE variables
 	use communicate
 	use exit_mod
-	use mpi, only : MPI_WTIME
+	use mpi
+	use MeanField
 
 	implicit none
 	! local 
 	real(kind=r8) :: starttime,endtime
+	integer :: ierr
 
 	call init_communicate
 	starttime=MPI_WTIME()
@@ -20,6 +22,12 @@ program main
 
 	! read the input files
 	call ReadInput
+	
+	! SCF mean field procedure
+	if(logic_meanfield==1 .and. myid==0) then
+		call SCFMain
+	end if
+	call MPI_BARRIER(MPI_COMM_WORLD,ierr)
 
 	! allocate the operator to different process
 	call LoadBalance
@@ -38,6 +46,7 @@ program main
 	! count if the matrix operamat is sparse or not
 	call countnonzero
 
+	call MPI_BARRIER(MPI_COMM_WORLD,ierr)
 	endtime=MPI_WTIME()
 	call master_print_message(endtime-starttime,"RUMTIME:")
 	call exit_DMRG(0,"Program DMRG-X end successfully")
