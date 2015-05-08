@@ -344,7 +344,7 @@ subroutine splitsvdL(singularvalue,leftu,statebegin,stateend,indexlp1)
 			else if(valueindex(i)>szl0 .and. valueindex(i)<=szl0+szzero) then
 				if(symmlinkbigbuffer(valueindex(i))==0) then
 					write(*,*) "----------------------------------------"
-					write(*,*) "L symmlinkbigbuffer(valueindex(i)==0 failed!"
+					write(*,*) "L symmlinkbigbuffer(valueindex(i))==0 failed!"
 					write(*,*) "----------------------------------------"
 					stop
 				end if
