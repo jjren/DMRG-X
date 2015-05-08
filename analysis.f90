@@ -1,12 +1,24 @@
-subroutine analysis
-! this subroutine is to anaylsis the wavefuntion and output the info
+module analysis
+! this subroutine is to anaylsis the wavefuntion and output the analysis result
 
-	use mpi
 	use variables
 
 	implicit none
-	integer :: i
-! do another loop to calculate all the operator
+	private 
+	save
+
+	contains
+!===================================================================
+!===================================================================
+subroutine OneRDM
+! this subroutine is to calculate the one partical density matrix
+! a(i,sigam)^+ aj(j,sigma)
+! this subroutine is called after converged
+! k^2*M*2 storage
+
+
+
+
 
 ! parity number operator expectation
 	do i=1,norbs,1
