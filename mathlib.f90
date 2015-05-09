@@ -7,6 +7,7 @@ module MathLib
 	implicit none
 	contains
 !=============================================================================
+!=============================================================================
 Subroutine DirectProduct(a,dima,b,dimb,c)
 ! this subroutine is to do direct product of two matrix
 ! for example :<sigmaL|<L|O|L>|sigmaL>
@@ -32,6 +33,65 @@ end do
 return
 end Subroutine DirectProduct
 
+!===============================================
+!===============================================
+
+subroutine SparseDirectProduct( ancols,anrows,amat,acolindex,arowindex,&
+                                bncols,bnrows,bmat,bcolindex,browindex,&
+                                cmat,ccolindex,crowindex,maxnelement)
+! this subroutine is do Sparse Matrix direct product
+! in 3-array CSR form
+! mata direct product matb
+
+	implicit none
+	
+	integer(kind=i4) :: ancols,anrows,bncols,bnrows
+	integer(kind=i4) :: arowindex(anrows+1),browindex(bnrows+1)
+	integer(kind=i4) :: acolindex(arowindex(anrows+1)-1),bcolindex(browindex(bnrows+1)-1)
+	real(kind=r8) :: amat(arowindex(anrows+1)-1),bmat(browindex(bnrows+1)-1)
+	
+	integer :: maxnelement
+	integer(kind=i4) :: crowindex(anrows*bnrows+1)
+	integer(kind=i4) :: ccolindex(maxnelement)
+	real(kind=r8) :: cmat(maxnelement)
+	
+	! local
+	integer :: ai,aj,bi,bj
+	integer :: cbegin,nonzero
+	
+	cmat=0.0D0
+	crowindex=0
+	ccolindex=0
+
+	nonzero=0
+	crowindex(1)=1
+	do bi=1,bnrows,1
+		do ai=1,anrows,1
+			do bj=browindex(bi),browindex(bi+1)-1,1
+				cbegin=(bcolindex(bj)-1)*ancols
+				do aj=arowindex(ai),arowindex(ai+1)-1,1
+					nonzero=nonzero+1
+					if(nonzero>maxnelement) then
+						write(*,*) "===================================================="
+						write(*,*) "failed! in sparsedirectproduct nonzero>maxnelement"
+						write(*,*) "===================================================="
+						stop
+					end if
+					cmat(nonzero)=amat(aj)*bmat(bj)
+					ccolindex(nonzero)=cbegin+acolindex(aj)
+				end do
+			end do
+			crowindex((bi-1)*anrows+ai+1)=nonzero+1
+		end do
+	end do
+
+	write(*,*) "nonzero=",nonzero
+	write(*,*) "maxnelement=",maxnelement
+
+	return
+end subroutine SparseDirectProduct
+
+!===============================================
 !===============================================
 
 subroutine GramSchmit(nvector,lvector,vectorwork,normwork)
