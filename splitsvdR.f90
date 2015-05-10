@@ -44,15 +44,21 @@ subroutine splitsvdR(singularvalue,rightv,statebegin,stateend,indexRm1)
 !	write(*,*) coeffIF(1:4*Rrealdim,1:4*Rrealdim,:)
 
 ! the R+sigmaR space reduced density matrix
-	do i=statebegin,stateend,1
-		call gemm(coeffIF(1:4*Lrealdim,1:4*Rrealdim,i),coeffIF(1:4*Lrealdim,1:4*Rrealdim,i),&
-		coeffbuffer(1:4*Rrealdim,1:4*Rrealdim),'T','N',1.0D0,0.0D0)
-		if(exscheme==1) then
-			coeffwork=coeffwork+coeffbuffer*nweight(i)
-		else
-			coeffwork=coeffwork+coeffbuffer
-		end if
-	end do
+    if(exscheme == 4 .and. startedMaxOverlap) then ! He Ma  
+        call gemm(coeffIF(1:4*Lrealdim,1:4*Rrealdim,targettedStateIndex),&
+                  coeffIF(1:4*Lrealdim,1:4*Rrealdim,targettedStateIndex),&
+		          coeffwork(1:4*Rrealdim,1:4*Rrealdim),'T','N',1.0D0,0.0D0)
+    else
+	    do i=statebegin,stateend,1
+		    call gemm(coeffIF(1:4*Lrealdim,1:4*Rrealdim,i),coeffIF(1:4*Lrealdim,1:4*Rrealdim,i),&
+		    coeffbuffer(1:4*Rrealdim,1:4*Rrealdim),'T','N',1.0D0,0.0D0)
+		    if(exscheme==1) then
+			    coeffwork=coeffwork+coeffbuffer*nweight(i)
+		    else
+			    coeffwork=coeffwork+coeffbuffer
+		    end if
+        end do
+    end if
 	!write(*,*) "coeffwork"
 	!write(*,*) coeffwork
 ! split the reduced density matrix to different good quantum

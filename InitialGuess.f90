@@ -25,7 +25,7 @@ subroutine InitialStarter(direction,lvector,nvector,initialcoeff)
 	real(kind=8),allocatable :: nosymmguess(:)
 	integer :: i,error
 	
-	if(nvector/=nstate) then
+	if(nvector/=nstate .and. exscheme/=4) then    ! He Ma
 		call master_print_message(nvector,"nvector/=nstate")
 		stop
 	end if
@@ -217,6 +217,7 @@ end subroutine InitialStarter
 	! when nstate=1 then we can use the last stored matrix to
 	! contruct the Initial Guess
 	! only used in the finit MPS and nstate=1
+    ! also used in max overlap algorithm
 
 	!out :: nosymmguess(lvector) :: the finit initial guess
 	!in  :: lvector :: ngoodstates,the nnosymmstate
@@ -310,10 +311,12 @@ end subroutine InitialStarter
 		! direct use the last step result
 		if(nstate==1) then
 			LRcoeff=coeffIF(1:4*Lrealdim,1:4*Rrealdim,1)
-		else
-			write(*,*) "================================="
+        else if(exscheme==4 .and. startedMaxOverlap) then        ! He Ma
+            write(*,*) "================================="
 			write(*,*) "garnet chan's specific algorithom"
 			write(*,*) "================================="
+            LRcoeff=coeffIF(1:4*Lrealdim,1:4*Rrealdim,targettedStateIndex)
+		else
 			stop
 		end if
 	else

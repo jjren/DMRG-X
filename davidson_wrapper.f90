@@ -9,6 +9,7 @@ Subroutine Davidson_Wrapper(direction,lim,ilow,ihigh,iselec,niv,mblock,&
 	USE InitialGuess
 	USE symmetry
 	use communicate
+    use max_overlap
 
 	implicit none
 
@@ -137,6 +138,15 @@ Subroutine Davidson_Wrapper(direction,lim,ilow,ihigh,iselec,niv,mblock,&
 		!  call GramSchmit(niv,ngoodstates,nosymmout,norm)
 		!  write(*,*) "davidson nosymmout norm=",norm
 		 
+!=================================================================================
+! He Ma
+    ! To determine in the davidson solutions which state has the maximum overlap with the previous-step excited state. 
+    ! write global variable targettedStateIndex
+    if(exscheme == 4 .and. startedMaxOverlap) then 
+        call getMaxOverlapStateIndex(Davidwork, dimN, IHIGH, direction)
+    end if
+!=================================================================================
+        
 		coeffIF=0.0D0
 ! the DavidWORK only contains the ngoodstates coeff other nongoodstates should be set to 0
 		m=1

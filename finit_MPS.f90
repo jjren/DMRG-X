@@ -7,7 +7,7 @@ Subroutine Finit_MPS
 
 	implicit none
 
-	integer :: isystem,ibegin,i,sweepbegin
+	integer :: isystem,ibegin,i,sweepbegin,sweepend
 	logical :: converged
 	integer :: ierr ! MPI_flag
 
@@ -57,7 +57,14 @@ Subroutine Finit_MPS
 		sweepbegin=1
 	end if
 
-	do isweep=sweepbegin,sweeps,1
+100 if(exscheme==4 .and. startedMaxOverlap == .true.) then  !He Ma
+        sweepbegin = sweeps +1
+        sweepend = sweeps + maxOverlapSweeps
+    else
+        sweepend = sweeps
+    end if    
+    
+    do isweep=sweepbegin,sweepend,1
 		
 		do isystem=ibegin,norbs-exactsite-2,1
 			! add nelecs 2 by 2 if the nelecs does not reach realnelecs
@@ -123,6 +130,9 @@ Subroutine Finit_MPS
 
 		if(myid==0) then
 			write(*,*) isweep,"finit MPS end!"
+            if(exscheme==4 .and. startedMaxOverlap == .true.) then
+                write(*,*) "this is a max overlap sweep"
+            end if            
 			write(*,*) "the energy in the middle is",sweepenergy(isweep,:)
 			converged=.true.
 			do i=1,nstate,1
@@ -141,14 +151,48 @@ Subroutine Finit_MPS
 	end do
 
 	if(myid==0) then
-		if(converged==.true.) then
+		if(converged==.true. .and. startedMaxOverlap==.false.) then   !He Ma
 			write(*,*) "energy converged! at sweep",isweep
-			write(*,*) sweepenergy(0:isweep,:)
-		else
+            do i=1, nstate, 1
+                write(*,*) "state ",i," energy at each sweep:"
+                write(*,*) sweepenergy(0:isweep,i)
+            end do
+		else if(converged==.false. .and. startedMaxOverlap==.false.) then
 			write(*,*) "maxiter reached!"
-			write(*,*) sweepenergy(0:sweeps,:)
-		end if
-	end if
+            do i=1, nstate, 1
+                write(*,*) "state ",i," energy at each sweep:"
+                write(*,*) sweepenergy(0:sweeps,i)
+            end do
+        else if(converged==.true. .and. startedMaxOverlap==.true.) then  
+			write(*,*) "energy converged after another ",isweep - sweeps, " max overlap sweeps"
+            do i=1, nstate, 1
+                write(*,*) "state ",i," energy at each sweep:"
+                write(*,*) sweepenergy(sweeps+1:isweep,i)
+            end do
+		else
+			write(*,*) "max overlap maxiter reached!"
+            do i=1, nstate, 1
+                write(*,*) "state ",i," energy at each sweep:"
+                write(*,*) sweepenergy(sweeps+1:sweepend,i)
+            end do
+        end if
+    end if
+    
+!=================================================================================
+!He Ma  max overlap sweeps
+    if(exscheme==4 .and. startedMaxOverlap == .false.) then
+        if(myid==0) then
+            write(*,*) "**************************"
+		    write(*,*) "enter in max overlap sweep"
+            write(*,*) "**************************"
+        end if
+        
+        startedMaxOverlap = .true.
+        call Renormalization(nleft+1,norbs-nright,'l')      !renormalize according to specific state
+        
+        goto 100
+    end if
+!=================================================================================
 		
 return
 end subroutine Finit_MPS

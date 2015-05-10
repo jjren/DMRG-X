@@ -15,6 +15,7 @@ Subroutine Renormalization(indexLp1,indexRm1,direction)
 	USE LAPACK95
 	USE F95_PRECISION
     use excitedbase
+    use max_overlap
 
 	implicit none
 	
@@ -86,7 +87,7 @@ Subroutine Renormalization(indexLp1,indexRm1,direction)
 		!	singularvalue=singularvalue*singularvalue
 ! when nstate/=1, two different scheme to target the excited states
 ! average method
-		if(nstate==1 .or. exscheme==1) then
+		if(nstate==1 .or. exscheme==1 .or. (exscheme==4 .and. startedMaxOverlap==.false.)) then
 			allocate(singularvalue(subM),stat=error)
 			if(error/=0) stop
 !---------------left transfer unitary matrix-------
@@ -141,7 +142,20 @@ Subroutine Renormalization(indexLp1,indexRm1,direction)
 		!	write(*,*) symmlinksma(:,:,1)
 		!	write(*,*) symmlinksma(:,:,2)
 			
-
+!--------------------------------------------------
+!He Ma  max overlap
+        else if(exscheme==4 .and. startedMaxOverlap) then
+            allocate(singularvalue(subM),stat=error)
+			if(error/=0) stop
+			allocate(leftu(4*Lrealdim,subM),stat=error)
+			if(error/=0) stop
+            allocate(rightv(subM,4*Rrealdim),stat=error)
+			if(error/=0) stop
+            call splitsvdL(singularvalue,leftu,1,nstate,indexlp1)
+			call splitsvdR(singularvalue,rightv,1,nstate,indexRm1)
+            call correctR(singularvalue,leftu,rightv)
+!--------------------------------------------------
+        
 !--------------------------------------------------
 		else if(exscheme==2) then
 			allocate(singularvalue(subM*nstate),stat=error)

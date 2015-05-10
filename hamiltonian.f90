@@ -33,7 +33,7 @@ subroutine Hamiltonian(direction)
 	lim=nstate+20    ! this number 20 can be changed consider the efficiency
 	niv=nstate
 	mblock=nstate
-	maxiter=200
+	maxiter=400
 	allocate(iselec(lim),stat=error)
 	if(error/=0) stop
 	iselec=-1

@@ -65,7 +65,7 @@ Subroutine ReadInput
 	read(10,*) energythresh          ! the threshold of the total energy you want to get
 
 ! sweepenergy is the total energy of every sweep(in the middle of the chain)
-	allocate(sweepenergy(0:sweeps,nstate),stat=error)
+	allocate(sweepenergy(0:(sweeps+maxOverlapSweeps),nstate),stat=error)    !He Ma
 	if(error/=0) stop
 	sweepenergy=0.0D0
 ! 
@@ -74,8 +74,12 @@ Subroutine ReadInput
 	nweight=1.0D0         !default value
 	
 	if(nstate/=1) then
-		read(10,*) exscheme ! exschemem=1 average method =2 my new specifc method =3 the dipole operator average method
-		if(exscheme==1 .or. exscheme==3) then
+		read(10,*) exscheme ! =1 average method      =2 my new specifc method 
+                            ! =3 the dipole operator average method     =4 max overlap
+        if(exscheme==4) then    !He Ma
+            read(10,*) targettedStateIndex
+        end if
+		if(exscheme==1 .or. exscheme==3 .or. exscheme==4) then    
 			read(10,*) nweight(1:nstate) ! nweight is the average DMRG excited state
 			nweight=nweight/sum(nweight)
 		end if
