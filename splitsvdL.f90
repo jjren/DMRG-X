@@ -7,6 +7,7 @@ subroutine splitsvdL(singularvalue,leftu,statebegin,stateend,indexlp1)
 	USE blas95
 	use lapack95
 	USE F95_PRECISION
+    use selectstate
 
 	implicit none
 

@@ -1,4 +1,6 @@
-subroutine selectstates(valuework,dim1,valueindex,singularvalue,&
+module selectstate
+    contains
+    subroutine selectstates(valuework,dim1,valueindex,singularvalue,&
 		subspacenum,syssite,szzero,szl0)
 	USE mpi
 	USe variables
@@ -156,5 +158,7 @@ subroutine selectstates(valuework,dim1,valueindex,singularvalue,&
 	end if
 		write(*,*) "valueindex",valueindex
 
-return
-end subroutine selectstates
+    return
+    end subroutine selectstates
+
+end module selectstate

@@ -1,1 +1,12 @@
-*~
+#Visual Studio directories
+debug/
+
+#Visual Studio files
+DMRG.vfproj
+DMRG.vfproj.hp.user
+DMRG.u2d
+vc120.pdb
+
+#unrelevant files
+makefile
+timeline.log

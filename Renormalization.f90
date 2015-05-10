@@ -14,6 +14,7 @@ Subroutine Renormalization(indexLp1,indexRm1,direction)
 	USE BLAS95
 	USE LAPACK95
 	USE F95_PRECISION
+    use excitedbase
 
 	implicit none
 	
