@@ -18,8 +18,8 @@ program main
 	
 	if(nprocs<2) then
 		call exit_DMRG(sigAbort,"nprocs<2 failed!")
-	end if
-
+    end if
+    
 	! read the input files
 	call ReadInput
 	

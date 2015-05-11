@@ -1,5 +1,6 @@
 #Visual Studio directories
 debug/
+Release/
 
 #Visual Studio files
 DMRG.vfproj

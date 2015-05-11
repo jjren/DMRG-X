@@ -38,7 +38,12 @@ subroutine InitialStarter(direction,lvector,nvector,initialcoeff)
 
 		if(nvector==1) then
 			call SingleInitialFinite(nosymmguess,ngoodstates,direction)
-		else
+        else if (exscheme==4 .and. startedMaxOverlap) then
+            write(*,*) "****************************"
+            write(*,*) "using random initial"
+            write(*,*) "****************************"
+            call InitialRandom(nosymmguess,ngoodstates,nvector)
+        else
 			call MoreInitialFinite(nosymmguess,ngoodstates,direction)
 		end if
 

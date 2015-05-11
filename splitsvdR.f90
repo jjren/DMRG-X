@@ -52,7 +52,7 @@ subroutine splitsvdR(singularvalue,rightv,statebegin,stateend,indexRm1)
 	    do i=statebegin,stateend,1
 		    call gemm(coeffIF(1:4*Lrealdim,1:4*Rrealdim,i),coeffIF(1:4*Lrealdim,1:4*Rrealdim,i),&
 		    coeffbuffer(1:4*Rrealdim,1:4*Rrealdim),'T','N',1.0D0,0.0D0)
-		    if(exscheme==1) then
+		    if(exscheme==1 .or. (exscheme == 4 .and. startedMaxOverlap==.false.)) then
 			    coeffwork=coeffwork+coeffbuffer*nweight(i)
 		    else
 			    coeffwork=coeffwork+coeffbuffer
