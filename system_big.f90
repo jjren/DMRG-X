@@ -8,7 +8,7 @@ Subroutine System_Big(domain)
 	use variables
 	use mpi
 	use mathlib
-	use symmetry
+!	use symmetry
 	use communicate
 	use exit_mod
 	use module_sparse
@@ -17,7 +17,7 @@ Subroutine System_Big(domain)
 	use f95_precision
 
 	implicit none
-!	include "mkl.fi"
+	include "mkl_spblas.fi"
 
 	character(len=1) :: domain   !L/R
 	
@@ -237,12 +237,9 @@ Subroutine System_Big(domain)
 							Hbuf,Hbufcolindex,Hbufrowindex,Hbigdim)
 		end if
 
-		Hbig(:,Hindex)=0.0D0
-		Hbigcolindex(:,Hindex)=0
-		Hbigrowindex(:,Hindex)=0
-		call copy(Hbuf,Hbig(:,Hindex))
-		call copy(Hbufrowindex,Hbigrowindex(:,Hindex))
-		call copy(Hbufcolindex,Hbigcolindex(:,Hindex))
+		Hbig(:,Hindex)=Hbuf
+		Hbigrowindex(:,Hindex)=Hbufrowindex
+		Hbigcolindex(:,Hindex)=Hbufcolindex
 
 !===========================================================
 
@@ -264,17 +261,14 @@ Subroutine System_Big(domain)
 		Hbufrowindex2=0
 		Hbufcolindex2=0
 		call mkl_dscradd('N',0,0,4*subM,4*subM,Hbig(:,Hindex),Hbigcolindex(:,Hindex),Hbigrowindex(:,Hindex),1.0D0,Hbuf,Hbufcolindex,Hbufrowindex,&
-					Hbuf2,Hbuf2colindex,Hbuf2rowindex,Hbigdim,info)
+					Hbuf2,Hbufcolindex2,Hbufrowindex2,Hbigdim,info)
 		if(info/=0) then
 			call master_print_message("info/=0 failed!")
 			stop
 		end if
-		Hbig(:,Hindex)=0.0D0
-		Hbigcolindex(:,Hindex)=0
-		Hbigrowindex(:,Hindex)=0
-		call copy(Hbuf2,Hbig(:,Hindex))
-		call copy(Hbufrowindex2,Hbigrowindex(:,Hindex))
-		call copy(Hbufcolindex2,Hbigcolindex(:,Hindex))
+		Hbig(:,Hindex)=Hbuf2
+		Hbigrowindex(:,Hindex)=Hbufrowindex2
+		Hbigcolindex(:,Hindex)=Hbufcolindex2
 
 !===========================================================
 
@@ -329,7 +323,7 @@ Subroutine System_Big(domain)
 				Hbufrowindex2=0
 				Hbufcolindex2=0
 				call mkl_dscradd('N',0,0,4*subM,4*subM,Hbig(:,Hindex),Hbigcolindex(:,Hindex),Hbigrowindex(:,Hindex),t(recvtag,orbadd),Hbuf,Hbufcolindex,Hbufrowindex,&
-							Hbuf2,Hbuf2colindex,Hbuf2rowindex,Hbigdim,info)
+							Hbuf2,Hbufcolindex2,Hbufrowindex2,Hbigdim,info)
 				if(info/=0) then
 					call master_print_message(info,"info/=0 failed!")
 					stop
@@ -338,7 +332,7 @@ Subroutine System_Big(domain)
 				Hbig(:,Hindex)=0.0D0
 				Hbigcolindex(:,Hindex)=0
 				Hbigrowindex(:,Hindex)=0
-				call mkl_dscradd('T',0,0,4*subM,4*subM,Hbuf2,Hbuf2colindex,Hbuf2rowindex,t(recvtag,orbadd),Hbuf,Hbufcolindex,Hbufrowindex,&
+				call mkl_dscradd('T',0,0,4*subM,4*subM,Hbuf2,Hbufcolindex2,Hbufrowindex2,t(recvtag,orbadd),Hbuf,Hbufcolindex,Hbufrowindex,&
 							Hbig(:,Hindex),Hbigcolindex(:,Hindex),Hbigrowindex(:,Hindex),Hbigdim,info)
 				if(info/=0) then
 					call master_print_message(info,"info/=0 failed!")
@@ -366,26 +360,22 @@ Subroutine System_Big(domain)
 			Hbufrowindex2=0
 			Hbufcolindex2=0
 			call mkl_dscradd('N',0,0,4*subM,4*subM,Hbig(:,Hindex),Hbigcolindex(:,Hindex),Hbigrowindex(:,Hindex),pppV(recvtag,orbadd),Hbuf,Hbufcolindex,Hbufrowindex,&
-						Hbuf2,Hbuf2colindex,Hbuf2rowindex,Hbigdim,info)
+						Hbuf2,Hbufcolindex2,Hbufrowindex2,Hbigdim,info)
 			if(info/=0) then
 				call master_print_message(info,"info/=0 failed!")
 				stop
 			end if
 
-			Hbig(:,Hindex)=0.0D0
-			Hbigcolindex(:,Hindex)=0
-			Hbigrowindex(:,Hindex)=0
-
-			call copy(Hbuf2,Hbig(:,Hindex))
-			call copy(Hbufrowindex2,Hbigrowindex(:,Hindex))
-			call copy(Hbufcolindex2,Hbigcolindex(:,Hindex))
+			Hbig(:,Hindex)=Hbuf2
+			Hbigrowindex(:,Hindex)=Hbufrowindex2
+			Hbigcolindex(:,Hindex)=Hbufcolindex2
 		end do
 !=========================================================================
 	
 	! construct the symmmlinkbig
-		if(logic_spinreversal/=0) then
-			call Creatsymmlinkbig(dim1,domain,Hindex)
-		end if
+	!	if(logic_spinreversal/=0) then
+	!		call Creatsymmlinkbig(dim1,domain,Hindex)
+	!	end if
 		
 		deallocate(Hbuf,Hbuf2)
 		deallocate(obuf)

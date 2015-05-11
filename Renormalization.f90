@@ -291,12 +291,8 @@ Subroutine Renormalization(indexLp1,indexRm1,direction)
 		call MPI_BCAST(leftubuffer,4*Lrealdim*subM,mpi_real8,0,MPI_COMM_WORLD,ierr)
 ! left space operator renormalization
 		do i=1,indexLp1,1
-			if(myid==orbid(i)) then
-				if(mod(i,nprocs-1)==0) then
-					operaindex=i/(nprocs-1)
-				else
-					operaindex=i/(nprocs-1)+1
-				end if
+			if(myid==orbid1(i,1)) then
+				operaindex=orbid1(i,2)
 					do j=1,3,1
 					call gemm(leftubuffer,operamatbig(1:4*Lrealdim,1:4*Lrealdim,3*(operaindex-1)+j),&
 					dummymat(:,1:4*Lrealdim),'T','N',1.0D0,0.0D0)
