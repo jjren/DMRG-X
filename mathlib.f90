@@ -2,6 +2,7 @@ module MathLib
 	
 	use kinds_mod
 	use blas95
+	use lapack95
 	use f95_precision
 
 	implicit none
@@ -161,8 +162,6 @@ end subroutine  ScaleMatrix
 !=============================================
 
 subroutine Diagsyev(dim1,mat,eigenvalue,eigenvector)
-	use lapack95
-	use f95_precision
 	implicit none
 	
 	integer :: dim1
