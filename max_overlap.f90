@@ -52,7 +52,7 @@ module maxOverlap
             workingOverlap = abs(workingOverlap)
             if(workingOverlap>=0.9) then
                 write(*,*) "target state index keeps the same, with overlap =", workingOverlap
-                targetStateFlag = 'finished'
+                targetStateFlag = 'getsame'
             else 
                 write(*,*) "target state index may changed, with overlap=", workingOverlap
                 write(*,*) "going back to davidon diagonalization"

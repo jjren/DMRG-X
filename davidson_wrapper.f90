@@ -177,18 +177,19 @@ Subroutine Davidson_Wrapper(direction,lim,ilow,ihigh,iselec,niv,mblock,&
 !=================================================================================
 ! write the final out
 
-        if(exscheme == 4 .and. startedMaxOverlap .and. targetStateFlag == 'trysame') then
+        if(exscheme == 4 .and. startedMaxOverlap .and. targetStateFlag == 'getsame') then
+            targetStateFlag = 'finished'
             write(*,*) "Energy of the", targetStateIndex, "state is", &
                         DavidWORK(NUME*dimN+targetStateIndex)
             write(*,*) "energy converge:",DavidWORK(NUME*dimN+NUME+targetStateIndex)
             write(*,*) "residual norm:",DavidWORK(NUME*dimN+2*NUME+targetStateIndex)
         else
-		    write(*,*) "Energy of lowest", NUME, "states"
+            write(*,*) "Energy of lowest", NUME, "states"
 		    do i=1,NUME,1
 			    write(*,*) nleft+1,norbs-nright,i,"th energy=",DavidWORK(NUME*dimN+i)
 			    write(*,*) "energy converge:",DavidWORK(NUME*dimN+NUME+i)
 			    write(*,*) "residual norm:",DavidWORK(NUME*dimN+2*NUME+i)
-            end do
+            end do            
         end if
         
 		write(*,*) "NLOOPS=",nloops
