@@ -44,9 +44,9 @@ subroutine InitialStarter(direction,lvector,nvector,initialcoeff)
             !write(*,*) "using random initial"
             !write(*,*) "****************************"
             !call InitialRandom(nosymmguess,ngoodstates,nvector)
-            call MoreInitialFinite(nosymmguess,ngoodstates,direction)
+            call MoreInitialFinite(nosymmguess,ngoodstates,nvector,direction)
         else
-			call MoreInitialFinite(nosymmguess,ngoodstates,direction)
+			call MoreInitialFinite(nosymmguess,ngoodstates,nvector,direction)
 		end if
 
 		if(logic_spinreversal/=0) then
@@ -72,7 +72,7 @@ end subroutine InitialStarter
 
 
 !===========================================================
-	subroutine MoreInitialFinite(guesscoeff,lvector,direction)
+	subroutine MoreInitialFinite(guesscoeff,lvector,nvector,direction)
 	! the new Initial Guess can support nstate/=1
 	! the algrithom can be read from the manual
 	! the guesscoeff could be approximated as U+CB though UU+/=I
@@ -81,8 +81,8 @@ end subroutine InitialStarter
 	USE F95_PRECISION
 
 	implicit none
-	integer :: lvector
-	real(kind=8) :: guesscoeff(lvector*nstate)
+	integer :: lvector,nvector
+	real(kind=8) :: guesscoeff(lvector*nvector)
 	real(kind=8),allocatable :: leftu(:,:),rightv(:,:)&
 	,LRcoeff(:,:,:),LRcoeff1(:,:,:)
 	logical :: alive
@@ -90,6 +90,7 @@ end subroutine InitialStarter
 	integer :: subMbefore
 	integer :: error,i,j,m,k
 	character(len=1) :: direction
+    real(kind=8)  :: norm
 
 	write(*,*) "enter MoreInitialFinit subroutine"
 	! two site dmrg
@@ -146,9 +147,9 @@ end subroutine InitialStarter
 	end if
 
 
-	allocate(LRcoeff(4*subM,4*subM,nstate),stat=error)
+	allocate(LRcoeff(4*subM,4*subM,nvector),stat=error)
 	if(error/=0) stop
-	allocate(LRcoeff1(4*subM,4*subM,nstate),stat=error)
+	allocate(LRcoeff1(4*subM,4*subM,nvector),stat=error)
 	if(error/=0) stop
 
 	if(direction=='l' .and. nleft>exactsite) then
@@ -159,7 +160,7 @@ end subroutine InitialStarter
 			stop
 		end if
 
-		do i=1,nstate,1
+		do i=1,nvector,1
 			call gemm(leftu(1:4*subMbefore,:),coeffIF(1:4*subMbefore,:,i),LRcoeff(1:subM,:,i),'T','N',1.0D0,0.0D0)   ! do U+*C
 			do j=1,subM,1
 				do k=1,4,1
@@ -176,7 +177,7 @@ end subroutine InitialStarter
 			write(*,*) "-----------------------------------"
 			stop
 		end if
-		do i=1,nstate,1
+		do i=1,nvector,1
 			call gemm(coeffIF(:,1:4*subMbefore,i),rightv(:,1:4*subMbefore),LRcoeff(:,1:subM,i),'N','T',1.0D0,0.0D0)
 			do j=1,subM,1
 				do k=1,4,1
@@ -191,7 +192,7 @@ end subroutine InitialStarter
 	end if
 
 	m=0
-	do k=1,nstate,1
+	do k=1,nvector,1
 	do i=1,4*Rrealdim,1
 	do j=1,4*Lrealdim,1
 		if((quantabigL(j,1)+quantabigR(i,1)==nelecs) .and. &
@@ -203,12 +204,22 @@ end subroutine InitialStarter
 	end do
 	end do
 
-	if(m/=lvector*nstate) then
+	if(m/=lvector*nvector) then
 		write(*,*) "----------------------------------------------"
 		write(*,*) "guesscoeff good quantum states number wrong! failed!"
 		write(*,*) "----------------------------------------------"
 		stop
-	end if
+    end if
+    
+    do i=1,nvector,1
+        norm = 0.0
+        do j=1,lvector,1
+            norm = norm + guesscoeff((i-1)*nvector+j)**2
+        end do
+        if(norm<1.0D-2)   then ! i.e. the CoefIF of that state does not exist, happen in max overlap sweeps
+            call InitialRandom(guesscoeff((i-1)*lvector+1:i*lvector),lvector,1) 
+        end if
+    end do
 
 
 	deallocate(leftu)
@@ -322,7 +333,7 @@ end subroutine InitialStarter
             write(*,*) "================================="
 			write(*,*) "garnet chan's specific algorithom"
 			write(*,*) "================================="
-            LRcoeff=coeffIF(1:4*Lrealdim,1:4*Rrealdim,targettedStateIndex)
+            LRcoeff=coeffIF(1:4*Lrealdim,1:4*Rrealdim,targetStateIndex)
 		else
 			stop
 		end if

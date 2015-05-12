@@ -77,7 +77,7 @@ Subroutine ReadInput
 		read(10,*) exscheme ! =1 average method      =2 my new specifc method 
                             ! =3 the dipole operator average method     =4 max overlap
         if(exscheme==4) then    !He Ma
-            read(10,*) targettedStateIndex
+            read(10,*) targetStateIndex
         end if
 		if(exscheme==1 .or. exscheme==3 .or. exscheme==4) then    
 			read(10,*) nweight(1:nstate) ! nweight is the average DMRG excited state

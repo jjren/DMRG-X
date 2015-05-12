@@ -15,7 +15,7 @@ Subroutine Renormalization(indexLp1,indexRm1,direction)
 	USE LAPACK95
 	USE F95_PRECISION
     use excitedbase
-    use max_overlap
+    use maxOverlap
 
 	implicit none
 	

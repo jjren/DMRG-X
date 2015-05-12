@@ -10,7 +10,7 @@ subroutine Hamiltonian(direction)
 
 	integer :: &
 		lim   ,  &       ! the expanding small space in davidson iteration
-		ilow  ,  &       ! index of lowest eigenpair 
+		ilow  ,  &       ! index of lowest eigenpair
 		ihigh ,  &       ! index of the highest eigenpair
 		niv   ,  &       ! number of initial vector
 		mblock,  &       ! number of vector to be targeted in each iteration
@@ -26,7 +26,7 @@ subroutine Hamiltonian(direction)
 	! i,l,r direction l is L space to R space sweep
 	
 	call master_print_message("enter hamiltonian subroutine")
-
+    
 	! default value
 	ilow=1
 	ihigh=nstate
@@ -34,17 +34,31 @@ subroutine Hamiltonian(direction)
 	niv=nstate
 	mblock=nstate
 	maxiter=400
-	allocate(iselec(lim),stat=error)
+    allocate(iselec(lim),stat=error)
 	if(error/=0) stop
-	iselec=-1
-
+    iselec=-1
+    
     critc=1.0D-9
     critr=1.0D-9
     ortho=1.0D-8
     call getCrite(crite,direction)  !He Ma
+    
+    if(exscheme == 4 .and. startedMaxOverlap .and. targetStateFlag == 'finished') then
+        write(*,*) "In davidson diagonalization we first only target state", targetStateIndex
+        targetStateFlag = 'trysame'
+        iselec(1) = targetStateIndex
+        iselec(2) = -1
+        ilow = 0
+        mblock = 1
+        call Davidson_Wrapper(direction,lim,ilow,ihigh,iselec,niv,mblock,crite,critc,critr,ortho,maxiter) ! ilow=0, iselec will be used
+        if(targetStateFlag == "finished") then
+            deallocate(iselec)
+            return
+        end if
+    end if
 
 	call Davidson_Wrapper(direction,lim,ilow,ihigh,iselec,niv,mblock,crite,critc,critr,ortho,maxiter)
-	
+
 	deallocate(iselec)
 return
 
@@ -56,16 +70,18 @@ subroutine getCrite(crite,direction)   ! He Ma
     use variables
     implicit none
     
-    real(kind=8)     ::   crite, originCrite
+    real(kind=8)     ::   crite, originCrite, finalCrite
     character(len=1) ::   direction
     integer          ::   pastSweep
     
     originCrite = 1.0D-5
+    finalCrite  = 1.0D-8
     
-    if(energyThresh >= originCrite) then   ! if energyThresh is too large, no need to refine crite
-        crite = originCrite
-        return
-    end if
+!    if(energyThresh >= originCrite) then   ! if energyThresh is too large, no need to refine crite
+!        crite = originCrite
+!       return
+!    end if
+
     
     if(direction == 'i') then  ! infinite DMRG
         crite = originCrite
@@ -75,9 +91,11 @@ subroutine getCrite(crite,direction)   ! He Ma
             pastSweep = pastSweep - sweeps
         end if
         crite = originCrite * (0.2**pastSweep)
-        if(crite <= 0.1*energyThresh) then
-            crite = 0.1*energyThresh
+        if(crite <= 0.2*finalCrite) then
             reachedEnergyThresh = .true.
+        end if
+        if(crite <= finalCrite) then
+            crite = finalCrite
         end if
     end if
 

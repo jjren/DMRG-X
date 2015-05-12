@@ -9,7 +9,7 @@ Subroutine Davidson_Wrapper(direction,lim,ilow,ihigh,iselec,niv,mblock,&
 	USE InitialGuess
 	USE symmetry
 	use communicate
-    use max_overlap
+    use maxOverlap
 
 	implicit none
 
@@ -20,7 +20,7 @@ Subroutine Davidson_Wrapper(direction,lim,ilow,ihigh,iselec,niv,mblock,&
 
 	! local
 	! davidson parameter
-	integer :: dimN,nloops,nmv,ierror,smadim,IWRSZ
+	integer :: dimN,nloops,nmv,ierror,smadim,IWRSZ,NUME
 	logical :: hiend
 	external op
 
@@ -37,6 +37,13 @@ Subroutine Davidson_Wrapper(direction,lim,ilow,ihigh,iselec,niv,mblock,&
 	! check how many states fullfill good quantum number
 	! every process do it
 	! ngoodstates is the number of good quantum number states
+    
+    if(exscheme == 4 .and. startedMaxOverlap .and. targetStateFlag == 'trysame') then
+        NUME = targetStateIndex
+    else
+        NUME = nstate
+    end if
+    niv = NUME
 
 	ngoodstates=0
 	do i=1,4*Rrealdim,1
@@ -120,47 +127,47 @@ Subroutine Davidson_Wrapper(direction,lim,ilow,ihigh,iselec,niv,mblock,&
 		if(hiend/=.false.) then
 			call master_print_message("didn't get the lowest state")
 			stop
-		end if
+        end if
 		
 		! transfer the symmetry state to the non-symmetry state S*fai
-		allocate(nosymmout(ngoodstates*niv),stat=error)
+		allocate(nosymmout(ngoodstates*NUME),stat=error)
 		if(error/=0) stop
 
 		if(logic_spinreversal/=0 .or. (logic_C2/=0 .and. nleft==nright)) then
-			do i=1,niv
+			do i=1,NUME
 				call SymmetrizeState(ngoodstates,&
 					nosymmout((i-1)*ngoodstates+1:i*ngoodstates),Davidwork((i-1)*nsymmstate+1:i*nsymmstate),'u')
 			end do
 		else
-			nosymmout=DavidWORK(1:ngoodstates*niv)
+			nosymmout=DavidWORK(1:ngoodstates*NUME)
 		end if
 		!  no need do GramSchmit; the result fullfill orthnormal
-		!  call GramSchmit(niv,ngoodstates,nosymmout,norm)
+		!  call GramSchmit(NUME,ngoodstates,nosymmout,norm)
 		!  write(*,*) "davidson nosymmout norm=",norm
 		 
 !=================================================================================
 ! He Ma
-    ! To determine in the davidson solutions which state has the maximum overlap with the previous-step excited state. 
-    ! write global variable targettedStateIndex
-    if(exscheme == 4 .and. startedMaxOverlap) then 
-        call getMaxOverlapStateIndex(Davidwork, dimN, IHIGH, direction)
-    end if
+        ! To determine in the davidson solutions which state has the maximum overlap with the previous-step excited state. 
+        ! write global variable targettedStateIndex
+        if(exscheme == 4 .and. startedMaxOverlap) then 
+            call getStateOverlap(Davidwork, dimN, ihigh, direction)
+        end if
 !=================================================================================
         
 		coeffIF=0.0D0
 ! the DavidWORK only contains the ngoodstates coeff other nongoodstates should be set to 0
-		m=1
-		do k=1,IHIGH,1
-		do i=1,4*Rrealdim,1
-		do j=1,4*Lrealdim,1
-			if((quantabigL(j,1)+quantabigR(i,1)==nelecs) .and. &
-				quantabigL(j,2)+quantabigR(i,2)==totalSz) then
-				coeffIF(j,i,k)=nosymmout(m)
-				m=m+1
-			end if
-		end do
-		end do
-		end do
+        m=1
+        do k=1,NUME,1
+        do i=1,4*Rrealdim,1
+        do j=1,4*Lrealdim,1
+            if((quantabigL(j,1)+quantabigR(i,1)==nelecs) .and. &
+                quantabigL(j,2)+quantabigR(i,2)==totalSz) then
+                coeffIF(j,i,k)=nosymmout(m)
+                m=m+1
+            end if
+        end do
+        end do
+        end do
 ! write the coeffIF
 		reclength=nstate*32*subM*subM
 		open(unit=109,file="coeffIF.tmp",access="Direct",form="unformatted",recl=reclength,status="replace")
@@ -170,12 +177,20 @@ Subroutine Davidson_Wrapper(direction,lim,ilow,ihigh,iselec,niv,mblock,&
 !=================================================================================
 ! write the final out
 
-		write(*,*) "low state energy"
-		do i=1,ihigh,1
-			write(*,*) nleft+1,norbs-nright,i,"th energy=",DavidWORK(IHIGH*dimN+i)
-			write(*,*) "energy converge:",DavidWORK(IHIGH*dimN+IHIGH+i)
-			write(*,*) "residual norm:",DavidWORK(IHIGH*dimN+2*IHIGH+i)
-		end do
+        if(exscheme == 4 .and. startedMaxOverlap .and. targetStateFlag == 'trysame') then
+            write(*,*) "Energy of the", targetStateIndex, "state is", &
+                        DavidWORK(NUME*dimN+targetStateIndex)
+            write(*,*) "energy converge:",DavidWORK(NUME*dimN+NUME+targetStateIndex)
+            write(*,*) "residual norm:",DavidWORK(NUME*dimN+2*NUME+targetStateIndex)
+        else
+		    write(*,*) "Energy of lowest", NUME, "states"
+		    do i=1,NUME,1
+			    write(*,*) nleft+1,norbs-nright,i,"th energy=",DavidWORK(NUME*dimN+i)
+			    write(*,*) "energy converge:",DavidWORK(NUME*dimN+NUME+i)
+			    write(*,*) "residual norm:",DavidWORK(NUME*dimN+2*NUME+i)
+            end do
+        end if
+        
 		write(*,*) "NLOOPS=",nloops
 		Write(*,*) "IERROR=",ierror
 		write(*,*) "NMV=",nmv
@@ -190,11 +205,16 @@ Subroutine Davidson_Wrapper(direction,lim,ilow,ihigh,iselec,niv,mblock,&
 		
 ! update the sweepenergy
 ! use the middle site as the sweepenergy
-		if(nleft==(norbs+1)/2-1) then
-			do i=1,ihigh,1
-				sweepenergy(isweep,i)=DavidWORK(ihigh*dimN+i)
-			end do
-		end if
+
+        if(exscheme == 4 .and. startedMaxOverlap) then
+            sweepenergy(isweep,:) = DavidWORK(NUME*dimN+targetStateIndex)
+        else
+		    if(nleft==(norbs+1)/2-1) then
+			    do i=1,NUME,1
+				    sweepenergy(isweep,i)=DavidWORK(NUME*dimN+i)
+			    end do
+            end if
+        end if
 		
 		deallocate(HDIAG)
 		deallocate(DavidWORK)
