@@ -55,6 +55,7 @@ module variables
 	exactsite , &                        ! the number of exact discrible sites
 	isweep                               ! the at present isweep
 	real(kind=r8) :: energythresh        ! energy convegence threshold in the middle of every sweep
+    logical       :: reachedEnergyThresh   = .false. !during finite sweep, whether the crite of davidson reached 0.1*energythresh
 	real(kind=r8),allocatable :: sweepenergy(:,:)  ! store every sweep energy in the middle
 	integer(kind=i4) :: Lrealdim,Rrealdim   ! L/R space real dimension
 	integer(kind=i4) :: nleft,nright        ! L/R space site number L+sigmaL+sigmaR+R
@@ -86,8 +87,9 @@ module variables
     logical         :: startedMaxOverlap     = .false.     !whether conduct state-specific DMRG by maximum overlap
     integer(kind=4) :: targettedStateIndex   = 1           !the excited state to be targetted (traced)
     integer(kind=4) :: maxOverlapSweeps      = 100         !maximum iteration of max overlap sweeps
-    real(kind=8)    :: singularvalueThresh   = 1.0D-5
+    real(kind=8)    :: singularvalueThresh   = 1.0D-5      !determine whether two singular values are equal
     logical         :: printSMat             = .false.     !whether print S matrix
+    
     
 !============================================================
 

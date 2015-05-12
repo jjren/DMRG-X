@@ -3,7 +3,7 @@ subroutine Hamiltonian(direction)
 ! contruct the hamiltonian on the fly and muliply it with coefficient of
 ! the wavefunction and transfter it to the 0 process
 
-	USE variables, only : nstate,sweeps,isweep
+	USE variables
 	use communicate
 
 	implicit none
@@ -38,27 +38,10 @@ subroutine Hamiltonian(direction)
 	if(error/=0) stop
 	iselec=-1
 
-	! in the initial few sweeps
-	if(1.0D-5*(1.0D-1)**isweep>1.1D-10) then
-		crite=1.0D-5*(1.0D-1)**isweep
-		critc=1.0D-5*(1.0D-1)**isweep
-		critr=1.0D-5*(1.0D-1)**isweep
-		ortho=1.0D-4*(1.0D-1)**isweep
-	else
-		crite=1.0D-9
-		critc=1.0D-9
-		critr=1.0D-9
-		ortho=1.0D-8
-	end if
-
-	! in the last 3 sweeps
-	if(isweep==sweeps .or. isweep==sweeps-1 .or. &
-	isweep==sweeps-2) then
-		crite=1.0D-10
-		critc=1.0D-10
-		critr=1.0D-10
-		ortho=1.0D-9
-	end if
+    critc=1.0D-9
+    critr=1.0D-9
+    ortho=1.0D-8
+    call getCrite(crite,direction)  !He Ma
 
 	call Davidson_Wrapper(direction,lim,ilow,ihigh,iselec,niv,mblock,crite,critc,critr,ortho,maxiter)
 	
@@ -68,8 +51,36 @@ return
 end subroutine Hamiltonian
 
 
+subroutine getCrite(crite,direction)   ! He Ma
+!determine the crite(convergence criteria) according to isweep
+    use variables
+    implicit none
+    
+    real(kind=8)     ::   crite, originCrite
+    character(len=1) ::   direction
+    integer          ::   pastSweep
+    
+    originCrite = 1.0D-5
+    
+    if(energyThresh >= originCrite) then   ! if energyThresh is too large, no need to refine crite
+        crite = originCrite
+        return
+    end if
+    
+    if(direction == 'i') then  ! infinite DMRG
+        crite = originCrite
+    else                       ! finite sweeps
+        pastSweep = isweep - 1
+        if(exscheme==4 .and. startedMaxOverlap) then
+            pastSweep = pastSweep - sweeps
+        end if
+        crite = originCrite * (0.2**pastSweep)
+        if(crite <= 0.1*energyThresh) then
+            crite = 0.1*energyThresh
+            reachedEnergyThresh = .true.
+        end if
+    end if
 
-
-
+end subroutine getCrite
 
 

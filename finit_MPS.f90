@@ -134,7 +134,10 @@ Subroutine Finit_MPS
                 write(*,*) "this is a max overlap sweep"
             end if            
 			write(*,*) "the energy in the middle is",sweepenergy(isweep,:)
-			converged=.true.
+			converged = .true.
+            if(reachedEnergyThresh == .false.) then    !He Ma
+                converged = .false.
+            end if
 			do i=1,nstate,1
 				if(abs(sweepenergy(isweep-1,i)-sweepenergy(isweep,i))>energythresh) then
 					converged=.false.
@@ -188,6 +191,7 @@ Subroutine Finit_MPS
         end if
         
         startedMaxOverlap = .true.
+        reachedEnergyThresh = .false.
         call Renormalization(nleft+1,norbs-nright,'l')      !renormalize according to specific state
         
         goto 100

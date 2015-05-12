@@ -51,18 +51,19 @@ module max_overlap
     subroutine correctR(singularvalue,leftu,rightv)
         real(kind=8)    ::   singularvalue(subM)
         real(kind=8)    ::   leftu(4*Lrealdim,subM),rightv(subM,4*Rrealdim)
-        real(kind=8)    ::   matbuffer(subM,4*Rrealdim)   ! store the result of leftu(T)*coeffIF
+        real(kind=8)    ::   matbuffer(subM,4*Rrealdim)        ! store the result of leftu(T)*coeffIF
+        real(kind=8)    ::   rightvBuffer(subM,4*Rrealdim)     ! store the corrected rightv
         real(kind=8)    ::   S(subM,subM),S0(subM),absS(subM,subM)
         integer         ::   i,j,iFound
         integer         ::   SnonzeroNum, S0nonzeroNum
-        real(kind=r8)::   x(subM),m
+        integer         ::   correctIndex(subM)
         
         write(*,*) "Enter in subroutine correctR"
         
         do i=1, subM, 1
             S0(i) = sqrt(singularvalue(i))   !S0 stores the (true) singular value
         end do
-                
+
         ! S stores the singular value matrix calculted by leftu^(T) * coeffIF * rightv
         call gemm(leftu,coeffIF(1:4*Lrealdim,1:4*Rrealdim,targettedStateIndex),matbuffer,'T','N',1.0D0,0.0D0)
         call gemm(matbuffer,rightv,S,'N','T',1.0D0,0.0D0) 
@@ -78,7 +79,7 @@ module max_overlap
         
         S0nonzeroNum = 0
         do i=1, subM, 1
-            if(S0(i)>=singularvalueThresh) then
+            if(S0(i)>=singularvalueThreshA) then
                 S0nonzeroNum = S0nonzeroNum + 1
             end if
         end do
@@ -92,23 +93,28 @@ module max_overlap
            end do
         end do        
         
-        write(*,*) "S0nonzeroNum ", S0nonzeroNum
-        write(*,*) "SnonzeroNum ", SnonzeroNum
+        write(*,*) "S0 has ", S0nonzeroNum, "nonzero elements"
+        write(*,*) "S matrix has ", SnonzeroNum, "nonzero elements"
         
-        if(S0nonzeroNum/=SnonzeroNum) stop        
-
+        if(S0nonzeroNum/=SnonzeroNum) then
+            write(*,*) "the difference may be due to rightv row with small singular value"
+            write(*,*) "don't have corresponding leftu column (discarded)"
+        end if
+        
+        correctIndex = 0
         ! compare S with S0 to correct rightv
         do i=1, subM, 1
             iFound = 0
             do j=1, subM, 1
                 if(abs(abs(S(i,j))-S0(i))<singularvalueThresh) then
                     iFound = iFound + 1
-                    if(S(i,j)<0) then  ! find unmatched sign
-                        rightv(j,:) = -rightv(j,:)
-                    end if
-                    if(i/=j)  then     ! find disorder
+                    if(i/=j) then
                         write(*,*) "Found disorder"
-                        call swap(rightv(i,:),rightv(j,:))
+                    end if
+                    if(S(i,j)>=0 ) then  
+                        correctIndex(i) = j    ! ith row of correct rightv = jth row of uncorrected rightv
+                    else    ! find unmatched phase
+                        correctIndex(i) = -j
                     end if
                 end if
             end do
@@ -118,8 +124,23 @@ module max_overlap
             end if
         end do
         
-        ! test the subrountine
-        if(printSMat == .true.) then 
+        rightvBuffer = 0.0        
+        do i=1, subM, 1
+            j = correctIndex(i)
+            if(j > 0) then
+                rightvBuffer(i,:) = rightv(j,:)
+            else if(j < 0) then
+                j = -j
+                rightvBuffer(i,:) = -rightv(j,:)
+            else
+                write(*,*) "correctIndex = 0 error"
+                stop
+            end if
+        end do
+        
+        rightv= rightvBuffer
+        
+        if(printSMat == .true.) then ! test the subrountine
             call gemm(matbuffer,rightv,S,'N','T',1.0D0,0.0D0) 
             write(*,*) "After correction, S matrix"
             do i=1, subM, 1

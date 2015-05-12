@@ -14,6 +14,7 @@ subroutine InitialStarter(direction,lvector,nvector,initialcoeff)
 ! 1. nstate=1 finit
 ! 2. nstate>1 finit exscheme=1
 ! 3  infinit
+! 4. exscheme = 4, reproduce USV from last step to calculate overlap
 ! we can add exscheme=2 and later
 	use mathlib
 	use symmetry
@@ -39,10 +40,11 @@ subroutine InitialStarter(direction,lvector,nvector,initialcoeff)
 		if(nvector==1) then
 			call SingleInitialFinite(nosymmguess,ngoodstates,direction)
         else if (exscheme==4 .and. startedMaxOverlap) then
-            write(*,*) "****************************"
-            write(*,*) "using random initial"
-            write(*,*) "****************************"
-            call InitialRandom(nosymmguess,ngoodstates,nvector)
+            !write(*,*) "****************************"
+            !write(*,*) "using random initial"
+            !write(*,*) "****************************"
+            !call InitialRandom(nosymmguess,ngoodstates,nvector)
+            call MoreInitialFinite(nosymmguess,ngoodstates,direction)
         else
 			call MoreInitialFinite(nosymmguess,ngoodstates,direction)
 		end if
@@ -58,7 +60,7 @@ subroutine InitialStarter(direction,lvector,nvector,initialcoeff)
 
 		deallocate(nosymmguess)
 	else
-		call InitialRandom(initialcoeff,nvector,lvector)
+		call InitialRandom(initialcoeff,lvector,nvector)
 	end if
 	
 	call GramSchmit(nvector,lvector,initialcoeff,norm)

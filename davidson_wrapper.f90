@@ -174,11 +174,12 @@ Subroutine Davidson_Wrapper(direction,lim,ilow,ihigh,iselec,niv,mblock,&
 		do i=1,ihigh,1
 			write(*,*) nleft+1,norbs-nright,i,"th energy=",DavidWORK(IHIGH*dimN+i)
 			write(*,*) "energy converge:",DavidWORK(IHIGH*dimN+IHIGH+i)
-			write(*,*) "residual norm:",DavidWORK(IHIGH*dimN+2*IHIGH+IHIGH+i)
+			write(*,*) "residual norm:",DavidWORK(IHIGH*dimN+2*IHIGH+i)
 		end do
 		write(*,*) "NLOOPS=",nloops
 		Write(*,*) "IERROR=",ierror
 		write(*,*) "NMV=",nmv
+        write(*,*) "crite=",crite
 
 		if(ierror/=0) then
 			call master_print_message("failed! IERROR/=0")

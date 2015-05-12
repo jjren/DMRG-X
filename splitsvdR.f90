@@ -281,7 +281,7 @@ subroutine splitsvdR(singularvalue,rightv,statebegin,stateend,indexRm1)
 	end if
 	
 	do i=1,4*subM,1
-		if(valuework(i)<0.0D0) then
+		if(valuework(i)<-1.0D-10) then
 			write(*,*) "-----------------------------"
 			write(*,*) "caution valuework<0.0D0",valuework(i)
 			write(*,*) "-----------------------------"
