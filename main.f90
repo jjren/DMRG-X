@@ -7,6 +7,7 @@ program main
 	use exit_mod
 	use mpi
 	use MeanField
+    use stateOverlap
 
 	implicit none
 	! local 
@@ -37,6 +38,12 @@ program main
 
 	! do finit DMRG process
 	call Finit_MPS
+    
+    ! if indicated by inp, do state specific finite DMRG sweep
+    if(exscheme==4 .and. startedMaxOverlap == .false.) then
+        startedMaxOverlap = .true.
+        call Finit_MPS
+    end if
 	
 	! calculate transition moment between gs and ex if nstate/=1
 	if(nstate/=1) then

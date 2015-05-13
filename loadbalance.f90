@@ -6,6 +6,7 @@ Subroutine LoadBalance
 
 	USE variables
 	use communicate
+    use stateOverlap
 
 	implicit none
 	! local
@@ -76,6 +77,11 @@ Subroutine LoadBalance
 	allocate(quantabigR(4*subM,2),stat=error)
 	if(error/=0) stop
 !------------------------------------------------------
+    if(myid==0) then
+        allocate(stateOverlapValue(nstate),stat=error)
+        if(error/=0) stop
+    end if
+    
 return
 end Subroutine LoadBalance
 

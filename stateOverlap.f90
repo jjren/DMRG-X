@@ -1,63 +1,53 @@
-module maxOverlap
+module stateOverlap
     use variables
     use Symmetry
     use InitialGuess
     use blas95
     use lapack95
     
+    real(kind=8),allocatable  &
+                    :: stateOverlapValue(:)
+    character(len=9):: targetStateFlag       = 'uncertain' !'trysame': calculate overlap with same index state;
+                                                           !'getsame': get the same index state
+                                                           !'uncertain': same index state is not max overlap one;
+                                                           !'finished': already targetted the state
+    integer(kind=4) :: maxOverlapSweeps      = 100         !maximum iteration of max overlap sweeps
+    real(kind=8)    :: singularvalueThresh   = 1.0D-3      !determine whether two singular values are equal
+    logical         :: printSMat             = .false.     !whether print S matrix
+    
+    real(kind=r8)::   maxOverlapValue
+    integer      ::   maxOverlapIndex
+    
     contains
-    subroutine getStateOverlap(Davidwork,dimN, IHIGH, direction)
+    subroutine getStateOverlap(Davidwork,dimN,NUME,direction)
         integer      ::   IHIGH, dimN
         character(len=1)  ::   direction
-        real(kind=r8)     ::   Davidwork(dimN*IHIGH)
+        real(kind=r8)     ::   Davidwork(dimN*NUME)
         real(kind=r8)     ::   initial_vector(dimN)
-        real(kind=r8)::   workingOverlap, maxOverlap
-        integer      ::   workingIndex, maxOverlapIndex
         integer      ::   m, n, i, j, k, error
         
         write(*,*) "Enter in subroutine getStateOverlap"
-        write(*,*) "direction = ", direction
-        write(*,*) "former target state index = ", targetStateIndex
         
         workingOverlap = 0.0
-        maxOverlap = 0.0
+        maxOverlapValue = 0.0
         
         call InitialStarter(direction,dimN,1,initial_vector)
         
         select case(targetStateFlag)
         case('uncertain')
-            do workingIndex=1,IHIGH,1
-                workingOverlap = dot(Davidwork((1+dimN*(workingIndex-1)) : dimN*workingIndex) &
-                                  , initial_vector(1:dimN))
-                workingOverlap = abs(workingOverlap)
-                write(*,*) "overlap between davidson solution", workingIndex, "and initial vector is"
-                write(*,*) workingOverlap
-                if (workingOverlap > maxOverlap) then
-                    maxOverlap = workingOverlap
-                    maxOverlapIndex = workingIndex
+            do i=1,NUME,1
+                stateOverlapValue(i) = dot(Davidwork((1+dimN*(i-1)) : dimN*i) &
+                                      , initial_vector(1:dimN))
+                stateOverlapValue(i) = abs(stateOverlapValue(i))
+                if (stateOverlapValue(i) > maxOverlapValue) then
+                    maxOverlapValue = stateOverlapValue(i)
+                    maxOverlapIndex = i
                 end if
-            end do      
-            if(maxOverlap < 0.9) then
-                write(*,*) "Caution! Max overlap < 0.9"
-            end if
-            if(targetStateIndex .NE. maxOverlapIndex) then
-                write(*,*) "targetStateIndex .NE. maxOverlapIndex "
-            end if
-            targetStateIndex =  maxOverlapIndex 
-            write(*,*) "new targetStateIndex = ", targetStateIndex
-            targetStateFlag = 'finished'
+            end do
         case('trysame')
-            workingOverlap = dot(Davidwork((1+dimN*(targetStateIndex-1)) : dimN*targetStateIndex) &
-                                  , initial_vector(1:dimN))
-            workingOverlap = abs(workingOverlap)
-            if(workingOverlap>=0.9) then
-                write(*,*) "target state index keeps the same, with overlap =", workingOverlap
-                targetStateFlag = 'getsame'
-            else 
-                write(*,*) "target state index may changed, with overlap=", workingOverlap
-                write(*,*) "going back to davidon diagonalization"
-                targetStateFlag = 'uncertain'
-            end if
+            stateOverlapValue(targetStateIndex) = dot(Davidwork((1+dimN*(targetStateIndex-1)) : dimN*targetStateIndex) &
+                                                 , initial_vector(1:dimN))
+            stateOverlapValue(targetStateIndex) = abs(stateOverlapValue(targetStateIndex))
         case default
             write(*,*) "targetStateFlag case default error"
             stop
@@ -140,7 +130,7 @@ module maxOverlap
             end do
             if(iFound>1) then
                 write(*,*) "iFound>1"
-                stop
+                !stop
             end if
         end do
         write(*,*) "Found",numDisorder,"disorder"
@@ -186,9 +176,7 @@ module maxOverlap
             write(*,*) "After correction, S matrix is not positive and diagonal"
             stop
         end if
-        
 
-        
     end subroutine correctR
         
-end module
+end module stateOverlap

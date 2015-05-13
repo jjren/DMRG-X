@@ -24,7 +24,7 @@ subroutine InitialStarter(direction,lvector,nvector,initialcoeff)
 	integer :: lvector,nvector
 	real(kind=8) :: initialcoeff(lvector*nvector),norm(nvector)
 	real(kind=8),allocatable :: nosymmguess(:)
-	integer :: i,error
+	integer :: i,error,numRandomVector
 	
 	if(nvector/=nstate .and. exscheme/=4) then    ! He Ma
 		call master_print_message(nvector,"nvector/=nstate")
@@ -44,7 +44,20 @@ subroutine InitialStarter(direction,lvector,nvector,initialcoeff)
             !write(*,*) "using random initial"
             !write(*,*) "****************************"
             !call InitialRandom(nosymmguess,ngoodstates,nvector)
-            call MoreInitialFinite(nosymmguess,ngoodstates,nvector,direction)
+            if(targetStateIndex==nvector) then
+                call MoreInitialFinite(nosymmguess,ngoodstates,nvector,direction)
+            else if(targetStateIndex<nvector) then
+                numRandomVector = nvector - targetStateIndex
+                call MoreInitialFinite(nosymmguess(1:targetStateIndex*ngoodstates),&
+                                       ngoodstates,targetStateIndex,direction)
+                call InitialRandom(nosymmguess(targetStateIndex*ngoodstates+1:nvector*ngoodstates),&
+                                   ngoodstates,numRandomVector)
+                write(*,*) targetStateIndex,"states using MoreInitialFinite"
+                write(*,*) numRandomVector,"states using random initial"
+            else
+                write(*,*) "targetStateIndex>nvector error"
+                stop
+            end if
         else
 			call MoreInitialFinite(nosymmguess,ngoodstates,nvector,direction)
 		end if
@@ -147,10 +160,12 @@ end subroutine InitialStarter
 	end if
 
 
-	allocate(LRcoeff(4*subM,4*subM,nvector),stat=error)
+	allocate(LRcoeff(4*subM,4*subM,nstate),stat=error)
 	if(error/=0) stop
-	allocate(LRcoeff1(4*subM,4*subM,nvector),stat=error)
+	allocate(LRcoeff1(4*subM,4*subM,nstate),stat=error)
 	if(error/=0) stop
+    LRcoeff = 0.0
+    LRcoeff1 = 0.0
 
 	if(direction=='l' .and. nleft>exactsite) then
 		if(Lrealdim/=subM) then
@@ -210,17 +225,6 @@ end subroutine InitialStarter
 		write(*,*) "----------------------------------------------"
 		stop
     end if
-    
-    do i=1,nvector,1
-        norm = 0.0
-        do j=1,lvector,1
-            norm = norm + guesscoeff((i-1)*nvector+j)**2
-        end do
-        if(norm<1.0D-2)   then ! i.e. the CoefIF of that state does not exist, happen in max overlap sweeps
-            call InitialRandom(guesscoeff((i-1)*lvector+1:i*lvector),lvector,1) 
-        end if
-    end do
-
 
 	deallocate(leftu)
 	deallocate(rightv)

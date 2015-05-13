@@ -9,7 +9,7 @@ Subroutine Davidson_Wrapper(direction,lim,ilow,ihigh,iselec,niv,mblock,&
 	USE InitialGuess
 	USE symmetry
 	use communicate
-    use maxOverlap
+    use stateOverlap
 
 	implicit none
 
@@ -150,7 +150,7 @@ Subroutine Davidson_Wrapper(direction,lim,ilow,ihigh,iselec,niv,mblock,&
         ! To determine in the davidson solutions which state has the maximum overlap with the previous-step excited state. 
         ! write global variable targettedStateIndex
         if(exscheme == 4 .and. startedMaxOverlap) then 
-            call getStateOverlap(Davidwork, dimN, ihigh, direction)
+            call getStateOverlap(Davidwork, dimN, NUME, direction)
         end if
 !=================================================================================
         
@@ -177,13 +177,50 @@ Subroutine Davidson_Wrapper(direction,lim,ilow,ihigh,iselec,niv,mblock,&
 !=================================================================================
 ! write the final out
 
-        if(exscheme == 4 .and. startedMaxOverlap .and. targetStateFlag == 'getsame') then
-            targetStateFlag = 'finished'
-            write(*,*) "Energy of the", targetStateIndex, "state is", &
-                        DavidWORK(NUME*dimN+targetStateIndex)
-            write(*,*) "energy converge:",DavidWORK(NUME*dimN+NUME+targetStateIndex)
-            write(*,*) "residual norm:",DavidWORK(NUME*dimN+2*NUME+targetStateIndex)
-        else
+        if(exscheme == 4 .and. startedMaxOverlap) then  ! state specific calculation, computing overlaps
+            if(targetStateFlag == 'trysame') then
+                targetStateFlag = 'finished'
+                write(*,*) "Energy of the", targetStateIndex, "state is", &
+                            DavidWORK(NUME*dimN+targetStateIndex)
+                write(*,*) "energy converge:",DavidWORK(NUME*dimN+NUME+targetStateIndex)
+                write(*,*) "residual norm:",DavidWORK(NUME*dimN+2*NUME+targetStateIndex)
+                if(stateOverlapValue(targetStateIndex)>=0.9) then
+                    targetStateFlag = 'finished'
+                    write(*,*) "target state index keeps the same:", targetStateIndex
+                    write(*,*) "with overlap =", stateOverlapValue(targetStateIndex)
+                else 
+                    targetStateFlag = 'uncertain'
+                    write(*,*) "target state index may changed, because the overlap is only", stateOverlapValue(targetStateIndex)
+                    write(*,*) "need another davidon diagonalization targetting multiple states"
+                end if
+            else if(targetStateFlag == 'uncertain') then
+                write(*,*) "Energy of lowest", NUME, "states:"
+		        do i=1,NUME,1
+			        write(*,*) nleft+1,norbs-nright,i,"th energy=",DavidWORK(NUME*dimN+i)
+			        write(*,*) "energy converge:",DavidWORK(NUME*dimN+NUME+i)
+			        write(*,*) "residual norm:",DavidWORK(NUME*dimN+2*NUME+i)
+                end do   
+                do i=1,NUME,1
+                    write(*,*) "overlap between davidson solution", i, "and initial guess is"
+                    write(*,*) stateOverlapValue(i)
+                end do 
+                if(maxOverlapValue < 0.9) then
+                    write(*,*) "Caution! Max overlap < 0.9"
+                end if
+                if(targetStateIndex == maxOverlapIndex) then
+                    write(*,*) "target state index keeps the same:", targetStateIndex
+                else
+                    write(*,*) "target state index changes: "
+                    write(*,*) "former targetStateIndex = ", targetStateIndex
+                    write(*,*) "new targetStateIndex = ", maxOverlapIndex
+                    targetStateIndex =  maxOverlapIndex 
+                end if
+                targetStateFlag = 'finished'
+            else 
+                write(*,*) "unexpected targetStateFlag"
+                stop
+            end if
+        else   ! usual davidson (ground state or state average)
             write(*,*) "Energy of lowest", NUME, "states"
 		    do i=1,NUME,1
 			    write(*,*) nleft+1,norbs-nright,i,"th energy=",DavidWORK(NUME*dimN+i)
@@ -220,7 +257,11 @@ Subroutine Davidson_Wrapper(direction,lim,ilow,ihigh,iselec,niv,mblock,&
 		deallocate(HDIAG)
 		deallocate(DavidWORK)
 		deallocate(nosymmout)
-	end if
+    end if
+    
+    call MPI_bcast(targetStateIndex,1,MPI_integer,0,MPI_COMM_WORLD,ierr)
+    call MPI_bcast(targetStateFlag,9,MPI_character,0,MPI_COMM_WORLD,ierr)
+    
 
 ! deallocate symmetry workarray
 	if(logic_spinreversal/=0 .or. (logic_C2/=0 .and. nleft==nright)) then

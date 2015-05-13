@@ -6,6 +6,7 @@ Subroutine ReadInput
 	USE PPP_term
 	USE MPI
 	use communicate
+    use stateOverlap
 	implicit none
 
 	integer :: i,j,error,ierr 

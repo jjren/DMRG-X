@@ -5,6 +5,7 @@ subroutine Hamiltonian(direction)
 
 	USE variables
 	use communicate
+    use stateOverlap
 
 	implicit none
 
@@ -44,7 +45,9 @@ subroutine Hamiltonian(direction)
     call getCrite(crite,direction)  !He Ma
     
     if(exscheme == 4 .and. startedMaxOverlap .and. targetStateFlag == 'finished') then
-        write(*,*) "In davidson diagonalization we first only target state", targetStateIndex
+        if(myid==0) then
+            write(*,*) "In davidson diagonalization we first only target state", targetStateIndex
+        end if
         targetStateFlag = 'trysame'
         iselec(1) = targetStateIndex
         iselec(2) = -1
@@ -54,6 +57,11 @@ subroutine Hamiltonian(direction)
         if(targetStateFlag == "finished") then
             deallocate(iselec)
             return
+        else    !restore the parameters and going back to davidson(targetting nstate states)
+            iselec=-1
+            mblock=nstate
+            ilow=1
+            ihigh=nstate
         end if
     end if
 
@@ -74,8 +82,8 @@ subroutine getCrite(crite,direction)   ! He Ma
     character(len=1) ::   direction
     integer          ::   pastSweep
     
-    originCrite = 1.0D-5
-    finalCrite  = 1.0D-8
+    originCrite = 1.0D-7
+    finalCrite  = 1.0D-9
     
 !    if(energyThresh >= originCrite) then   ! if energyThresh is too large, no need to refine crite
 !        crite = originCrite

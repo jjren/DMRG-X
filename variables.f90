@@ -82,18 +82,9 @@ module variables
 	real(kind=r8),allocatable :: coeffIF(:,:,:)   ! coeffIF is the inital and final wavefunction coefficient 
 
 !============================================================
-    
     !He Ma  max overlap
     logical         :: startedMaxOverlap     = .false.     !whether conduct state-specific DMRG by maximum overlap
     integer(kind=4) :: targetStateIndex      = 1           !the excited state to be targetted (traced)
-    character(len=9):: targetStateFlag       = 'uncertain' !'trysame': calculate overlap with same index state;
-                                                           !'getsame': get the same index state
-                                                           !'uncertain': same index state is not max overlap one;
-                                                           !'finished': already targetted the state
-    integer(kind=4) :: maxOverlapSweeps      = 100         !maximum iteration of max overlap sweeps
-    real(kind=8)    :: singularvalueThresh   = 1.0D-5      !determine whether two singular values are equal
-    logical         :: printSMat             = .false.     !whether print S matrix
-    
     
 !============================================================
 

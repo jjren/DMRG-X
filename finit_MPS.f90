@@ -4,14 +4,17 @@ Subroutine Finit_MPS
 	USE MPI
 	USE variables
 	use communicate
+    use stateOverlap
 
 	implicit none
 
 	integer :: isystem,ibegin,i,sweepbegin,sweepend
 	logical :: converged
 	integer :: ierr ! MPI_flag
+    real(kind=r8) :: starttime,endtime
 
 	call master_print_message("enter in subroutine finit_MPS")
+    starttime=MPI_WTIME()
 
 ! the exactsite refer to the space that L space or R space that can be accurately discribe
 ! (without sigmaL and sigmaR)
@@ -40,7 +43,7 @@ Subroutine Finit_MPS
 	end if
 
 ! only used in the restart mode
-	if(mode=='r' .and. isweep/=0) then
+	if(mode=='r' .and. isweep/=0 .and. exscheme/=4) then
 		nelecs=realnelecs
 		sweepbegin=isweep
 		isweep=isweep-1
@@ -55,15 +58,26 @@ Subroutine Finit_MPS
 		call Renormalization(nleft+1,norbs-nright,'i')
 	else
 		sweepbegin=1
-	end if
-
-100 if(exscheme==4 .and. startedMaxOverlap == .true.) then  !He Ma
+    end if
+    
+    sweepend = sweeps
+    
+!=================================================================================
+!He Ma  max overlap sweeps
+    if(exscheme==4 .and. startedMaxOverlap == .true.) then
+        if(myid==0) then
+            write(*,*) "**************************"
+		    write(*,*) "enter in max overlap sweep"
+            write(*,*) "**************************"
+        end if
+        call Renormalization(nleft+1,norbs-nright,'l')      !renormalize according to specific state
+        sweeps = isweep
+        reachedEnergyThresh = .false.
         sweepbegin = sweeps +1
         sweepend = sweeps + maxOverlapSweeps
-    else
-        sweepend = sweeps
-    end if    
-    
+    end if
+!=================================================================================
+
     do isweep=sweepbegin,sweepend,1
 		
 		do isystem=ibegin,norbs-exactsite-2,1
@@ -194,24 +208,9 @@ Subroutine Finit_MPS
             write(*,*) sweepenergy(sweeps+1:isweep,targetStateIndex)
         end if
     end if
-    
-!=================================================================================
-!He Ma  max overlap sweeps
-    if(exscheme==4 .and. startedMaxOverlap == .false.) then
-        if(myid==0) then
-            write(*,*) "**************************"
-		    write(*,*) "enter in max overlap sweep"
-            write(*,*) "**************************"
-        end if
-        
-        sweeps = isweep
-        startedMaxOverlap = .true.
-        reachedEnergyThresh = .false.
-        call Renormalization(nleft+1,norbs-nright,'l')      !renormalize according to specific state
-        
-        goto 100
-    end if
-!=================================================================================
 		
+    endtime=MPI_WTIME()
+    call master_print_message(endtime-starttime,"Finite DMRG Runtime:")
+    
 return
 end subroutine Finit_MPS
