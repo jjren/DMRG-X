@@ -1,16 +1,16 @@
-module analysis
+!module analysis
 ! this subroutine is to anaylsis the wavefuntion and output the analysis result
 
-	use variables
+!	use variables
 
-	implicit none
-	private 
-	save
+!	implicit none
+!	private 
+!	save
 
-	contains
+!	contains
 !===================================================================
 !===================================================================
-subroutine OneRDM
+!subroutine OneRDM
 ! this subroutine is to calculate the one partical density matrix
 ! a(i,sigam)^+ aj(j,sigma)
 ! this subroutine is called after converged
@@ -20,9 +20,3 @@ subroutine OneRDM
 
 
 
-! parity number operator expectation
-	do i=1,norbs,1
-		
-		
-
-! bond order
