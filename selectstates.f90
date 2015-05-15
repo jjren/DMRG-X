@@ -154,7 +154,6 @@ subroutine selectstates(valuework,dim1,valueindex,singularvalue,&
 			end if
 		end if
 	end if
-		write(*,*) "valueindex",valueindex
 
 return
 end subroutine selectstates

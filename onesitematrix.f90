@@ -1,5 +1,6 @@
 Module OnesiteMatrix
 ! this subroutine is construct the onesite operator matrix
+! in sparse CSR format
 	
 	use variables
 	use communicate
@@ -8,6 +9,7 @@ Module OnesiteMatrix
 	implicit none
 
 	real(kind=r8) :: onesitemat(4,6)            ! one site matrix in 4*4 basis 
+	integer(kind=i4) :: osmrowindex(5,6),osmcolindex(4,6)
 	! onesitemat(:,:,x)
 	! x=1 means a(+)up
 	! x=2 means a(+)down
@@ -15,7 +17,6 @@ Module OnesiteMatrix
 	! x=4 means a up
 	! x=5 means a down
 	! x=6 means small Hamiltonian
-	integer(kind=i4) :: osmrowindex(5,6),osmcolindex(4,6)
 
 	contains
 !====================================================
@@ -97,7 +98,7 @@ subroutine ConstructOnesiteMatrix(orbindex)
 	onesitemat(3,6)=2.0D0*t(orbindex,orbindex)+HubbardU(orbindex)
 	osmcolindex(1,6)=2
 	osmcolindex(2,6)=3
-	osmcolindex(2,6)=4
+	osmcolindex(3,6)=4
 	osmrowindex(1,6)=1
 	osmrowindex(2,6)=1
 	osmrowindex(3,6)=2

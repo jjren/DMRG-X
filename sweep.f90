@@ -5,6 +5,8 @@ subroutine Sweep(direction)
 	USE variables
 	use communicate
 	use exit_mod
+	use Renormalization_mod
+	use OnesiteMatrix
 
 	implicit none
 	
@@ -33,7 +35,7 @@ subroutine Sweep(direction)
 	end if
 
 	if(nsysorb/=exactsite) then
-		call OnesiteMatrix(orbnow)
+		call ConstructOnesiteMatrix(orbnow)
 		call System_Big(domain)
 		call System_Constructquanta(domain)
 		call Store_Operator(domain)
@@ -42,7 +44,7 @@ subroutine Sweep(direction)
 	end if
 	
 	if(nleft==nright .and. logic_C2/=0) then
-		call C2_Copy(direction)
+	!	call C2_Copy(direction)
 	else
 		call Enviro_Big(envirodomain)
 	end if
@@ -52,7 +54,7 @@ subroutine Sweep(direction)
 		! this is to do the chan proposed trace excited algrithom
 		call master_print_message("In the last step, did not do Renormalization")
 	else
-		call Renormalization(nleft+1,norbs-nright,direction)
+		call Renormalization(direction)
 	end if
 
 return

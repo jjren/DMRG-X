@@ -74,7 +74,7 @@ subroutine SparseDirectProduct( ancols,anrows,amat,acolindex,arowindex,&
 					nonzero=nonzero+1
 					if(nonzero>maxnelement) then
 						write(*,*) "===================================================="
-						write(*,*) "failed! in sparsedirectproduct nonzero>maxnelement"
+						write(*,*) "failed! in sparsedirectproduct nonzero>maxnelement",nonzero,maxnelement
 						write(*,*) "===================================================="
 						stop
 					end if
@@ -86,8 +86,8 @@ subroutine SparseDirectProduct( ancols,anrows,amat,acolindex,arowindex,&
 		end do
 	end do
 
-	write(*,*) "nonzero=",nonzero
-	write(*,*) "maxnelement=",maxnelement
+!	write(*,*) "nonzero=",nonzero
+!	write(*,*) "maxnelement=",maxnelement
 
 	return
 end subroutine SparseDirectProduct
@@ -139,7 +139,7 @@ subroutine ScaleMatrix(mat,rows,cols,scaling,op)
 ! this subroutine use mkl mkl_?imatcopy to do scaling a matrix
 
 	implicit none
-	include "mkl.fi"
+	include "mkl_trans.fi"
 
 	integer :: rows,cols
 	real(kind=r8) :: mat(rows,cols),scaling
@@ -173,5 +173,261 @@ return
 
 end subroutine diagsyev
 
+!=============================================
+!=============================================
+
+subroutine spmatrotatebasis(Uncols,Unrows,Umat,Ucolindex,Urowindex,&
+					Oncols,Onrows,Omat,Ocolindex,Orowindex,&
+					Anrows,Amat,Acolindex,Arowindex,maxnelement)
+! this subroutine is to adapted operator matrix to new basis
+! UOU+ to A
+! U is a sparse matrix
+! O is a sparse matrix
+	
+	implicit none
+	include "mkl_spblas.fi"
+
+	integer(kind=i4) :: Uncols,Unrows,Oncols,Onrows,Anrows
+	integer(kind=i4) :: maxnelement
+	integer(kind=i4) :: Urowindex(Unrows+1),Orowindex(Onrows+1),Arowindex(Anrows+1)
+	integer(kind=i4) :: &
+	Ucolindex(Urowindex(Unrows+1)-1) , &
+	Ocolindex(Orowindex(Onrows+1)-1) , &
+	Acolindex(maxnelement)
+	real(kind=r8) :: &
+	Umat(Urowindex(Unrows+1)-1) , &
+	Omat(Orowindex(Onrows+1)-1) , &
+	Amat(maxnelement)
+
+	integer(kind=i4),allocatable :: bufcolindex(:),bufrowindex(:)
+	real(kind=r8),allocatable :: bufmat(:)
+	integer :: sort,bufnrows
+	integer :: error,info
+	
+	if(Anrows/=Uncols ) then
+		write(*,*) "============="
+		write(*,*) "Anrows/Uncols",Anrows,Uncols
+		write(*,*) "============="
+		stop
+	end if
+	if(Unrows/=Onrows) then
+		write(*,*) "============="
+		write(*,*) "Unrows/Onrows",Unrows,Onrows
+		write(*,*) "============="
+		stop
+	end if
+	bufnrows=Uncols
+
+	allocate(bufrowindex(bufnrows+1),stat=error)
+	if(error/=0) stop
+	allocate(bufcolindex(Uncols*Unrows),stat=error)
+	if(error/=0) stop
+	allocate(bufmat(Uncols*Unrows),stat=error)
+	if(error/=0) stop
+
+	sort=8
+	call mkl_dcsrmultcsr('T',0,sort,Unrows,Uncols,Oncols, &
+		Umat,Ucolindex,Urowindex, &
+		Omat,Ocolindex,Orowindex, &
+		bufmat,bufcolindex,bufrowindex,Uncols*Unrows,info)
+		
+	if(info/=0) then
+		write(*,*) "==============================================="
+		write(*,*) "info/=0,spmatrotatebasis fist step failed!",info
+		write(*,*) "==============================================="
+		stop
+	end if
+
+
+	call mkl_dcsrmultcsr('N',0,sort,bufnrows,Unrows,Uncols, &
+		bufmat,bufcolindex,bufrowindex , &
+		Umat,Ucolindex,Urowindex, &
+		Amat,Acolindex,Arowindex,maxnelement,info)
+
+	if(info==0) then
+	!	write(*,*) "maxnelement=",maxnelement
+	!	write(*,*) "Arowindex(Anrows+1)-1=",Arowindex(Anrows+1)-1
+	else
+		write(*,*) "================================================="
+		write(*,*) "info/=0 spmatrotatebasis second step failed!",info
+		write(*,*) "================================================="
+		stop
+	end if
+
+	deallocate(bufmat)
+	deallocate(bufcolindex)
+	deallocate(bufrowindex)
+return
+
+end subroutine spmatrotatebasis
+
+!=============================================
+!=============================================
+
+subroutine CSCtoCSR(operation,ncols,nrows,Amat,Acolindex,Arowindex,Arowindexnew)
+! convert sparse matrix CSC format to CSR format; vice versa
+! dcsrcsc only support square matrix
+! CSCtoCSR have no such limitation
+	implicit none
+	include 'mkl_spblas.fi'
+
+	character(len=2) :: operation
+	integer(kind=i4) :: ncols,nrows
+	integer(kind=i4) :: &
+	Arowindex(nrows+1) , &
+	Arowindexnew(ncols+1) , &
+	Acolindex(Arowindex(nrows+1)-1)
+	real(kind=r8) :: Amat(Arowindex(nrows+1)-1)
+	! local
+	integer :: job(8),dim1,info
+	integer(kind=i4),allocatable :: Browindex(:),Crowindex(:),Ccolindex(:)
+	real(kind=r8),allocatable :: Cmat(:)
+	integer :: error
+	integer :: i,j
+
+	if(ncols>nrows) then
+		dim1=ncols
+	else
+		dim1=nrows
+	end if
+
+	allocate(Browindex(dim1+1),stat=error)
+	if(error/=0) stop
+	allocate(Crowindex(dim1+1),stat=error)
+	if(error/=0) stop
+	allocate(Ccolindex(Arowindex(nrows+1)-1),stat=error)
+	if(error/=0) stop
+	allocate(Cmat(Arowindex(nrows+1)-1),stat=error)
+	if(error/=0) stop
+
+	Browindex(1:nrows+1)=Arowindex(1:nrows+1)
+	if(ncols>nrows) then
+		Browindex(nrows+2:dim1+1)=Arowindex(nrows+1)
+	end if
+
+	job(2)=1
+	job(3)=1
+	job(6)=1
+	if(operation=='CR' .or. operation=='cr') then
+		job(1)=1
+		call mkl_dcsrcsc(job,dim1,Cmat,Ccolindex,Crowindex,Amat,Acolindex,Browindex,info)
+	else if(operation=='RC' .or. operation=='rc') then
+		job(1)=0
+		call mkl_dcsrcsc(job,dim1,Amat,Acolindex,Browindex,Cmat,Ccolindex,Crowindex,info)
+	end if
+
+	if(info/=0) then
+		write(*,*) "========================================"
+		write(*,*) "info/=0 subroutine CSRtoCSC failed!",info
+		write(*,*) "========================================"
+		stop
+	end if
+	
+!	open(unit=11,file="test.tmp",status="replace")
+!	do i=1,nrows,1
+!		do j=Arowindex(i),Arowindex(i+1)-1,1
+!			write(11,*) Amat(j),Acolindex(j),i
+!		end do
+!	end do
+!	do i=1,ncols,1
+!		do j=Crowindex(i),Crowindex(i+1)-1,1
+!			write(11,*) Cmat(j),Ccolindex(j),i
+!		end do
+!	end do
+!	close(11)
+
+
+	Amat=Cmat
+	Acolindex=Ccolindex
+	Arowindexnew=Crowindex(1:ncols+1)
+
+	deallocate(Browindex)
+	deallocate(Crowindex)
+	deallocate(Ccolindex)
+	deallocate(Cmat)
+return
+
+end subroutine CSCtoCSR
+
+!=============================================
+!=============================================
+
+subroutine SpMatAdd(Ancols,Anrows,Amat,Amatcol,Amatrow,&
+		trans,beta,Bncols,Bnrows,Bmat,Bmatcol,Bmatrow,maxnelement)
+! this subroutine do sparse matrix add A+beta*B=A
+	implicit none
+	include "mkl_spblas.fi"
+
+	character(len=1) :: trans
+	integer(kind=i4) :: Ancols,Anrows,Bncols,Bnrows
+	integer(kind=i4) :: maxnelement
+	integer(kind=i4) :: Amatrow(Anrows+1),Bmatrow(Bnrows+1)
+	integer(kind=i4) :: Amatcol(maxnelement),Bmatcol(Bmatrow(Bnrows+1)-1)
+	real(kind=r8) :: Amat(maxnelement),Bmat(Bmatrow(Bnrows+1)-1)
+	real(kind=r8) :: beta
+	
+	integer(kind=i4),allocatable :: Cmatcol(:),Cmatrow(:)
+	real(kind=r8),allocatable :: Cmat(:)
+	integer :: error,info
+
+	allocate(Cmat(maxnelement),stat=error)
+	if(error/=0) stop
+	allocate(Cmatcol(maxnelement),stat=error)
+	if(error/=0) stop
+	allocate(Cmatrow(Anrows+1),stat=error)
+	if(error/=0) stop
+
+	call mkl_dcsradd(trans,0,0,Anrows,Ancols,Amat,Amatcol,Amatrow,&
+	beta,Bmat,Bmatcol,Bmatrow,Cmat,Cmatcol,Cmatrow,maxnelement,info) 
+	
+	if(info/=0) then
+		write(*,*) "==============================" 
+		write(*,*) "SpMatAdd info/=0 failed!",info
+		write(*,*) "=============================="
+		stop
+	end if
+	Amat=Cmat
+	Amatcol=Cmatcol
+	Amatrow=Cmatrow
+
+	deallocate(Cmat,Cmatcol,Cmatrow)
+
+	return
+end subroutine SpMatAdd
+	
+!=============================================
+!=============================================
+
+subroutine SpMatIJ(Anrows,irow,icol,Amat,Amatcol,Amatrow,output)
+! this subroutine is to get the sparse matrix A's A(irow,icol) to ouput
+
+	implicit none
+
+	integer(kind=i4) :: Anrows,icol,irow
+	integer(kind=i4) :: Amatrow(Anrows+1),Amatcol(Amatrow(Anrows+1)-1)
+	real(kind=i8) :: Amat(Amatrow(Anrows+1)-1)
+	real(kind=i8) :: output
+	! local
+	integer :: i,j
+	logical :: iffind
+
+	iffind=.false.
+	do i=Amatrow(irow),Amatrow(irow+1)-1,1
+		if(Amatcol(i)==icol) then
+			output=Amat(i)
+			iffind=.true.
+			exit
+		end if
+		if(Amatcol(i)>icol) exit
+	end do
+	if(iffind==.false.) then
+		output=0.0D0
+	end if
+
+	return
+
+end subroutine SpMatIJ
+
+!=============================================
 !=============================================
 end module MathLib

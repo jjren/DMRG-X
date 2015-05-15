@@ -37,6 +37,7 @@ Subroutine Davidson_Wrapper(direction,lim,ilow,ihigh,iselec,niv,mblock,&
 	! every process do it
 	! ngoodstates is the number of good quantum number states
 
+
 	ngoodstates=0
 	do i=1,4*Rrealdim,1
 	do j=1,4*Lrealdim,1

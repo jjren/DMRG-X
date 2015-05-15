@@ -54,24 +54,24 @@ Subroutine Infinit_InitMat(domain)
 	end if
 
 	if(myid==orbid1(orbindex,1)) then
-		operamatsma1(:,3*operaindex-2:3*operaindex)=0.0D0
-		smarowindex1(:,3*operaindex-2:3*operaindex)=0
-		smacolindex1(:,3*operaindex-2:3*operaindex)=0
-		call ContructOnesiteMatrix(orbindex)
+		! set the matrix be 0
+		smarowindex1(:,3*operaindex-2:3*operaindex)=1
+		call ConstructOnesiteMatrix(orbindex)
 		! here only this matrix is set to zero
 		! do not touch other matrix( the R space matrix )
 		! store the create operator
 		operamatsma1(1:4,3*operaindex-2:3*operaindex)=onesitemat(:,1:3)
 		smarowindex1(1:5,3*operaindex-2:3*operaindex)=osmrowindex(:,1:3)
 		smacolindex1(1:4,3*operaindex-2:3*operaindex)=osmcolindex(:,1:3)
+
 	else if(myid==0) then
-		Hsma(:,Hindex)=0.0D0
-		Hsmarowindex(:,Hindex)=0
-		Hsmacolindex(:,Hindex)=0
-		call ContructOnesiteMatrix(orbindex)
+		! set the matrix be 0
+		Hsmarowindex(:,Hindex)=1
+		call ConstructOnesiteMatrix(orbindex)
 		Hsma(1:4,Hindex)=onesitemat(:,6)
 		Hsmarowindex(1:5,Hindex)=osmrowindex(:,6)
 		Hsmacolindex(1:4,Hindex)=osmcolindex(:,6)
+
 		if(logic_spinreversal/=0) then
 			symmlinksma(:,:,Hindex)=0
 			symmlinksma(1,1,Hindex)=1

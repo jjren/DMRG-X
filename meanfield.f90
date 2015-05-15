@@ -63,7 +63,7 @@ subroutine SCFMain
 		stop
 	end if
 	nocc=realnelecs/2   ! number of occupied orbitals
-	threshold=1.0D-8    ! density matrix difference threshold
+	threshold=1.0D-10   ! density matrix difference threshold
 	scfmaxiter=100      ! max iterations
 
 	! contruct one electron matrix

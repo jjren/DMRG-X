@@ -69,9 +69,7 @@ module variables
 	t(:,:) , &                    ! transfer integral in PPP/one electron integral  
 	v(:,:,:,:) , &                ! two electron integral full Quantum Chemistry
 	hubbardU(:) , &               ! hubbard term
-	pppV(:,:) , &                 ! PPP term
-	operamatbig(:,:,:) , &        ! operator matrix in 4M basis a+(up),a+(down),n
-	operamatsma(:,:,:)            ! operator matrix in M basis a+(up),a+(down),n
+	pppV(:,:)                     ! PPP term
 	integer(kind=i4),allocatable :: &
 	quantasmaL(:,:) , &           ! L space good quantum number (N and Sz)in M basis
 	quantasmaR(:,:) , &           ! R space good quantum number (N and Sz)in M basis

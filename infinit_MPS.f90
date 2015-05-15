@@ -1,30 +1,33 @@
 subroutine Infinit_MPS
+! this subroutine do infinit MPS
 
 	use variables
 	use mpi
 	use communicate
 	use exit_mod
+	use Renormalization_mod
+	use OnesiteMatrix
 	
 	implicit none
 	! local
-	integer :: error,ierr
-	integer :: isystem,i,j
 	real(kind=r8),allocatable :: treal(:,:)
 	integer(kind=i4),allocatable :: bondlinkreal(:,:)
 	! treal bondlinkreal store the initial real value
+	integer :: error,ierr
+	integer :: isystem,i,j
 	
 	call master_print_message("enter subroutine infinit_MPS")
 
-! if mode==r and isweep/=0 means the infinit DMRG is finished
-! isweep means the initial finit-MPS stage
+	! if mode==r and isweep/=0 means the infinit DMRG is finished
+	! isweep means the initial finit-MPS stage
 	if(mode=='r' .and. isweep/=0) then
 		return
 	else
 		isweep=0
 	end if
 
-! when construct the infinit MPS, let the small left space and 
-! right space to link together and simulate the real condition
+	! when construct the infinit MPS, let the small left space and 
+	! right space to link together and simulate the real condition
 
 	allocate(treal(norbs,norbs),stat=error)
 	if(error/=0) stop
@@ -34,8 +37,8 @@ subroutine Infinit_MPS
 	bondlinkreal=bondlink
 
 
-! be careful that the norbs may be odd
-! when doing infinit MPS we use half filled system until arrive the realnelecs
+	! be careful that the norbs may be odd
+	! when doing infinit MPS we use half filled system until arrive the realnelecs
 	do isystem=1,norbs/2-1,1
 		if(mode=='r') then
 			if(isystem<nleft) then
@@ -44,7 +47,7 @@ subroutine Infinit_MPS
 				call Enviro_Big('L')
 				call Enviro_Big('R')
 				call Hamiltonian('i')
-				call Renormalization(nleft+1,norbs-nright,'i')
+				call Renormalization('i')
 				cycle
 			end if
 		end if
@@ -77,8 +80,8 @@ subroutine Infinit_MPS
 			call exit_DMRG(sigAbort,"infinit DMRG Lrealdim/=Rrealdim failed!")
 		end if
 
-! add the quasi link between the left and right small space
-! to let the boundry be more real
+	! add the quasi link between the left and right small space
+	! to let the boundry be more real
 		t=treal
 		bondlink=bondlinkreal
 		if(nleft+1<norbs/2 .or. mod(norbs,2)/=0) then 
@@ -88,17 +91,17 @@ subroutine Infinit_MPS
 			t(norbs-nright,nleft+1)=-1.0D0
 		end if
 !====================L space=================================
-! sigmaL subspace operator matrix
-		call OnesiteMatrix(nleft+1)
-! L subspace initial
+	! sigmaL subspace operator matrix
+		call ConstructOnesiteMatrix(nleft+1)
+	! L subspace initial
 		if(nleft==1) then
 			call Infinit_InitMat('L')
 		end if
-! construct the L+sigmaL subspace operator matrix
+	! construct the L+sigmaL subspace operator matrix
 		call System_Big('L')
-! construct the good quantum number Sz and occpuation
+	! construct the good quantum number Sz and occpuation
 		call System_Constructquanta('L')
-! store the operator matrix and the good quantum number
+	! store the operator matrix and the good quantum number
 		call Store_Operator('L')
 !============================================================
 
@@ -109,32 +112,30 @@ subroutine Infinit_MPS
 				call Infinit_InitMat('R')
 			end if
 			! sigmaR subspace operator matrix
-			call OnesiteMatrix(norbs-nright)
+			call ConstructOnesiteMatrix(norbs-nright)
 			! construct the R+sigmaR subspace operator matrix
 			call System_Big('R')
 			call System_Constructquanta('R')
 		else
-			call C2_copy('i')
+		!	call C2_copy('i')
 		end if
 		call Store_Operator('R')
 !============================================================
 
-! construct the total H(direct method) and davidson diagnalization
+	! construct the total H(direct method) and davidson diagnalization
 		if(4*Lrealdim>subM) then
 			call Hamiltonian('i')
 		end if
-
-! Renormalization all the operator matrix
-		call Renormalization(nleft+1,norbs-nright,'i')
-		
+	! Renormalization all the operator matrix
+		call Renormalization('i')
 	end do
 
-! set t and bondlink to real value
+	! set t and bondlink to real value
 	t=treal
 	bondlink=bondlinkreal
 
-! when the norbs is odd. Then in the last process of infinit MPS.
-! only add 1 orbital in the left space
+	! when the norbs is odd. Then in the last process of infinit MPS.
+	! only add 1 orbital in the left space
 	if(MOD(norbs,2)/=0) then
 		! add nelecs 2 by 2
 		nelecs=nelecs+2
@@ -152,22 +153,21 @@ subroutine Infinit_MPS
 			Lrealdim=Lrealdim*4
 		end if
 
-! caution here may be some problem ? because the right space using the
-! last step operamatbig quantabigR and so on HbigR
-
-		call OnesiteMatrix(nleft+1)
+	! caution here may be some problem ? because the right space using the
+	! last step operamatbig quantabigR and so on HbigR
+		call ConstructOnesiteMatrix(nleft+1)
 		call System_Big('L')
 		call System_Constructquanta('L')
 		call Store_Operator('L')
 		call Hamiltonian('i')
-		call Renormalization(nleft+1,norbs-nright,'i')
+		call Renormalization('i')
 	end if
 
 	
 	deallocate(treal)
 	deallocate(bondlinkreal)
 
-	call MPI_barrier(MPI_COMM_WORLD,ierr)
+	call MPI_BARRIER(MPI_COMM_WORLD,ierr)
 
 return
 end subroutine Infinit_MPS

@@ -4,6 +4,7 @@ Subroutine Finit_MPS
 	USE MPI
 	USE variables
 	use communicate
+	use Renormalization_mod
 
 	implicit none
 
@@ -52,7 +53,7 @@ Subroutine Finit_MPS
 		call Enviro_Big('L')
 		call Enviro_Big('R')
 		call Hamiltonian('i')
-		call Renormalization(nleft+1,norbs-nright,'i')
+		call Renormalization('i')
 	else
 		sweepbegin=1
 	end if

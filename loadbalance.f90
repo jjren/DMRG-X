@@ -15,7 +15,7 @@ Subroutine LoadBalance
 	! local
 	integer :: i,j,error
 	integer ::  &
-	        operanum1             , &  !operanum1 is the max site operator every process have
+	        operanum1(nprocs-1)    , &  !operanum1 is the max site operator every process have
 	        operanum2(nprocs-1)  
 	
 	call master_print_message("enter subroutine loadbalance")
@@ -30,11 +30,11 @@ Subroutine LoadBalance
 	! PPP operator
 	operanum1=0
 	do i=1,norbs,nprocs-1
-		operanum1=operanum1+1
 		do j=1,nprocs-1,1
 			if((i-1+j)<=norbs) then
+				operanum1(j)=operanum1(j)+1
 				orbid1((i-1)+j,1)=j
-				orbid1((i-1)+j,2)=operanum1
+				orbid1((i-1)+j,2)=operanum1(j)
 			else 
 				exit
 			end if
@@ -71,8 +71,9 @@ Subroutine LoadBalance
 	if(myid==0) then
 		write(*,*) "PPP operator distribute"
 		write(*,*) "orbid1=",orbid1(:,1)
+		write(*,*) "index on every process",orbid1(:,2)
 		write(*,*) "bond order operator distribute"
-		write(*,*) "orbid2=",orbid2(:,:,2)
+	!	write(*,*) "orbid2=",orbid2(:,:,2)
 	end if
 
 !============================================================================

@@ -368,6 +368,7 @@ subroutine SymmHDiag(HDIAG)
 	use blas95
 	use F95_precision
 	use mpi
+	use module_sparse
 	implicit none
 
 	real(kind=r8) :: HDIAG(nsymmstate)
@@ -424,12 +425,8 @@ subroutine SymmHDiag(HDIAG)
 !===================================================================================
 	! get L space block matrix correspond to one single nsymmstate, at most 4*4
 	do is=1,nleft+1,1
-	if(myid==orbid(is) .or. (myid==0 .and. is==1)) then
-		if(mod(is,nprocs-1)==0) then
-			operaindex=is/(nprocs-1)
-		else
-			operaindex=is/(nprocs-1)+1
-		end if
+	if(myid==orbid1(is,1) .or. (myid==0 .and. is==1)) then
+		operaindex=orbid1(is,2)
 		do i=1,nsymmstate,1
 			index1=0
 			m=0
@@ -456,10 +453,13 @@ subroutine SymmHDiag(HDIAG)
 			do mr=1,m,1
 				! copy the operamatbig matrix to bufmat and bufH
 				if(myid/=0) then
-					bufmat(mr,mc,3*operaindex-2:3*operaindex,i)=&
-						operamatbig(index1(mr),index1(mc),3*operaindex-2:3*operaindex)
+					do j=3*operaindex-2,3*operaindex,1
+						call SpMatIJ(4*Lrealdim,index1(mr),index1(mc),operamatbig1(:,j),bigcolindex1(:,j),bigrowindex1(:,j),&
+							bufmat(mr,mc,j,i))
+					end do
 				else
-					bufH(mr,mc,1,i)=Hbig(index1(mr),index1(mc),1)
+					call SpMatIJ(4*Lrealdim,index1(mr),index1(mc),Hbig(:,1),Hbigcolindex(:,1),Hbigrowindex(:,1),&
+						bufH(mr,mc,1,i))
 				end if
 			end do
 			end do
@@ -469,12 +469,8 @@ subroutine SymmHDiag(HDIAG)
 
 	! R space the same as L space algrithom
 	do is=norbs,norbs-nright,-1
-	if(myid==orbid(is) .or. (myid==0 .and. is==norbs)) then
-		if(mod(is,nprocs-1)==0) then
-			operaindex=is/(nprocs-1)
-		else
-			operaindex=is/(nprocs-1)+1
-		end if
+	if(myid==orbid1(is,1) .or. (myid==0 .and. is==norbs)) then
+		operaindex=orbid1(is,2)
 		do i=1,nsymmstate,1
 			index1=0
 			m=0
@@ -500,10 +496,13 @@ subroutine SymmHDiag(HDIAG)
 			do mc=1,m,1
 			do mr=1,m,1
 				if(myid/=0) then
-					bufmat(mr,mc,3*operaindex-2:3*operaindex,i)=&
-						operamatbig(index1(mr),index1(mc),3*operaindex-2:3*operaindex)
+					do j=3*operaindex-2,3*operaindex,1
+						call SpMatIJ(4*Rrealdim,index1(mr),index1(mc),operamatbig1(:,j),bigcolindex1(:,j),bigrowindex1(:,j),&
+							bufmat(mr,mc,j,i))
+					end do
 				else
-					bufH(mr,mc,2,i)=Hbig(index1(mr),index1(mc),2)
+					call spMatIJ(4*Rrealdim,index1(mr),index1(mc),Hbig(:,2),Hbigcolindex(:,2),Hbigrowindex(:,2),&
+						bufH(mr,mc,2,i))
 				end if
 			end do
 			end do

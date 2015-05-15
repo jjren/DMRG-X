@@ -8,6 +8,7 @@ Subroutine GetHDiag(HDIAGnosymm)
 	use mpi
 	use variables
 	use communicate
+	use module_sparse
 
 	implicit none
 	
@@ -33,56 +34,68 @@ Subroutine GetHDiag(HDIAGnosymm)
 
 	! L space
 	do i=1,nleft+1,1
-		if(myid==orbid(i)) then
-			if(mod(i,nprocs-1)==0) then
-				operaindex=i/(nprocs-1)
-			else
-				operaindex=i/(nprocs-1)+1
-			end if
-! copy the diagonal element to the buffermat
+		if(myid==orbid1(i,1)) then
+			operaindex=orbid1(i,2)
+			! copy the diagonal element to the buffermat
 			do j=1,4*Lrealdim,1
-				buffermat(j)=operamatbig(j,j,operaindex*3)
+				do k=bigrowindex1(j,operaindex*3),bigrowindex1(j+1,operaindex*3)-1,1
+					if(bigcolindex1(k,operaindex*3)==j) then
+						buffermat(j)=operamatbig1(k,operaindex*3)
+						exit
+					end if
+				end do
 			end do
-! send the diagonal element to the 0 process
+			! send the diagonal element to the 0 process
 			call MPI_SEND(buffermat,4*subM,mpi_real8,0,i,MPI_COMM_WORLD,ierr)
 		else if(myid==0) then
-			call MPI_RECV(buffermat0(1,i),4*subM,mpi_real8,orbid(i),i,MPI_COMM_WORLD,status,ierr)
+			call MPI_RECV(buffermat0(1,i),4*subM,mpi_real8,orbid1(i,1),i,MPI_COMM_WORLD,status,ierr)
 		end if
 	end do
 
 	! R space
 	do j=norbs,norbs-nright,-1
-		if(myid==orbid(j)) then
-			if(mod(j,nprocs-1)==0) then
-				operaindex=j/(nprocs-1)
-			else
-				operaindex=j/(nprocs-1)+1
-			end if
-! copy the diagonal element to the buffermat
-			do k=1,4*Rrealdim,1
-				buffermat(k)=operamatbig(k,k,operaindex*3)
+		if(myid==orbid1(j,1)) then
+			operaindex=orbid1(j,2)
+			! copy the diagonal element to the buffermat
+			do i=1,4*Rrealdim,1
+				do k=bigrowindex1(i,operaindex*3),bigrowindex1(i+1,operaindex*3)-1,1
+					if(bigcolindex1(k,operaindex*3)==i) then
+						buffermat(i)=operamatbig1(k,operaindex*3)
+						exit
+					end if
+				end do
 			end do
-! send the diagonal element to the 0 process
+			! send the diagonal element to the 0 process
 			call MPI_SEND(buffermat,4*subM,mpi_real8,0,j,MPI_COMM_WORLD,ierr)
 		else if(myid==0) then
-			call MPI_RECV(buffermat0(1,j),4*subM,mpi_real8,orbid(j),j,MPI_COMM_WORLD,status,ierr)
+			call MPI_RECV(buffermat0(1,j),4*subM,mpi_real8,orbid1(j,1),j,MPI_COMM_WORLD,status,ierr)
 		end if
 	end do
 
 	if(myid==0) then
 		Hdiagdummy=0.0D0
-! HL contribution
+		! HL contribution
 		do i=1,4*Rrealdim,1
 			do j=1,4*Lrealdim,1
-				Hdiagdummy((i-1)*4*Lrealdim+j)=Hbig(j,j,1)
+				do k=Hbigrowindex(j,1),Hbigrowindex(j+1,1)-1,1
+					if(Hbigcolindex(k,1)==j) then
+						Hdiagdummy((i-1)*4*Lrealdim+j)=Hbig(k,1)
+						exit
+					end if
+				end do
 			end do
 		end do
-! HR contribution
+		! HR contribution
 		do i=1,4*Rrealdim,1
-			Hdiagdummy((i-1)*4*Lrealdim+1:i*4*Lrealdim)=Hbig(i,i,2)+Hdiagdummy((i-1)*4*Lrealdim+1:i*4*Lrealdim)
+			do k=Hbigrowindex(i,2),Hbigrowindex(i+1,2)-1,1
+				if(Hbigcolindex(k,2)==i) then
+					Hdiagdummy((i-1)*4*Lrealdim+1:i*4*Lrealdim)=Hbig(k,2)+Hdiagdummy((i-1)*4*Lrealdim+1:i*4*Lrealdim)
+					exit
+				end if
+			end do
 		end do
-! transfer integral contribution the contribute is zero
-! PPP term contribution
+		! transfer integral contribution the contribute is zero
+		! PPP term contribution
 		if(logic_PPP==1) then
 			do i=1,nleft+1,1
 			do j=norbs,norbs-nright,-1
@@ -93,8 +106,8 @@ Subroutine GetHDiag(HDIAGnosymm)
 			end do
 			end do
 		end if
-! copy Hdiagdummy to Hdiag
-! and ignore those diag element corresponding states without good quantum number
+		! copy Hdiagdummy to Hdiag
+		! and ignore those diag element corresponding states without good quantum number
 		m=1
 		do i=1,4*Rrealdim,1
 		do j=1,4*Lrealdim,1

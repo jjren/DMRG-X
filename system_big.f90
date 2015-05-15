@@ -8,7 +8,7 @@ Subroutine System_Big(domain)
 	use variables
 	use mpi
 	use mathlib
-!	use symmetry
+	use symmetry
 	use communicate
 	use exit_mod
 	use module_sparse
@@ -33,9 +33,8 @@ Subroutine System_Big(domain)
 
 	integer(kind=i4),allocatable :: phase(:)
 
-	real(kind=r8),allocatable :: Hbuf(:),Hbuf2(:),obuf(:,:)  ! Hbuffer and operator buffer
+	real(kind=r8),allocatable :: Hbuf(:),obuf(:,:)  ! Hbuffer and operator buffer
 	integer(kind=i4),allocatable :: Hbufrowindex(:),Hbufcolindex(:),&
-						Hbufrowindex2(:),Hbufcolindex2(:),&
 						obufrowindex(:,:),obufcolindex(:,:)
 	integer :: info
 	integer :: i,j,k
@@ -55,8 +54,8 @@ Subroutine System_Big(domain)
 	packsize2=smadim1*24+4*subM+1000    ! store ppp matrix
 	allocate(packbuf2(packsize2),stat=error)
 	if(error/=0) stop
-	call master_print_message(packsize1,"packsize1=")
-	call master_print_message(packsize2,"packsize2=")
+	!call master_print_message(packsize1,"packsize1=")
+	!call master_print_message(packsize2,"packsize2=")
 
 
 	if(domain=='L') then
@@ -133,7 +132,7 @@ Subroutine System_Big(domain)
 			call MPI_PACK(operamatsma1(1,(orbid1(i,2)*3)),smadim1,mpi_real8,packbuf2,packsize2,position1,MPI_COMM_WORLD,ierr)
 			call MPI_SEND(packbuf2,packsize2,MPI_PACKED,0,i,MPI_COMM_WORLD,ierr)
 		end if
-		write(*,*) "position1=",position1
+	!	write(*,*) "position1=",position1
 		
 		operamatbig1(:,orbid1(i,2)*3-2:orbid1(i,2)*3)=0.0D0
 		bigrowindex1(:,orbid1(i,2)*3-2:orbid1(i,2)*3)=0
@@ -212,14 +211,6 @@ Subroutine System_Big(domain)
 		allocate(Hbufcolindex(Hbigdim),stat=error)
 		if(error/=0) stop
 
-		allocate(Hbuf2(Hbigdim),stat=error)
-		if(error/=0) stop
-		allocate(Hbufrowindex2(4*subM+1),stat=error)
-		if(error/=0) stop
-		allocate(Hbufcolindex2(Hbigdim),stat=error)
-		if(error/=0) stop
-
-
 !===========================================================
 
 !     L/R Hamiltonian contribute
@@ -257,18 +248,9 @@ Subroutine System_Big(domain)
 							4,4,onesitemat(:,6),osmcolindex(:,6),osmrowindex(:,6),&
 							Hbuf,Hbufcolindex,Hbufrowindex,Hbigdim)
 		end if
-		Hbuf2=0.0D0
-		Hbufrowindex2=0
-		Hbufcolindex2=0
-		call mkl_dscradd('N',0,0,4*subM,4*subM,Hbig(:,Hindex),Hbigcolindex(:,Hindex),Hbigrowindex(:,Hindex),1.0D0,Hbuf,Hbufcolindex,Hbufrowindex,&
-					Hbuf2,Hbufcolindex2,Hbufrowindex2,Hbigdim,info)
-		if(info/=0) then
-			call master_print_message("info/=0 failed!")
-			stop
-		end if
-		Hbig(:,Hindex)=Hbuf2
-		Hbigrowindex(:,Hindex)=Hbufrowindex2
-		Hbigcolindex(:,Hindex)=Hbufcolindex2
+		
+		call SpmatAdd(4*subM,4*subM,Hbig(:,Hindex),Hbigcolindex(:,Hindex),Hbigrowindex(:,Hindex),&
+		'N',1.0D0,4*subM,4*subM,Hbuf,Hbufcolindex,Hbufrowindex,Hbigdim)
 
 !===========================================================
 
@@ -319,25 +301,11 @@ Subroutine System_Big(domain)
 					end do
 				end if
 
-				Hbuf2=0.0D0
-				Hbufrowindex2=0
-				Hbufcolindex2=0
-				call mkl_dscradd('N',0,0,4*subM,4*subM,Hbig(:,Hindex),Hbigcolindex(:,Hindex),Hbigrowindex(:,Hindex),t(recvtag,orbadd),Hbuf,Hbufcolindex,Hbufrowindex,&
-							Hbuf2,Hbufcolindex2,Hbufrowindex2,Hbigdim,info)
-				if(info/=0) then
-					call master_print_message(info,"info/=0 failed!")
-					stop
-				end if
+				call SpmatAdd(4*subM,4*subM,Hbig(:,Hindex),Hbigcolindex(:,Hindex),Hbigrowindex(:,Hindex),&
+				'N',t(recvtag,orbadd),4*subM,4*subM,Hbuf,Hbufcolindex,Hbufrowindex,Hbigdim)
 
-				Hbig(:,Hindex)=0.0D0
-				Hbigcolindex(:,Hindex)=0
-				Hbigrowindex(:,Hindex)=0
-				call mkl_dscradd('T',0,0,4*subM,4*subM,Hbuf2,Hbufcolindex2,Hbufrowindex2,t(recvtag,orbadd),Hbuf,Hbufcolindex,Hbufrowindex,&
-							Hbig(:,Hindex),Hbigcolindex(:,Hindex),Hbigrowindex(:,Hindex),Hbigdim,info)
-				if(info/=0) then
-					call master_print_message(info,"info/=0 failed!")
-					stop
-				end if
+				call SpmatAdd(4*subM,4*subM,Hbig(:,Hindex),Hbigcolindex(:,Hindex),Hbigrowindex(:,Hindex),&
+				'T',t(recvtag,orbadd),4*subM,4*subM,Hbuf,Hbufcolindex,Hbufrowindex,Hbigdim)
 			end do
 			end if
 
@@ -356,36 +324,26 @@ Subroutine System_Big(domain)
 								Hbuf,Hbufcolindex,Hbufrowindex,Hbigdim)
 			end if
 
-			Hbuf2=0.0D0
-			Hbufrowindex2=0
-			Hbufcolindex2=0
-			call mkl_dscradd('N',0,0,4*subM,4*subM,Hbig(:,Hindex),Hbigcolindex(:,Hindex),Hbigrowindex(:,Hindex),pppV(recvtag,orbadd),Hbuf,Hbufcolindex,Hbufrowindex,&
-						Hbuf2,Hbufcolindex2,Hbufrowindex2,Hbigdim,info)
-			if(info/=0) then
-				call master_print_message(info,"info/=0 failed!")
-				stop
-			end if
-
-			Hbig(:,Hindex)=Hbuf2
-			Hbigrowindex(:,Hindex)=Hbufrowindex2
-			Hbigcolindex(:,Hindex)=Hbufcolindex2
+			call SpmatAdd(4*subM,4*subM,Hbig(:,Hindex),Hbigcolindex(:,Hindex),Hbigrowindex(:,Hindex),&
+				'N',pppV(recvtag,orbadd),4*subM,4*subM,Hbuf,Hbufcolindex,Hbufrowindex,Hbigdim)
 		end do
 !=========================================================================
 	
 	! construct the symmmlinkbig
-	!	if(logic_spinreversal/=0) then
-	!		call Creatsymmlinkbig(dim1,domain,Hindex)
-	!	end if
+		if(logic_spinreversal/=0) then
+			call Creatsymmlinkbig(dim1,domain,Hindex)
+		end if
 		
-		deallocate(Hbuf,Hbuf2)
+		deallocate(Hbuf)
 		deallocate(obuf)
 		deallocate(Hbufrowindex,Hbufcolindex)
-		deallocate(Hbufrowindex2,Hbufcolindex2)
 		deallocate(obufrowindex,obufcolindex)
 	end if
 
 	deallocate(packbuf1,packbuf2)
 	deallocate(phase)
+
+	call MPI_BARRIER(MPI_COMM_WORLD,ierr)
 	return
 end subroutine System_Big
 
