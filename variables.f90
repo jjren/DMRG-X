@@ -80,21 +80,6 @@ module variables
 	real(kind=r8) :: onesitemat(4,4,5)            ! one site matrix in 4*4 basis 
 	real(kind=r8),allocatable :: coeffIF(:,:,:)   ! coeffIF is the inital and final wavefunction coefficient 
 
-	! sparse form in 3 array CSC format
-	real(kind=r8),allocatable :: &
-	soperamatbig(:,:) , &         ! sparse form operamatbig
-	soperamatsma(:,:) , &         ! sparse form operamatsma
-	sHbig(:,:)                    ! Hbig in sparse form
-	integer(i4),allocatable :: &
-	sbigrowindex(:,:) , &         ! operamatbig rowindex
-	sbigcolindex(:,:) , &         ! oepramatbig columnindex
-	ssmarowindex(:,:) , &         ! operamatsma rowindex
-	ssmacolindex(:,:) , &         ! operamatsma columnindex
-	sHbigcolindex(:,:) ,&         ! Hbig colindex
-	sHbigrowindex(:,:)            ! Hbig rowindex
-
-	integer(i4) :: sbigdim,ssmadim,sHbigdim,sHsmadim  ! in sparse form operamatbig/operamatsma,Hbig/Hsma dim
-
 !============================================================
 
 	! symmetry part
