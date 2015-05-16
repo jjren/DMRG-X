@@ -69,6 +69,8 @@ Subroutine ReadInput
 	allocate(sweepenergy(0:(sweeps+maxOverlapSweeps),nstate),stat=error)    !He Ma
 	if(error/=0) stop
 	sweepenergy=0.0D0
+    
+    
 ! 
 	allocate(nweight(nstate),stat=error)
 	if(error/=0) stop
@@ -207,6 +209,9 @@ Subroutine ReadInput
 		call MPI_PACK(sweeps,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
 		call MPI_PACK(nstate,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
 		call MPI_PACK(exscheme,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
+        if(exscheme==4) then
+            call MPI_PACK(targetStateIndex,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
+        end if
 		call MPI_PACK(nweight(1),nstate,MPI_real8,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
 		call MPI_PACK(blocks,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
 		call MPI_PACK(nbonds,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
@@ -243,6 +248,9 @@ Subroutine ReadInput
 		call MPI_UNPACK(packbuf,packsize,position1,sweeps,1,MPI_integer4,MPI_COMM_WORLD,ierr)
 		call MPI_UNPACK(packbuf,packsize,position1,nstate,1,MPI_integer4,MPI_COMM_WORLD,ierr)
 		call MPI_UNPACK(packbuf,packsize,position1,exscheme,1,MPI_integer4,MPI_COMM_WORLD,ierr)
+        if(exscheme==4) then
+            call MPI_UNPACK(packbuf,packsize,position1,targetStateIndex,1,MPI_integer4,MPI_COMM_WORLD,ierr)
+        end if
 		
 		allocate(nweight(nstate),stat=error)
 		if(error/=0) stop
@@ -296,6 +304,9 @@ Subroutine ReadInput
 		write(*,*) "sweeps=",sweeps
 		write(*,*) "nstates=",nstate
 		write(*,*) "exscheme=",exscheme
+        if(exscheme==4) then
+            write(*,*) "targetStateIndex=",targetStateIndex
+        end if
 		write(*,*) "nweight=",nweight
 		write(*,*) "energythresh",energythresh ! other process do not know this number
 		write(*,*) "nbonds=",nbonds,"bondlink="

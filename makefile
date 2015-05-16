@@ -20,8 +20,9 @@ FCCOMPILEOPTS= -O2
 object = kinds_mod.o communicate.o exit_mod.o variables.o \
 	   ppp_term.o contructquanta.o mathlib.o davidson.o \
 	   symmetry.o InitialGuess.o  GetHDiag.o \
-	   hamiltonian.o infinit_MPS.o infinit_initmat.o \
-       max_overlap.o\
+	   infinit_MPS.o infinit_initmat.o \
+     stateOverlap.o\
+     hamiltonian.o\
 	   davidson_wrapper.o\
 	   meanfield.o\
 	   loadbalance.o\

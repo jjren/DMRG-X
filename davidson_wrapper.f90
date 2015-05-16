@@ -122,7 +122,7 @@ Subroutine Davidson_Wrapper(direction,lim,ilow,ihigh,iselec,niv,mblock,&
 	end if
 
 !-----------------------------------------------------------------------------
-	
+
 	if(myid==0) then
 		if(hiend/=.false.) then
 			call master_print_message("didn't get the lowest state")
@@ -243,14 +243,13 @@ Subroutine Davidson_Wrapper(direction,lim,ilow,ihigh,iselec,niv,mblock,&
 		
 ! update the sweepenergy
 ! use the middle site as the sweepenergy
-
-        if(exscheme == 4 .and. startedMaxOverlap) then
-            sweepenergy(isweep,:) = DavidWORK(NUME*dimN+targetStateIndex)
-        else
-		    if(nleft==(norbs+1)/2-1) then
+        if(nleft==(norbs+1)/2-1) then
+            if(exscheme == 4 .and. startedMaxOverlap) then
+                sweepenergy(isweep,:) = DavidWORK(NUME*dimN+targetStateIndex)
+            else
 			    do i=1,NUME,1
 				    sweepenergy(isweep,i)=DavidWORK(NUME*dimN+i)
-			    end do
+                end do
             end if
         end if
 		

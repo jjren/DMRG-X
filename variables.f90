@@ -84,7 +84,7 @@ module variables
 !============================================================
     !He Ma  max overlap
     logical         :: startedMaxOverlap     = .false.     !whether conduct state-specific DMRG by maximum overlap
-    integer(kind=4) :: targetStateIndex      = 1           !the excited state to be targetted (traced)
+    integer(kind=4) :: targetStateIndex      = 0           !the excited state to be targetted (traced)
     
 !============================================================
 

@@ -155,8 +155,6 @@ Subroutine Renormalization(indexLp1,indexRm1,direction)
 			call splitsvdR(singularvalue,rightv,1,nstate,indexRm1)
             call correctR(singularvalue,leftu,rightv)
 !--------------------------------------------------
-        
-!--------------------------------------------------
 		else if(exscheme==2) then
 			allocate(singularvalue(subM*nstate),stat=error)
 			if(error/=0) stop
@@ -201,7 +199,10 @@ Subroutine Renormalization(indexLp1,indexRm1,direction)
 			deallocate(quantasmaR2)
 			if(logic_spinreversal/=0) then
 				deallocate(symmlinksma2)
-			end if
+            end if
+        else
+            write(*,*) "unknown exscheme"
+            stop
 		end if
 !--------------------------------------------------------------------------
 ! there are some numerical inaccuracy when we do svd or diagonalizaiton and this
