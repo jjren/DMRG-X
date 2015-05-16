@@ -78,10 +78,11 @@ subroutine getCrite(crite,direction)   ! He Ma
     use variables
     implicit none
     
-    real(kind=8)     ::   crite, originCrite, finalCrite
+    real(kind=8)     ::   crite,originCrite,finalCrite,infiniteCrite
     character(len=1) ::   direction
     integer          ::   pastSweep
     
+    infiniteCrite = 1.0D-5
     originCrite = 1.0D-7
     finalCrite  = 1.0D-9
     
@@ -92,7 +93,7 @@ subroutine getCrite(crite,direction)   ! He Ma
 
     
     if(direction == 'i') then  ! infinite DMRG
-        crite = originCrite
+        crite = infiniteCrite
     else                       ! finite sweeps
         pastSweep = isweep - 1
         if(exscheme==4 .and. startedMaxOverlap) then

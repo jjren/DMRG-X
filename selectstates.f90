@@ -133,8 +133,8 @@ module selectstate
 			do i=szl0+szzero,szl0+1,-1
 			
 			do j=1,subM-1,1
-				if(valueindex(j)==i .or. &
-				valuework(i)<valuework(valueindex(subM))/1.0D3) then
+				if(valueindex(j)==i) then !.or. &
+				!valuework(i)<valuework(valueindex(subM))/1.0D3) 
 					done=.false.
 					exit
 				else 
