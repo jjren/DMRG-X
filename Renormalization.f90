@@ -43,12 +43,9 @@ Subroutine Renormalization(indexLp1,indexRm1,direction)
 !	real(kind=8),allocatable :: ww(:)
 !	real(kind=8),allocatable :: coeffbuffer(:,:)
 	
-
-
 	if(myid==0)  then
 		write(*,*) "enter Renormalization subroutine"
 	end if
-
 
 	if(4*Lrealdim>subM .or. 4*Rrealdim>subM .or. (mode=='d' .and. &
 	modeindex==1) ) then
@@ -448,12 +445,6 @@ end if
 	end if
 	deallocate(dummymat)
 end if
-
-
-
-!if(myid==0) then
-!	deallocate(coeffIF)
-!end if
 
 return
 

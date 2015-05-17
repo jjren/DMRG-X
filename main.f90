@@ -21,6 +21,11 @@ program main
 		call exit_DMRG(sigAbort,"nprocs<2 failed!")
     end if
     
+    !if(myid==0) then
+    !    write(*,*) "type something"
+    !    read(*,*) ierr
+    !end if
+    
 	! read the input files
 	call ReadInput
 	

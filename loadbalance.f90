@@ -56,8 +56,17 @@ Subroutine LoadBalance
 		if(error/=0) stop
 		allocate(Hsma(subM,subM,2),stat=error)
 		if(error/=0) stop
-		allocate(coeffIF(4*subM,4*subM,nstate),stat=error)
-		if(error/=0) stop
+        if(exscheme/=4) then
+		    allocate(coeffIF(4*subM,4*subM,nstate),stat=error)
+            if(error/=0) stop
+        else
+            if(highestStateIndex<nstate) then
+                write(*,*) "highestStateIndex<nstate error!" 
+                stop
+            end if
+            allocate(coeffIF(4*subM,4*subM,highestStateIndex),stat=error)
+            if(error/=0) stop
+        end if
 		if(logic_spinreversal/=0) then
 			allocate(symmlinksma(subM,1,2),stat=error)
 			if(error/=0) stop
@@ -78,7 +87,7 @@ Subroutine LoadBalance
 	if(error/=0) stop
 !------------------------------------------------------
     if(myid==0) then
-        allocate(stateOverlapValue(nstate),stat=error)
+        allocate(stateOverlapValue(highestStateIndex),stat=error)
         if(error/=0) stop
     end if
     

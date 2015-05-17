@@ -39,6 +39,8 @@ module variables
 	logic_spinreversal,&    ! if use spinreversal symmetry :: +1 singlet -1 triplet 0 none
 	logic_C2                ! if use C2 like symmetry :: +1 A ;-1 B ; 0 none
 	integer(kind=i4),allocatable :: treelink(:,:)  ! treelink information
+    
+    logical  :: logic_fullmat = .false.  ! whether do direct diagonalization, default not
 
 !=========================================================
 	
@@ -55,8 +57,8 @@ module variables
 	exactsite , &                        ! the number of exact discrible sites
 	isweep                               ! the at present isweep
 	real(kind=r8) :: energythresh        ! energy convegence threshold in the middle of every sweep
-    logical       :: reachedEnergyThresh   = .false. !during finite sweep, whether the crite of davidson reached 0.1*energythresh
-	real(kind=r8),allocatable :: sweepenergy(:,:)  ! store every sweep energy in the middle
+    logical       :: reachedEnergyThresh   = .false.  !during finite sweep, whether the crite of davidson reached 0.1*energythresh
+	real(kind=r8),allocatable :: sweepenergy(:,:)     ! store every sweep energy in the middle
 	integer(kind=i4) :: Lrealdim,Rrealdim   ! L/R space real dimension
 	integer(kind=i4) :: nleft,nright        ! L/R space site number L+sigmaL+sigmaR+R
 	integer(kind=i4) :: ngoodstates         ! the number of basis fullfill the good quantum number
@@ -82,10 +84,21 @@ module variables
 	real(kind=r8),allocatable :: coeffIF(:,:,:)   ! coeffIF is the inital and final wavefunction coefficient 
 
 !============================================================
-    !He Ma  max overlap
-    logical         :: startedMaxOverlap     = .false.     !whether conduct state-specific DMRG by maximum overlap
-    integer(kind=4) :: targetStateIndex      = 0           !the excited state to be targetted (traced)
-    
+    ! state overlap information
+    logical         :: startedMaxOverlap = .false. !whether conduct state-specific DMRG by maximum overlap algorithm
+    integer(kind=4) :: formerStateIndex            !the excited state of last step
+    integer(kind=4) :: targetStateIndex            !the excited state to be targetted (traced) in this step
+    character(len=10):: targetStateFlag  = 'none'           !'none': not started yet or already finished
+                                                            !'trysame': target the state with the same index of last step
+                                                            !'getsame': the state above is correct(overlap is large)
+                                                            !'ngetsame': the state above is incorrect(overlap is small)
+                                                            !'trylower': target the states with lower indices
+                                                            !'getlower': found correct state
+                                                            !'ngetlower': didn't found correct state
+                                                            !'tryhigher': target a state with higher index
+                                                            !'gethigher': the state above is correct
+                                                            !'ngethigher': the state above is incorrect
+                                                            !'reachedmax': all states below highestStateIndex are incorrect
 !============================================================
 
 	! symmetry part

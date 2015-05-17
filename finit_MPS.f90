@@ -146,7 +146,7 @@ Subroutine Finit_MPS
 			write(*,*) isweep,"finit MPS end!"
             if(exscheme==4 .and. startedMaxOverlap == .true.) then
                 write(*,*) "this is a max overlap sweep"
-                write(*,*) "the energy in the middle is",sweepenergy(isweep,targetStateIndex)
+                write(*,*) "the energy in the middle is",sweepenergy(isweep,formerStateIndex)
             else 
 			    write(*,*) "the energy in the middle is",sweepenergy(isweep,:)
             end if            
@@ -155,8 +155,8 @@ Subroutine Finit_MPS
                 converged = .false.
             end if
             if(exscheme==4 .and. startedMaxOverlap == .true.) then
-                do i=1,nstate,1
-                    if(i==targetStateIndex) then   ! for targetted state
+                do i=1,highestStateIndex,1
+                    if(i==formerStateIndex) then   ! for targetted state
                         if(abs(sweepenergy(isweep-1,i)-sweepenergy(isweep,i))>energythresh) then
                             converged = .false.
                             exit
@@ -201,11 +201,11 @@ Subroutine Finit_MPS
         else if(converged==.true. .and. startedMaxOverlap==.true.) then  
 			write(*,*) "energy converged after another ",isweep - sweeps, " max overlap sweeps"
             write(*,*) "target state energy at each sweep:"
-            write(*,*) sweepenergy(sweeps+1:isweep,targetStateIndex)
+            write(*,*) sweepenergy(sweeps+1:isweep,formerStateIndex)
 		else
 			write(*,*) "max overlap maxiter reached!"
             write(*,*) "target state energy at each sweep:"
-            write(*,*) sweepenergy(sweeps+1:isweep,targetStateIndex)
+            write(*,*) sweepenergy(sweeps+1:isweep,formerStateIndex)
         end if
     end if
 		

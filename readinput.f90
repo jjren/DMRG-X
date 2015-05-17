@@ -66,12 +66,10 @@ Subroutine ReadInput
 	read(10,*) energythresh          ! the threshold of the total energy you want to get
 
 ! sweepenergy is the total energy of every sweep(in the middle of the chain)
-	allocate(sweepenergy(0:(sweeps+maxOverlapSweeps),nstate),stat=error)    !He Ma
+	allocate(sweepenergy(0:(sweeps+maxOverlapSweeps),highestStateIndex),stat=error)    !He Ma
 	if(error/=0) stop
 	sweepenergy=0.0D0
-    
-    
-! 
+
 	allocate(nweight(nstate),stat=error)
 	if(error/=0) stop
 	nweight=1.0D0         !default value
@@ -79,8 +77,12 @@ Subroutine ReadInput
 	if(nstate/=1) then
 		read(10,*) exscheme ! =1 average method      =2 my new specifc method 
                             ! =3 the dipole operator average method     =4 max overlap
-        if(exscheme==4) then    !He Ma
-            read(10,*) targetStateIndex
+        if(exscheme==4) then
+            read(10,*) formerStateIndex
+            if(formerStateIndex>nstate) then
+                write(*,*) "formerStateIndex>nstate error"
+                stop
+            end if
         end if
 		if(exscheme==1 .or. exscheme==3 .or. exscheme==4) then    
 			read(10,*) nweight(1:nstate) ! nweight is the average DMRG excited state
@@ -249,9 +251,8 @@ Subroutine ReadInput
 		call MPI_UNPACK(packbuf,packsize,position1,nstate,1,MPI_integer4,MPI_COMM_WORLD,ierr)
 		call MPI_UNPACK(packbuf,packsize,position1,exscheme,1,MPI_integer4,MPI_COMM_WORLD,ierr)
         if(exscheme==4) then
-            call MPI_UNPACK(packbuf,packsize,position1,targetStateIndex,1,MPI_integer4,MPI_COMM_WORLD,ierr)
+            call MPI_UNPACK(packbuf,packsize,position1,targetStateIndex,1, MPI_integer4,MPI_COMM_WORLD,ierr)
         end if
-		
 		allocate(nweight(nstate),stat=error)
 		if(error/=0) stop
 		call MPI_UNPACK(packbuf,packsize,position1,nweight,nstate,MPI_real8,MPI_COMM_WORLD,ierr)
