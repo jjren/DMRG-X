@@ -26,7 +26,7 @@ subroutine InitialStarter(direction,lvector,nvector,initialcoeff)
 	real(kind=8),allocatable :: nosymmguess(:)
 	integer :: i,error,numRandomVector
 	
-	if(nvector/=nstate .and. exscheme/=4) then    ! He Ma
+	if(nvector/=nstate .and. exscheme/=4) then
 		call master_print_message(nvector,"nvector/=nstate")
 		stop
     end if
@@ -38,7 +38,7 @@ subroutine InitialStarter(direction,lvector,nvector,initialcoeff)
 
 		if(nvector==1) then
 			call SingleInitialFinite(nosymmguess,ngoodstates,direction)
-        else if (exscheme==4 .and. startedMaxOverlap) then
+        else if (exscheme==4 .and. startedStateSpecific) then
             !write(*,*) "****************************"
             !write(*,*) "using random initial"
             !write(*,*) "****************************"
@@ -53,7 +53,7 @@ subroutine InitialStarter(direction,lvector,nvector,initialcoeff)
                 call GramSchmit(nvector,lvector,initialcoeff,norm)
 	            write(*,*) "the Initial guessvector norm",norm
                 return
-            case('tryhigher')
+            case('tryhigher','reachedmax')
                 write(*,*) "using", targetStateIndex - 1, "states from last davidson as initial guess"
                 write(*,*) "add another random guess"
                 call InitialRandom(initialcoeff(lvector*(targetStateIndex-1)+1:lvector*targetStateIndex),lvector,1)
@@ -266,7 +266,8 @@ end subroutine InitialStarter
 	integer :: error,i,j,m
 	real(kind=8) :: norm
 	
-	call master_print_message("enter SingleInitialFinite subroutine")
+    call master_print_message("enter SingleInitialFinite subroutine")
+        
 	! two site dmrg
 	if((nright+nleft+2)/=norbs) then
 		write(*,*) "-----------------------------------"
@@ -339,11 +340,11 @@ end subroutine InitialStarter
 		! direct use the last step result
 		if(nstate==1) then
 			LRcoeff=coeffIF(1:4*Lrealdim,1:4*Rrealdim,1)
-        else if(exscheme==4 .and. startedMaxOverlap) then        ! He Ma
+        else if(exscheme==4 .and. startedStateSpecific) then        ! He Ma
             write(*,*) "================================="
-			write(*,*) "garnet chan's specific algorithom"
+			write(*,*) "retrieving wavefunction from last step"
 			write(*,*) "================================="
-            LRcoeff=coeffIF(1:4*Lrealdim,1:4*Rrealdim,formerStateIndex)    
+            LRcoeff=realCoeffIF(1:4*Lrealdim,1:4*Rrealdim,formerStateIndex)    
 		else
 			stop
 		end if
@@ -354,13 +355,13 @@ end subroutine InitialStarter
 
 	m=1
 	do i=1,4*Rrealdim,1
-	do j=1,4*Lrealdim,1
-		if((quantabigL(j,1)+quantabigR(i,1)==nelecs) .and. &
-			quantabigL(j,2)+quantabigR(i,2)==totalSz) then
-			nosymmguess(m)=LRcoeff(j,i)
-			m=m+1
-		end if
-	end do
+	    do j=1,4*Lrealdim,1
+		    if((quantabigL(j,1)+quantabigR(i,1)==nelecs) .and. &
+			    quantabigL(j,2)+quantabigR(i,2)==totalSz) then
+			    nosymmguess(m)=LRcoeff(j,i)
+			    m=m+1
+		    end if
+	    end do
 	end do
 	m=m-1
 
@@ -378,7 +379,7 @@ end subroutine InitialStarter
 	deallocate(rightv)
 	deallocate(singularvalue)
 	deallocate(LRcoeff)
-return
+    return
 end subroutine SingleInitialFinite
 !================================================================
 

@@ -26,7 +26,13 @@ Subroutine Finit_MPS
 			exactsite=exactsite-1
 			exit
 		end if
-	end do
+    end do
+    
+    if(mod(norbs,2)==0) then
+		stepPerSweep=2*(2*(norbs/2-exactsite)-1)
+	else
+		stepPerSweep=2*(2*(norbs/2-exactsite)-1)+2
+	end if
 
 ! ibegin is the initial L space index(without sigmaL)
 	if(mod(norbs,2)==0) then
@@ -42,39 +48,30 @@ Subroutine Finit_MPS
 		end if
 	end if
 
-! only used in the restart mode
-	if(mode=='r' .and. isweep/=0 .and. exscheme/=4) then
-		nelecs=realnelecs
-		sweepbegin=isweep
-		isweep=isweep-1
-		nleft=ibegin-1
-		nright=norbs-ibegin-1
-		Lrealdim=subM
-		Rrealdim=subM
-		sweepenergy(0:isweep-1,:)=0.0D0
-		call Enviro_Big('L')
-		call Enviro_Big('R')
-		call Hamiltonian('i')
-		call Renormalization(nleft+1,norbs-nright,'i')
-	else
-		sweepbegin=1
+!  only used in the restart mode
+ 	if(mode=='r' .and. isweep/=0 .and. (exscheme/=4 .or. startedStateSpecific==.false.)) then
+ 		nelecs=realnelecs
+ 		sweepbegin=isweep
+ 		isweep=isweep-1
+ 		nleft=ibegin-1
+ 		nright=norbs-ibegin-1
+ 		Lrealdim=subM
+ 		Rrealdim=subM
+ 		sweepenergy(0:isweep-1,:)=0.0D0
+ 		call Enviro_Big('L')
+ 		call Enviro_Big('R')
+ 		call Hamiltonian('i')
+ 		call Renormalization(nleft+1,norbs-nright,'i')
     end if
     
-    sweepend = sweeps
-    
 !=================================================================================
-!He Ma  max overlap sweeps
-    if(exscheme==4 .and. startedMaxOverlap == .true.) then
-        if(myid==0) then
-            write(*,*) "**************************"
-		    write(*,*) "enter in max overlap sweep"
-            write(*,*) "**************************"
-        end if
-        call Renormalization(nleft+1,norbs-nright,'l')      !renormalize according to specific state
-        sweeps = isweep
-        reachedEnergyThresh = .false.
-        sweepbegin = sweeps +1
-        sweepend = sweeps + maxOverlapSweeps
+    if(exscheme==4 .and. startedStateSpecific == .true.) then
+        call initStateSpecific()
+        sweepbegin = sweeps + 1     ! sweeps is the final sweep number of state averaged DMRG
+        sweepend = sweeps + maxStateSpecificSweeps
+    else
+        sweepbegin = 1
+        sweepend = maxSweeps
     end if
 !=================================================================================
 
@@ -143,31 +140,22 @@ Subroutine Finit_MPS
 		end do
 
 		if(myid==0) then
-			write(*,*) isweep,"finit MPS end!"
-            if(exscheme==4 .and. startedMaxOverlap == .true.) then
-                write(*,*) "this is a max overlap sweep"
-                write(*,*) "the energy in the middle is",sweepenergy(isweep,formerStateIndex)
+            if(exscheme==4 .and. startedStateSpecific == .true.) then
+                write(*,*) isweep,"state specific finit MPS end!"
+                write(*,*) "the energy in the middle is",stateSpecificSweepEnergy(isweep)
+                write(*,*) "the target state index in the middle is",storedStateIndex(isweep)
             else 
-			    write(*,*) "the energy in the middle is",sweepenergy(isweep,:)
-            end if            
+                write(*,*) isweep,"finit MPS end!"
+			    write(*,*) "the energy in the middle is",sweepenergy(isweep,1:nstate)
+            end if
 			converged = .true.
             if(reachedEnergyThresh == .false.) then    !He Ma
                 converged = .false.
             end if
-            if(exscheme==4 .and. startedMaxOverlap == .true.) then
-                do i=1,highestStateIndex,1
-                    if(i==formerStateIndex) then   ! for targetted state
-                        if(abs(sweepenergy(isweep-1,i)-sweepenergy(isweep,i))>energythresh) then
-                            converged = .false.
-                            exit
-                        end if
-                    else     ! for other states, thresh is looser
-                        if(abs(sweepenergy(isweep-1,i)-sweepenergy(isweep,i))>10*energythresh) then
-                            converged = .false.
-                            exit
-                        end if
-                    end if
-                end do
+            if(exscheme==4 .and. startedStateSpecific == .true.) then
+                if(abs(stateSpecificSweepEnergy(isweep)-stateSpecificSweepEnergy(isweep-1))>energythresh) then
+                    converged = .false.
+                end if
             else
 			    do i=1,nstate,1
 				    if(abs(sweepenergy(isweep-1,i)-sweepenergy(isweep,i))>energythresh) then
@@ -186,31 +174,42 @@ Subroutine Finit_MPS
 	end do
 
 	if(myid==0) then
-		if(converged==.true. .and. startedMaxOverlap==.false.) then   !He Ma
-			write(*,*) "energy converged! at sweep",isweep
+        if(exscheme==4 .and. startedStateSpecific) then
+            select case(converged)
+            case(.true.)
+                write(*,*) "energy converged after another ",isweep - sweeps, " state specific sweeps"
+            case(.false.)
+                write(*,*) "max overlap maxiter reached!"
+            end select
+            write(*,*) "target state energy and its index at each sweep:"
+            do i=sweeps+1,isweep,1
+                write(*,*) stateSpecificSweepEnergy(i),storedStateIndex(i)
+            end do
+            call checkStateSpecificResults()
+            call cleanStateSpecificVariables()
+        else
+            sweeps = isweep         ! "sweeps" stores how many finit sweeps have been done
+            select case(converged)
+            case(.true.)
+                write(*,*) "energy converged! at sweep",isweep
+            case(.false.)
+                write(*,*) "maxiter reached!"
+            end select
             do i=1, nstate, 1
                 write(*,*) "state ",i," energy at each sweep:"
                 write(*,*) sweepenergy(0:isweep,i)
             end do
-		else if(converged==.false. .and. startedMaxOverlap==.false.) then
-			write(*,*) "maxiter reached!"
-            do i=1, nstate, 1
-                write(*,*) "state ",i," energy at each sweep:"
-                write(*,*) sweepenergy(0:sweeps,i)
-            end do
-        else if(converged==.true. .and. startedMaxOverlap==.true.) then  
-			write(*,*) "energy converged after another ",isweep - sweeps, " max overlap sweeps"
-            write(*,*) "target state energy at each sweep:"
-            write(*,*) sweepenergy(sweeps+1:isweep,formerStateIndex)
-		else
-			write(*,*) "max overlap maxiter reached!"
-            write(*,*) "target state energy at each sweep:"
-            write(*,*) sweepenergy(sweeps+1:isweep,formerStateIndex)
         end if
     end if
-		
-    endtime=MPI_WTIME()
-    call master_print_message(endtime-starttime,"Finite DMRG Runtime:")
     
-return
+    call MPI_bcast(sweeps,1,MPI_integer4,0,MPI_COMM_WORLD,ierr)
+    
+    endtime=MPI_WTIME()
+    select case(startedStateSpecific)
+    case(.false.)
+        call master_print_message(endtime-starttime,"Finite DMRG Runtime:")
+    case(.true.)
+        call master_print_message(endtime-starttime,"State-Specific Finite DMRG Runtime:")
+    end select
+
 end subroutine Finit_MPS

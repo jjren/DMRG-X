@@ -61,15 +61,16 @@ Subroutine ReadInput
 	read(10,*) logic_C2              ! if do C2 symmetry or the same mirror reflection and center reflection
 	read(10,*) logic_tree            ! if do tree tensor algorithm logic_tree=1
 	read(10,*) subM                  ! DMRG Sub space  M
-	read(10,*) sweeps                ! DMRG how many sweeps
+	read(10,*) maxSweeps                ! DMRG how many maxSweeps
 	read(10,*) nstate                ! how many state wanted to get
 	read(10,*) energythresh          ! the threshold of the total energy you want to get
 
 ! sweepenergy is the total energy of every sweep(in the middle of the chain)
-	allocate(sweepenergy(0:(sweeps+maxOverlapSweeps),highestStateIndex),stat=error)    !He Ma
+! sweepenergy is the total energy of every sweep(in the middle of the chain)
+	allocate(sweepenergy(0:maxSweeps,nstate),stat=error)
 	if(error/=0) stop
 	sweepenergy=0.0D0
-
+    
 	allocate(nweight(nstate),stat=error)
 	if(error/=0) stop
 	nweight=1.0D0         !default value
@@ -78,9 +79,9 @@ Subroutine ReadInput
 		read(10,*) exscheme ! =1 average method      =2 my new specifc method 
                             ! =3 the dipole operator average method     =4 max overlap
         if(exscheme==4) then
-            read(10,*) formerStateIndex
-            if(formerStateIndex>nstate) then
-                write(*,*) "formerStateIndex>nstate error"
+            read(10,*) realTargetStateIndex
+            if(realTargetStateIndex>nstate) then
+                write(*,*) "realTargetStateIndex>nstate error"
                 stop
             end if
         end if
@@ -208,11 +209,11 @@ Subroutine ReadInput
 		call MPI_PACK(logic_C2,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
 		call MPI_PACK(logic_tree,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
 		call MPI_PACK(subM,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
-		call MPI_PACK(sweeps,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
+		call MPI_PACK(maxSweeps,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
 		call MPI_PACK(nstate,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
 		call MPI_PACK(exscheme,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
         if(exscheme==4) then
-            call MPI_PACK(targetStateIndex,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
+            call MPI_PACK(realTargetStateIndex,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
         end if
 		call MPI_PACK(nweight(1),nstate,MPI_real8,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
 		call MPI_PACK(blocks,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
@@ -247,11 +248,11 @@ Subroutine ReadInput
 		call MPI_UNPACK(packbuf,packsize,position1,logic_C2,1,MPI_integer4,MPI_COMM_WORLD,ierr)
 		call MPI_UNPACK(packbuf,packsize,position1,logic_tree,1,MPI_integer4,MPI_COMM_WORLD,ierr)
 		call MPI_UNPACK(packbuf,packsize,position1,subM,1,MPI_integer4,MPI_COMM_WORLD,ierr)
-		call MPI_UNPACK(packbuf,packsize,position1,sweeps,1,MPI_integer4,MPI_COMM_WORLD,ierr)
+		call MPI_UNPACK(packbuf,packsize,position1,maxSweeps,1,MPI_integer4,MPI_COMM_WORLD,ierr)
 		call MPI_UNPACK(packbuf,packsize,position1,nstate,1,MPI_integer4,MPI_COMM_WORLD,ierr)
 		call MPI_UNPACK(packbuf,packsize,position1,exscheme,1,MPI_integer4,MPI_COMM_WORLD,ierr)
         if(exscheme==4) then
-            call MPI_UNPACK(packbuf,packsize,position1,targetStateIndex,1, MPI_integer4,MPI_COMM_WORLD,ierr)
+            call MPI_UNPACK(packbuf,packsize,position1,realTargetStateIndex,1, MPI_integer4,MPI_COMM_WORLD,ierr)
         end if
 		allocate(nweight(nstate),stat=error)
 		if(error/=0) stop
@@ -302,11 +303,13 @@ Subroutine ReadInput
 		write(*,*) "logic_C2=",logic_C2
 		write(*,*) "logic_tree=",logic_tree
 		write(*,*) "subM=",subM
-		write(*,*) "sweeps=",sweeps
+		write(*,*) "maxSweeps=",maxSweeps
 		write(*,*) "nstates=",nstate
 		write(*,*) "exscheme=",exscheme
         if(exscheme==4) then
-            write(*,*) "targetStateIndex=",targetStateIndex
+            write(*,*) "targetStateIndex=",realTargetStateIndex
+            write(*,*) "highestStateIndex=",highestStateIndex
+            write(*,*) "overlapThresh=",overlapThresh
         end if
 		write(*,*) "nweight=",nweight
 		write(*,*) "energythresh",energythresh ! other process do not know this number

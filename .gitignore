@@ -3,9 +3,9 @@ debug/
 Release/
 
 #Visual Studio files
-DMRG.vfproj
-DMRG.vfproj.hp.user
-DMRG.u2d
+DMRG_dev.vfproj
+DMRG_dev.vfproj.hp.user
+DMRG_dev.u2d
 vc120.pdb
 
 #unrelevant files

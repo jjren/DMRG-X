@@ -45,13 +45,14 @@ subroutine Hamiltonian(direction)
 	
 	call master_print_message("enter hamiltonian subroutine")
     
-    if(logic_fullmat == .true.) then 
-        call fullmat   ! direct diagonalization
-    end if
-    
     call initDavidWORK          ! initialize workspace of davidson diagonalization
                                 ! including calculate dimension, process symmetry,
                                 ! allocate DavidWORK and get diagonal elements of H
+                                
+    if(logic_fullmat == .true. .and. startedStateSpecific) then 
+        call fullmat   ! direct diagonalization
+    end if
+                                
     davidFinished = .false.    
     do while(davidFinished == .false.)
         call getDavidParameters         ! initialize parameters
@@ -67,7 +68,7 @@ subroutine Hamiltonian(direction)
 
 contains
     subroutine initDavidWORK
-        lim = nstate + 20
+        lim = 20
         allocate(iselec(lim),stat=error)
         if(error/=0) stop    
         iselec = -1
@@ -94,7 +95,7 @@ contains
 	    call master_print_message(dimN,"total Hamiltonian dimension:")
         
         ! allocate the davidson workarray needed by DVDSON
-        lim = nstate + 20    ! only tmp value to calculate biggest spaced might be used
+        lim = 20    ! only tmp value to calculate biggest spaced might be used
 	    IWRSZ=lim*(2*dimN+lim+9)+lim*(lim+1)/2+nstate+100
 	    if(myid==0) then
 		    allocate(HDIAG(dimN),stat=error)
@@ -123,7 +124,7 @@ contains
         maxiter = 400
         
 	    ! state indices to be targeted in davidson diagonalization
-        if(exscheme == 4 .and. startedMaxOverlap) then
+        if(exscheme == 4 .and. startedStateSpecific) then
             if(targetStateFlag == 'none') then
                 if(myid==0) then
                     write(*,*) 'formerStateIndex = ',formerStateIndex
@@ -131,9 +132,9 @@ contains
                 targetStateIndex = formerStateIndex
                 targetStateFlag = 'trysame'   ! first try the same state index
             end if
-            if(targetStateFlag == 'trysame' .or. targetStateFlag == 'tryhigher') then
+            if(targetStateFlag == 'trysame' .or. targetStateFlag == 'tryhigher' .or. targetStateFlag == 'reachedmax') then
                 if(myid==0) then
-                    write(*,*) "Targetting state index", targetStateIndex
+                    write(*,*) "!!!!Targetting state index", targetStateIndex
                 end if
                 ilow = 0
                 ihigh = 0
@@ -146,7 +147,7 @@ contains
 		        !        IWRSZ
             else if(targetStateFlag == 'trylower')  then
                 if(myid==0) then
-                    write(*,*) "Targetting states lower than former index", formerStateIndex
+                    write(*,*) "!!!!Targetting states lower than former index", formerStateIndex
                 end if
                 if(formerStateIndex/=targetStateIndex) then
                     write(*,*) "formerStateIndex/=targetStateIndex error"
@@ -163,7 +164,7 @@ contains
             end if
         else
             if(myid==0) then
-                write(*,*) "Targetting states lower than nstate:", nstate
+                write(*,*) "Calculating states lower than nstate:", nstate
             end if
             ilow = 1
 	        ihigh = nstate
@@ -182,6 +183,7 @@ contains
             !if(targetStateFlag=='tryhigher') then
             !    write(*,*) "davidWORK", DavidWORK
             !end if
+            write(*,*) "Begin Running Davidson Diagonalization"
 		    call DVDSON(op,dimN,lim,HDIAG,ilow,ihigh,iselec, &
 		                niv,mblock,crite,critc,critr,ortho,maxiter,DavidWORK,&
 		                IWRSZ,hiend,nloops,nmv,ierror)
@@ -226,8 +228,8 @@ contains
             nosymmout=DavidWORK(1:ngoodstates*NUME)
         end if
         ! calculate state overlap with state from former step (unsymmetrized state)
-        if(exscheme == 4 .and. startedMaxOverlap) then 
-            call getStateOverlap(nosymmout, ngoodstates, NUME, direction)
+        if(exscheme == 4 .and. startedStateSpecific) then 
+            call getStateOverlap(nosymmout, ngoodstates, NUME, direction, ierror)
         end if
         ! write coeffIF
         coeffIF=0.0D0
@@ -261,7 +263,7 @@ contains
 		Write(*,*) "IERROR=",ierror
 		write(*,*) "NMV=",nmv
         write(*,*) "crite=",crite
-        if(exscheme == 4 .and. startedMaxOverlap) then  ! state specific calculation, computing overlaps
+        if(exscheme == 4 .and. startedStateSpecific) then  ! state specific calculation, computing overlaps
             if(targetStateFlag == 'getsame' .or. targetStateFlag == 'ngetsame' .or. &
                targetStateFlag == 'gethigher' .or. targetStateFlag == 'ngethigher') then
                 write(*,*) "Energy of the", targetStateIndex, "state is", &
@@ -270,14 +272,15 @@ contains
                 write(*,*) "residual norm:",DavidWORK(NUME*dimN+2*NUME+targetStateIndex)
                 select case(targetStateFlag)
                 case('getsame')
-                    write(*,*) "target state index keeps the same:", targetStateIndex
+                    write(*,*) "GET STATE! keeps SAME", targetStateIndex
                     write(*,*) "with overlap =", stateOverlapValue(targetStateIndex)
                     targetStateFlag = 'none'
                     formerStateIndex = targetStateIndex
+                    formerStateEnergy = DavidWORK(NUME*dimN+targetStateIndex)
                     davidFinished = .true.
                 case('ngetsame')
-                    write(*,*) "overlap of state",  targetStateIndex,&
-                               "from last step is only", stateOverlapValue(targetStateIndex)
+                    write(*,*) "STATE INDEX MAY NOT BE THE SAME",  targetStateIndex
+                    write(*,*) "with overlap =", stateOverlapValue(targetStateIndex)
                     if(targetStateIndex /= 1) then
                         write(*,*) "try lower states"
                         targetStateFlag = 'trylower'
@@ -287,15 +290,16 @@ contains
                         targetStateIndex = targetStateIndex + 1
                     end if                    
                 case('gethigher')
-                    write(*,*) "target state index changes to", targetStateIndex,&
+                    write(*,*) "GET STATE! from HIGHER", targetStateIndex,&
                                "from former index", formerStateIndex
                     write(*,*) "with overlap =", stateOverlapValue(targetStateIndex)
                     targetStateFlag = 'none'
                     formerStateIndex = targetStateIndex
+                    formerStateEnergy = DavidWORK(NUME*dimN+targetStateIndex)
                     davidFinished = .true.
                 case('ngethigher')
-                    write(*,*) "overlap of state",  targetStateIndex,&
-                               "from last step is only", stateOverlapValue(targetStateIndex)
+                    write(*,*) "STATE INDEX MAY NOT BE",  targetStateIndex
+                    write(*,*) "with overlap =", stateOverlapValue(targetStateIndex)
                     write(*,*) "try higher states"
                     targetStateFlag = 'tryhigher'
                     targetStateIndex = targetStateIndex + 1    ! try one higher state
@@ -303,7 +307,7 @@ contains
             else if(targetStateFlag == 'getlower' .or. targetStateFlag == 'ngetlower') then
                 write(*,*) "Energy of lowest", NUME, "states:"
 		        do i=1,NUME,1
-			        write(*,*) nleft+1,norbs-nright,i,"th energy=",DavidWORK(NUME*dimN+i)
+			        write(*,*) i,"th energy=",DavidWORK(NUME*dimN+i)
 			        write(*,*) "energy converge:",DavidWORK(NUME*dimN+NUME+i)
 			        write(*,*) "residual norm:",DavidWORK(NUME*dimN+2*NUME+i)
                 end do
@@ -313,32 +317,47 @@ contains
                 end do
                 select case(targetStateFlag)
                 case('getlower')
-                    write(*,*) "target state index changes to", maxOverlapIndex,&
+                    write(*,*) "GET STATE! from LOWER", maxOverlapIndex,&
                                "from former index", formerStateIndex
                     write(*,*) "with overlap =", maxOverlapValue
                     targetStateFlag = 'none'
                     formerStateIndex = maxOverlapIndex
+                    formerStateEnergy = DavidWORK(NUME*dimN+maxOverlapIndex)
                     davidFinished = .true.
                 case('ngetlower')
-                    write(*,*) "overlap of states lower than",  targetStateIndex,&
-                               "from last step is at most only", maxOverlapValue
+                    write(*,*) "STATE INDEX MAY NOT BE BELOW",  targetStateIndex
+                    write(*,*) "with overlap =", maxOverlapValue
                     write(*,*) "try higher states"
                     targetStateFlag = 'tryhigher'
                     targetStateIndex = targetStateIndex + 1    ! try one higher state
                 end select
             else if(targetStateFlag == 'reachedmax') then
-                write(*,*) "overlap of state",  targetStateIndex,&
-                           "from last step is only", stateOverlapValue(targetStateIndex)
+                write(*,*) "overlap of state",  highestStateIndex,&
+                           "from last step is only", stateOverlapValue(highestStateIndex)
                 write(*,*) "already tried all states with index less than", highestStateIndex
                 write(*,*) "can't trace former state with overlap higher than", overlapThresh
-                write(*,*) "we can only adopt target state index", maxOverlapIndex,&
-                           "with overlap", maxOverlapValue
+                write(*,*) "highest overlap is", maxOverlapValue, "from state", maxOverlapIndex
+                write(*,*) "try to retrieve wavefunction from last step......"
+                call retrieveFormerState(direction,davidWORK,IWRSZ,NUME,dimN)
                 targetStateFlag = 'none'
-                formerStateIndex = maxOverlapIndex
+                !formerStateIndex = maxOverlapIndex        formerStateIndex shall not change
+                davidFinished = .true.
+            else if(targetStateFlag == 'stoptrying') then
+                write(*,*) "When targetting high index state, NLOOPS>MAXITER. Stop trying..."
+                write(*,*) "already tried all states with index less than", targetStateIndex -1
+                write(*,*) "can't trace former state with overlap higher than", overlapThresh
+                write(*,*) "highest overlap is", maxOverlapValue, "from state", maxOverlapIndex
+                write(*,*) "try to retrieve wavefunction from last step......"
+                call retrieveFormerState(direction,davidWORK,IWRSZ,NUME,dimN)
+                targetStateFlag = 'none'
+                !formerStateIndex = maxOverlapIndex       formerStateIndex shall not change
                 davidFinished = .true.
             else 
                 write(*,*) "unexpected targetStateFlag"
                 stop
+            end if
+            if(targetStateIndex >= highestStateIndex) then  
+                targetStateFlag = 'reachedmax'
             end if
         else   ! usual davidson (ground state or state average)
             write(*,*) "Energy of lowest", NUME, "states"
@@ -350,22 +369,16 @@ contains
             davidFinished = .true.
         end if
 
-		if(ierror/=0) then
-            if(exscheme==4 .and. targetStateFlag=='tryhigher' .and. ierror==2048) then
-                write(*,*) "NLOOPS is too large for high state, stop trying"
-                targetStateFlag = 'none'
-                davidFinished = .true.
-                return
-            else
-			    call master_print_message("failed! IERROR/=0")
-			    stop
-            end if
+		if(ierror/=0 .and. (exscheme/=4 .or. targetStateFlag/='none')) then
+            call master_print_message("failed! IERROR/=0")
+            stop
 		end if
 
         ! update the sweepenergy
         if(nleft==(norbs+1)/2-1) then
-            if(exscheme == 4 .and. startedMaxOverlap) then
-                sweepenergy(isweep,:) = DavidWORK(NUME*dimN+targetStateIndex)
+            if(exscheme == 4 .and. startedStateSpecific) then
+                stateSpecificSweepEnergy(isweep) = DavidWORK(NUME*dimN+targetStateIndex)
+                storedStateIndex(isweep) = formerStateIndex
             else
 			    do i=1,NUME,1
 				    sweepenergy(isweep,i)=DavidWORK(NUME*dimN+i)
@@ -384,6 +397,7 @@ contains
     
     subroutine clean
         if(myid == 0) then
+            realCoeffIF = coeffIF
             deallocate(HDIAG)
 		    deallocate(DavidWORK)
 		    deallocate(nosymmout)
@@ -402,19 +416,19 @@ contains
         infiniteCrite = 1.0D-5
         originCrite = 1.0D-7
         finalCrite  = 1.0D-9
-    
+
         if(direction == 'i') then  ! infinite DMRG
             getCrite = infiniteCrite
         else                       ! finite sweeps
             pastSweep = isweep - 1
-            if(exscheme==4 .and. startedMaxOverlap) then
+            if(exscheme==4 .and. startedStateSpecific) then
                 pastSweep = pastSweep - sweeps
             end if
             getCrite = originCrite * (0.2**pastSweep)
-            if(crite <= 0.2*finalCrite) then
+            if(getCrite <= 0.2*finalCrite) then
                 reachedEnergyThresh = .true.
             end if
-            if(crite <= finalCrite) then
+            if(getCrite <= finalCrite) then
                 getCrite = finalCrite
             end if
         end if

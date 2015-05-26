@@ -44,7 +44,7 @@ subroutine splitsvdR(singularvalue,rightv,statebegin,stateend,indexRm1)
 !	write(*,*) coeffIF(1:4*Rrealdim,1:4*Rrealdim,:)
 
 ! the R+sigmaR space reduced density matrix
-    if(exscheme == 4 .and. startedMaxOverlap) then ! He Ma  
+    if(exscheme == 4 .and. startedStateSpecific) then ! He Ma  
         call gemm(coeffIF(1:4*Lrealdim,1:4*Rrealdim,formerStateIndex),&
                   coeffIF(1:4*Lrealdim,1:4*Rrealdim,formerStateIndex),&
 		          coeffwork(1:4*Rrealdim,1:4*Rrealdim),'T','N',1.0D0,0.0D0)
@@ -52,7 +52,7 @@ subroutine splitsvdR(singularvalue,rightv,statebegin,stateend,indexRm1)
 	    do i=statebegin,stateend,1
 		    call gemm(coeffIF(1:4*Lrealdim,1:4*Rrealdim,i),coeffIF(1:4*Lrealdim,1:4*Rrealdim,i),&
 		    coeffbuffer(1:4*Rrealdim,1:4*Rrealdim),'T','N',1.0D0,0.0D0)
-		    if(exscheme==1 .or. (exscheme == 4 .and. startedMaxOverlap==.false.)) then
+		    if(exscheme==1 .or. (exscheme == 4 .and. startedStateSpecific==.false.)) then
 			    coeffwork=coeffwork+coeffbuffer*nweight(i)
 		    else
 			    coeffwork=coeffwork+coeffbuffer
@@ -298,7 +298,7 @@ subroutine splitsvdR(singularvalue,rightv,statebegin,stateend,indexRm1)
 	! so R space need to arrange again
 	! when nstate==1 we can find the corresponding state in the L and R state
 	! with the same eigenvalue , but when nstate/=1 there is no such condition
-	if(nstate==1) then
+	if(nstate==1 .or. (exscheme==4 .and. startedStateSpecific)) then
 	valueindex=0
 
 	do i=1,subM,1
@@ -488,7 +488,7 @@ subroutine splitsvdR(singularvalue,rightv,statebegin,stateend,indexRm1)
 		quantasmaR(i,:)=quantabigRbuffer(valueindex(i),:)
 		if(logic_spinreversal/=0) then
 			if(valueindex(i)<=szl0) then
-				if(nstate==1) then
+				if(nstate==1 .or. (exscheme==4 .and. startedStateSpecific)) then
 					symmlinksma(i,1,2)=i-1
 				else
 					symmlinksma(i,1,2)=i+1
@@ -502,7 +502,7 @@ subroutine splitsvdR(singularvalue,rightv,statebegin,stateend,indexRm1)
 				end if
 				symmlinksma(i,1,2)=i*symmlinkbigbuffer(valueindex(i))
 			else 
-				if(nstate==1) then
+				if(nstate==1 .or. (exscheme==4 .and. startedStateSpecific)) then
 					symmlinksma(i,1,2)=i+1
 				else
 					symmlinksma(i,1,2)=i-1

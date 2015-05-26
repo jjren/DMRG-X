@@ -66,6 +66,8 @@ Subroutine LoadBalance
             end if
             allocate(coeffIF(4*subM,4*subM,highestStateIndex),stat=error)
             if(error/=0) stop
+            allocate(realCoeffIF(4*subM,4*subM,highestStateIndex),stat=error)
+            if(error/=0) stop
         end if
 		if(logic_spinreversal/=0) then
 			allocate(symmlinksma(subM,1,2),stat=error)

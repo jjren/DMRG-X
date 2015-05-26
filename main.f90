@@ -22,7 +22,6 @@ program main
     end if
     
     !if(myid==0) then
-    !    write(*,*) "type something"
     !    read(*,*) ierr
     !end if
     
@@ -45,8 +44,8 @@ program main
 	call Finit_MPS
     
     ! if indicated by inp, do state specific finite DMRG sweep
-    if(exscheme==4 .and. startedMaxOverlap == .false.) then
-        startedMaxOverlap = .true.
+    if(exscheme==4) then
+        startedStateSpecific = .true.
         call Finit_MPS
     end if
 	

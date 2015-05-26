@@ -53,8 +53,10 @@ module variables
 	integer(kind=i4) :: exscheme         ! target excited state scheme
 	integer(kind=i4) :: &
 	subM , &                             ! DMRG subspace M 
-	sweeps , &                           ! finite DMRG sweeps
+    maxSweeps, &                         ! maximum finite DMRG sweeps number
+    sweeps , &                           ! how many finit sweeps have actually been done
 	exactsite , &                        ! the number of exact discrible sites
+    stepPerSweep, &                      ! how many steps in one finite DMRG sweep
 	isweep                               ! the at present isweep
 	real(kind=r8) :: energythresh        ! energy convegence threshold in the middle of every sweep
     logical       :: reachedEnergyThresh   = .false.  !during finite sweep, whether the crite of davidson reached 0.1*energythresh
@@ -82,23 +84,24 @@ module variables
 	quantabigR(:,:)               ! R space good quantum number (N and Sz)in 4M basis
 	real(kind=r8) :: onesitemat(4,4,5)            ! one site matrix in 4*4 basis 
 	real(kind=r8),allocatable :: coeffIF(:,:,:)   ! coeffIF is the inital and final wavefunction coefficient 
-
+    real(kind=r8),allocatable :: realCoeffIF(:,:,:)  
 !============================================================
-    ! state overlap information
-    logical         :: startedMaxOverlap = .false. !whether conduct state-specific DMRG by maximum overlap algorithm
-    integer(kind=4) :: formerStateIndex            !the excited state of last step
-    integer(kind=4) :: targetStateIndex            !the excited state to be targetted (traced) in this step
-    character(len=10):: targetStateFlag  = 'none'           !'none': not started yet or already finished
-                                                            !'trysame': target the state with the same index of last step
-                                                            !'getsame': the state above is correct(overlap is large)
-                                                            !'ngetsame': the state above is incorrect(overlap is small)
-                                                            !'trylower': target the states with lower indices
-                                                            !'getlower': found correct state
-                                                            !'ngetlower': didn't found correct state
-                                                            !'tryhigher': target a state with higher index
-                                                            !'gethigher': the state above is correct
-                                                            !'ngethigher': the state above is incorrect
-                                                            !'reachedmax': all states below highestStateIndex are incorrect
+    ! state overlap information 
+    logical          :: startedStateSpecific = .false. ! whether conduct state-specific DMRG by maximum overlap algorithm
+    integer(kind=4)  :: formerStateIndex               ! the excited state of last step
+    integer(kind=4)  :: targetStateIndex               ! the excited state to be targetted (traced) in this step
+    character(len=10):: targetStateFlag  = 'none'           ! 'none': not started yet or already finished
+                                                            ! 'trysame': target the state with the same index of last step
+                                                            ! 'getsame': the state above is correct(overlap is large)
+                                                            ! 'ngetsame': the state above is incorrect(overlap is small)
+                                                            ! 'trylower': target the states with lower indices
+                                                            ! 'getlower': found correct state
+                                                            ! 'ngetlower': didn't found correct state
+                                                            ! 'tryhigher': target a state with higher index
+                                                            ! 'gethigher': the state above is correct
+                                                            ! 'ngethigher': the state above is incorrect
+                                                            ! 'reachedmax': all states below highestStateIndex are incorrect
+
 !============================================================
 
 	! symmetry part

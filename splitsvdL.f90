@@ -46,7 +46,7 @@ subroutine splitsvdL(singularvalue,leftu,statebegin,stateend,indexlp1)
 !	write(*,*) coeffIF(1:4*Lrealdim,1:4*Rrealdim,:)
 
 ! the L+sigmaL space reduced density matrix
-    if(exscheme == 4 .and. startedMaxOverlap) then ! He Ma  
+    if(exscheme == 4 .and. startedStateSpecific) then ! He Ma  
         call gemm(coeffIF(1:4*Lrealdim,1:4*Rrealdim,formerStateIndex),&
                   coeffIF(1:4*Lrealdim,1:4*Rrealdim,formerStateIndex),&
 		          coeffwork(1:4*Lrealdim,1:4*Lrealdim),'N','T',1.0D0,0.0D0)
@@ -54,7 +54,7 @@ subroutine splitsvdL(singularvalue,leftu,statebegin,stateend,indexlp1)
 	    do i=statebegin,stateend,1
 		    call gemm(coeffIF(1:4*Lrealdim,1:4*Rrealdim,i),coeffIF(1:4*Lrealdim,1:4*Rrealdim,i),&
 		    coeffbuffer(1:4*Lrealdim,1:4*Lrealdim),'N','T',1.0D0,0.0D0)
-		    if(exscheme==1 .or. (exscheme == 4 .and. startedMaxOverlap==.false.)) then
+		    if(exscheme==1 .or. (exscheme == 4 .and. startedStateSpecific==.false.)) then
 			    coeffwork=coeffwork+coeffbuffer*nweight(i)
 		    else
 			    coeffwork=coeffwork+coeffbuffer
