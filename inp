@@ -1,0 +1,24 @@
+s 0      !mode, modeindex
+10       !norbs
+10       !junk_atoms
+10       !nelecs
+0        !ncharges
+0        !total_sz
+1        !logic_PPP
+0        !logic_MeanField
+0        !logic_spinreversal
+0        !logic C2
+0        !logic_tree
+32       !subM
+200      !sweeps
+3        !nstate
+1.0D-5   !energythresh
+4        !exscheme
+3        !target state index
+15       !highest state index
+0.9      !overlap thresh
+0.3      !alpha1
+0.3      !alpha2
+1 1 1      !weights
+11       !nbonds
+
