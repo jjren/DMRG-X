@@ -183,7 +183,7 @@ Subroutine Finit_MPS
             end select
             write(*,*) "target state energy and its index at each sweep:"
             do i=sweeps+1,isweep,1
-                write(*,*) stateSpecificSweepEnergy(i),storedStateIndex(i)
+                write(*,*) stateSpecificSweepEnergy(i),storedStateIndex(i)," at sweep", i
             end do
             call checkStateSpecificResults()
             call cleanStateSpecificVariables()

@@ -16,8 +16,8 @@ module stateOverlap
     real(kind=r8)   :: formerStateEnergy
     integer(kind=4) :: maxStateSpecificSweeps = 100   ! maximum number of max overlap sweeps
     integer(kind=4) :: maxStateSpecificSteps
-    integer(kind=4) :: highestStateIndex = 15         ! highest state considered when tracing excited state
-    real(kind=8)    :: overlapThresh = 0.9          ! If two states have a bigger overlap than this value,
+    integer(kind=4) :: highestStateIndex              ! highest state considered when tracing excited state
+    real(kind=8)    :: overlapThresh                  ! If two states have a bigger overlap than this value,
                                                       ! they are considered equal
     real(kind=8)    :: singularvalueThresh = 1.0D-3   ! determine whether two singular values are equal
     logical         :: printCorrectR   = .false.      ! whether print detail of correctR subroutine
@@ -38,8 +38,8 @@ module stateOverlap
     real(kind=8)    :: smallOverlapThresh = 0.9 
     integer         :: smallOverlapCounter      
     
-    real(kind=8)    :: alpha1 = 0.0                ! when enter in subroutine retrieveFormerState, 
-    real(kind=8)    :: alpha2 = 0.0                ! coeffIF = alpha*coeffIF of this step + (1-alpha)*coeffIF of last step
+    real(kind=8)    :: alpha1                      ! when enter in subroutine retrieveFormerState, 
+    real(kind=8)    :: alpha2                      ! coeffIF = alpha*coeffIF of this step + (1-alpha)*coeffIF of last step
                                                    ! alpha1 used when "reachedmax", alpha2 used when "stoptrying"
     contains
     subroutine initStateSpecific
@@ -408,8 +408,8 @@ module stateOverlap
             write(*,*) "#############################################################"
             do i=1,smallOverlapCounter,1
                 write(*,*) "At sweep",smallOverlapiSweep(i)
-                write(*,*) "At position", smallOverlapPosition1(i),smallOverlapPosition2(i)
-                write(*,*) "When direction is", smallOverlapDirection(i)
+                write(*,*) "At position  ", smallOverlapPosition1(i),smallOverlapPosition2(i)
+                write(*,*) "When direction is  ", smallOverlapDirection(i)
                 write(*,*) "OVERLAP =", smallOverlapValue(i)
                 write(*,*) "=========================================================="
             end do
