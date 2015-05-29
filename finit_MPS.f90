@@ -4,6 +4,7 @@ Subroutine Finit_MPS
 	USE MPI
 	USE variables
 	use communicate
+	use Renormalization_mod
 
 	implicit none
 
@@ -12,18 +13,6 @@ Subroutine Finit_MPS
 	integer :: ierr ! MPI_flag
 
 	call master_print_message("enter in subroutine finit_MPS")
-
-! the exactsite refer to the space that L space or R space that can be accurately discribe
-! (without sigmaL and sigmaR)
-	exactsite=1
-	do while(.true.)
-		if(4**exactsite<=subM) then
-			exactsite=exactsite+1
-		else
-			exactsite=exactsite-1
-			exit
-		end if
-	end do
 
 ! ibegin is the initial L space index(without sigmaL)
 	if(mod(norbs,2)==0) then
@@ -52,7 +41,7 @@ Subroutine Finit_MPS
 		call Enviro_Big('L')
 		call Enviro_Big('R')
 		call Hamiltonian('i')
-		call Renormalization(nleft+1,norbs-nright,'i')
+		call Renormalization('i')
 	else
 		sweepbegin=1
 	end if

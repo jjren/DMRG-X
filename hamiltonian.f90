@@ -5,6 +5,7 @@ subroutine Hamiltonian(direction)
 
 	USE variables, only : nstate,sweeps,isweep
 	use communicate
+	use mpi
 
 	implicit none
 
@@ -22,7 +23,7 @@ subroutine Hamiltonian(direction)
 		ortho            ! orthogonality threshold
 	integer,allocatable :: iselec(:)   ! selected eigenpair not used
 	integer :: error
-	character(len=1) :: direction      
+	character(len=1) :: direction
 	! i,l,r direction l is L space to R space sweep
 	
 	call master_print_message("enter hamiltonian subroutine")
@@ -33,7 +34,7 @@ subroutine Hamiltonian(direction)
 	lim=nstate+20    ! this number 20 can be changed consider the efficiency
 	niv=nstate
 	mblock=nstate
-	maxiter=200
+	maxiter=400
 	allocate(iselec(lim),stat=error)
 	if(error/=0) stop
 	iselec=-1
@@ -66,10 +67,4 @@ subroutine Hamiltonian(direction)
 return
 
 end subroutine Hamiltonian
-
-
-
-
-
-
 

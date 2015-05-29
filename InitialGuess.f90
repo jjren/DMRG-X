@@ -1,6 +1,8 @@
 MODULE InitialGuess
 	use variables
 	use communicate
+	use kinds_mod
+	use module_sparse
 	implicit none
 ! this module contains the subroutine that generate the initial guess of the MPS
 ! procedure
@@ -21,8 +23,8 @@ subroutine InitialStarter(direction,lvector,nvector,initialcoeff)
 
 	character(len=1) :: direction
 	integer :: lvector,nvector
-	real(kind=8) :: initialcoeff(lvector*nvector),norm(nvector)
-	real(kind=8),allocatable :: nosymmguess(:)
+	real(kind=r8) :: initialcoeff(lvector*nvector),norm(nvector)
+	real(kind=r8),allocatable :: nosymmguess(:)
 	integer :: i,error
 	
 	if(nvector/=nstate) then
@@ -48,16 +50,19 @@ subroutine InitialStarter(direction,lvector,nvector,initialcoeff)
 				initialcoeff((i-1)*lvector+1:i*lvector),'s')
 			end do
 		else
-			initialcoeff=nosymmguess
+			call copy(nosymmguess,initialcoeff)
 		end if
 
 		deallocate(nosymmguess)
+		
+		call GramSchmit(nvector,lvector,initialcoeff,norm)
+		write(*,*) "the Initial guessvector norm",norm
 	else
-		call InitialRandom(initialcoeff,nvector,lvector)
+	!	call InitialRandom(initialcoeff,nvector,lvector)
+		call master_print_message("use the default univector as initialguess")
+		nvector=0  ! niv=0
 	end if
 	
-	call GramSchmit(nvector,lvector,initialcoeff,norm)
-	write(*,*) "the Initial guessvector norm",norm
 
 return
 
@@ -74,15 +79,17 @@ end subroutine InitialStarter
 	USE F95_PRECISION
 
 	implicit none
+	include "mkl_spblas.fi"
 	integer :: lvector
-	real(kind=8) :: guesscoeff(lvector*nstate)
-	real(kind=8),allocatable :: leftu(:,:),rightv(:,:)&
+	real(kind=r8) :: guesscoeff(lvector*nstate)
+	real(kind=r8),allocatable :: leftu(:,:),rightv(:,:)&
 	,LRcoeff(:,:,:),LRcoeff1(:,:,:)
 	logical :: alive
 	integer :: reclength
 	integer :: subMbefore
 	integer :: error,i,j,m,k
 	character(len=1) :: direction
+	integer :: job(8),info
 
 	write(*,*) "enter MoreInitialFinit subroutine"
 	! two site dmrg
@@ -138,11 +145,25 @@ end subroutine InitialStarter
 		end do
 	end if
 
-
 	allocate(LRcoeff(4*subM,4*subM,nstate),stat=error)
 	if(error/=0) stop
 	allocate(LRcoeff1(4*subM,4*subM,nstate),stat=error)
 	if(error/=0) stop
+	
+	job(1)=1
+	job(2)=1
+	job(3)=1
+	job(4)=2
+	job(5)=0
+	job(6)=1
+	! transfer coeffIF to dense matrix
+	do i=1,nstate,1
+		call mkl_ddnscsr(job,4*subM,4*subM,LRcoeff1(:,:,i),4*subM,coeffIF(:,i),coeffIFcolindex(:,i),coeffIFrowindex(:,i),info)
+		if(info/=0) then
+			call master_print_message(info,"MoreInitFinite info/=")
+			stop
+		end if
+	end do
 
 	if(direction=='l' .and. nleft>exactsite) then
 		if(Lrealdim/=subM) then
@@ -153,7 +174,8 @@ end subroutine InitialStarter
 		end if
 
 		do i=1,nstate,1
-			call gemm(leftu(1:4*subMbefore,:),coeffIF(1:4*subMbefore,:,i),LRcoeff(1:subM,:,i),'T','N',1.0D0,0.0D0)   ! do U+*C
+			call gemm(leftu(1:4*subMbefore,:),LRcoeff1(1:4*subMbefore,:,i),LRcoeff(1:subM,:,i),'T','N',1.0D0,0.0D0)   ! do U+*C
+			LRcoeff1(:,:,i)=0.0D0
 			do j=1,subM,1
 				do k=1,4,1
 				LRcoeff1(subM*(k-1)+1:subM*k,j,i)=LRcoeff(1:subM,(j-1)*4+k,i)   ! tranfer U+C to new form
@@ -170,7 +192,8 @@ end subroutine InitialStarter
 			stop
 		end if
 		do i=1,nstate,1
-			call gemm(coeffIF(:,1:4*subMbefore,i),rightv(:,1:4*subMbefore),LRcoeff(:,1:subM,i),'N','T',1.0D0,0.0D0)
+			call gemm(LRcoeff1(:,1:4*subMbefore,i),rightv(:,1:4*subMbefore),LRcoeff(:,1:subM,i),'N','T',1.0D0,0.0D0)
+			LRcoeff1(:,:,i)=0.0D0
 			do j=1,subM,1
 				do k=1,4,1
 					LRcoeff1(1:subM,(j-1)*4+k,i)=LRcoeff((k-1)*subM+1:k*subM,j,i)
@@ -180,7 +203,7 @@ end subroutine InitialStarter
 		end do
 
 	else if((direction=='l' .and. nleft==exactsite) .or. (direction=='r' .and. nright==exactsite)) then
-		LRcoeff=coeffIF  ! directly use the last step result
+		LRcoeff=LRcoeff1  ! directly use the last step result
 	end if
 
 	m=0
@@ -226,15 +249,17 @@ end subroutine InitialStarter
 	USE F95_PRECISION
 
 	implicit none
+	include "mkl_spblas.fi"
 	integer :: lvector
-	real(kind=8) :: nosymmguess(lvector)
+	real(kind=r8) :: nosymmguess(lvector)
 	character(len=1) :: direction
-	real(kind=8),allocatable :: leftu(:,:),rightv(:,:),singularvalue(:)&
+	real(kind=r8),allocatable :: leftu(:,:),rightv(:,:),singularvalue(:)&
 	,LRcoeff(:,:)
 	logical :: alive
 	integer :: reclength
 	integer :: error,i,j,m
-	real(kind=8) :: norm
+	real(kind=r8) :: norm
+	integer :: job(8),info
 	
 	call master_print_message("enter SingleInitialFinite subroutine")
 	! two site dmrg
@@ -309,7 +334,18 @@ end subroutine InitialStarter
 	if((direction=='l' .and. nleft==exactsite) .or. (direction=='r' .and. nright==exactsite)) then
 		! direct use the last step result
 		if(nstate==1) then
-			LRcoeff=coeffIF(1:4*Lrealdim,1:4*Rrealdim,1)
+		!	LRcoeff=coeffIF(1:4*Lrealdim,1:4*Rrealdim,1)
+			job(1)=1
+			job(2)=1
+			job(3)=1
+			job(4)=2
+			job(5)=0
+			job(6)=1
+			call mkl_ddnscsr(job,4*Lrealdim,4*Rrealdim,LRcoeff,4*Lrealdim,coeffIF(:,1),coeffIFcolindex(:,1),coeffIFrowindex(:,1),info)
+			if(info/=0) then
+				call master_print_message(info,"SingleInitFinit info/=0")
+				stop
+			end if
 		else
 			write(*,*) "================================="
 			write(*,*) "garnet chan's specific algorithom"
@@ -321,18 +357,17 @@ end subroutine InitialStarter
 		call gemm(leftu,rightv,LRcoeff,'N','N',1.0D0,0.0D0)
 	end if
 
-	m=1
+	
+	m=0
 	do i=1,4*Rrealdim,1
 	do j=1,4*Lrealdim,1
 		if((quantabigL(j,1)+quantabigR(i,1)==nelecs) .and. &
 			quantabigL(j,2)+quantabigR(i,2)==totalSz) then
-			nosymmguess(m)=LRcoeff(j,i)
 			m=m+1
+			nosymmguess(m)=LRcoeff(j,i)
 		end if
 	end do
 	end do
-
-	m=m-1
 
 	if(m/=ngoodstates) then
 		write(*,*) "----------------------------------------------"
@@ -365,7 +400,7 @@ Subroutine InitialRandom(guessvector,lvector,num)
 	implicit none
 
 	integer :: num,lvector
-	real(kind=8) :: guessvector(num*lvector),randomx
+	real(kind=r8) :: guessvector(num*lvector),randomx
 	integer :: i
 	
 	call master_print_message("enter InitialRandom subroutine")
@@ -396,10 +431,10 @@ end subroutine InitialRandom
 	implicit none
 
 	integer :: num,lvector
-	real(kind=8) :: guessvector(num*lvector)
-	real(kind=8) :: HDIAG(lvector)
+	real(kind=r8) :: guessvector(num*lvector)
+	real(kind=r8) :: HDIAG(lvector)
 	integer :: i,j,k,l,minindex(num)
-	real(kind=8) :: mindiag(num)
+	real(kind=r8) :: mindiag(num)
 
 	
 	if(myid==0) then

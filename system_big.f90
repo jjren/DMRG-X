@@ -3,6 +3,7 @@ Subroutine System_Big(domain)
 ! construct the L+sigmaL/R+sigmaR subspace operator matrix in 4M basis
 ! two different conditions
 ! R space and logic_C2==0  ;  L space or (R space and logic_C2/=0)
+! all matrix in CSR sparse matrix format
 	
 	use variables
 	use mpi
@@ -10,41 +11,113 @@ Subroutine System_Big(domain)
 	use symmetry
 	use communicate
 	use exit_mod
+	use module_sparse
+	use OnesiteMatrix
+	use BLAS95
+	use f95_precision
 
 	implicit none
-	
+
 	character(len=1) :: domain   !L/R
 	
 	! local
-	integer :: error,ierr
-	integer :: i,j,k,j1,j2
-	integer :: operaindex,orbstart,orbend,orbadd,Hindex,dim1
+	integer :: orbstart,orbend,orbadd,Hindex,dim1
 	! orbstart is from 1 or norbs-nright+1
 	! orbend is nleft or norbs
 	! orbadd is nleft+1 or norbs-nright
 	! Hindex : HL/1 HR/2
-	real(kind=r8) :: II(4,4)
+	integer :: operaindex,operaindex2
+	real(kind=r8) :: II(4),IM(subM)
+	integer(kind=i4) :: IIrowindex(5),IIcolindex(4),IMrowindex(subM+1),IMcolindex(subM)
+
 	integer(kind=i4),allocatable :: phase(:)
-	real(kind=r8),allocatable :: Hbuffer(:,:),operabuffer(:,:,:),recvoperabuffer(:,:,:)
+
+	real(kind=r8),allocatable :: Hbufmat(:),H0mat(:)  ! Hbuffer
+	integer(kind=i4),allocatable :: Hbufrowindex(:),Hbufcolindex(:),&
+						H0rowindex(:),H0colindex(:)
 	
-	integer :: status(MPI_STATUS_SIZE),recvtag,sendrequest(norbs),recvrequest ! MPI flag
+	integer :: nnonzero
+	logical :: havecount
+	integer :: count1,shouldrecv(nprocs-1)
+	integer :: i,j,k
+	integer :: error
+
+	logical :: ifbondord
+
+	integer :: status(MPI_STATUS_SIZE),sendrequest  ! MPI flag
+	character(len=1),allocatable :: packbuf(:)
+	integer(kind=i4) :: packsize,position1
+	integer :: ierr
 
 	call master_print_message("enter in subroutine system_big")
 
+! set the parameters
 	if(domain=='L') then
 		orbstart=1
 		orbend=nleft
 		orbadd=nleft+1
 		dim1=Lrealdim
 		Hindex=1
+		if(nleft<=(norbs-1)/2) then
+			ifbondord=.true.
+		else
+			ifbondord=.false.
+		end if
 	else if(domain=='R') then
 		orbstart=norbs-nright+1
 		orbend=norbs
 		orbadd=norbs-nright
 		dim1=Rrealdim
 		Hindex=2
+		if(nright<=(norbs-2)/2) then
+			ifbondord=.true.
+		else
+			ifbondord=.false.
+		end if
 	else
 		call exit_DMRG(sigAbort,"domain/=L .and. domain/R failed!")
+	end if
+
+! allocate workarray
+	
+	do i=orbstart,orbend,1
+		if(myid==orbid1(i,1)) then
+		! the intermediate H0mat matrix
+			allocate(Hbufmat(Hbigdim),stat=error)
+			if(error/=0) stop
+			allocate(Hbufrowindex(4*subM+1),stat=error)
+			if(error/=0) stop
+			allocate(Hbufcolindex(Hbigdim),stat=error)
+			if(error/=0) stop
+
+			! store the H0mat matrix
+			allocate(H0mat(Hbigdim),stat=error)
+			if(error/=0) stop
+			allocate(H0colindex(Hbigdim),stat=error)
+			if(error/=0) stop
+			allocate(H0rowindex(4*subM+1),stat=error)
+			if(error/=0) stop
+			
+			! pack the H0mat matrix
+			packsize=Hbigdim*12+16*subM+1000
+			allocate(packbuf(packsize),stat=error) 
+			if(error/=0) stop
+			
+			exit
+		end if
+	end do
+
+	if(myid==0) then
+		allocate(H0mat(Hbigdim),stat=error)
+		if(error/=0) stop
+		allocate(H0colindex(Hbigdim),stat=error)
+		if(error/=0) stop
+		allocate(H0rowindex(4*subM+1),stat=error)
+		if(error/=0) stop
+		! pack the H0mat matrix
+		packsize=Hbigdim*12+16*subM+1000
+		allocate(packbuf(packsize),stat=error) 
+		if(error/=0) stop
 	end if
 
 !==================================================================
@@ -72,214 +145,302 @@ Subroutine System_Big(domain)
 	end if
 
 ! construct the unit matrix
-	II=0.0D0
+	II=1.0D0
 	do i=1,4,1
-		II(i,i)=1.0D0
+		IIrowindex(i)=i
+		IIcolindex(i)=i
 	end do
-!=========================================================================
+	IIrowindex(5)=5
+	IM=1.0D0
+	do i=1,subM,1
+		IMrowindex(i)=i
+		IMcolindex(i)=i
+	end do
+	IMrowindex(subM+1)=subM+1
 
-! construct the L/R(without sigmaL/R) subspace operator matrix in 4M basis
+!=========================================================================
+	! calculate the hopping term and PPP term
+	
+	H0rowindex=1
+	
 	do i=orbstart,orbend,1
-	if(myid==orbid(i)) then
-		if(mod(i,nprocs-1)==0) then
-			operaindex=i/(nprocs-1)
-		else
-			operaindex=i/(nprocs-1)+1
-		end if
-		
+	if(myid==orbid1(i,1)) then
+		!transfer integral term
 		if(bondlink(i,orbadd)==1) then
-		! block
-		!	call MPI_SEND(operamatsma(1,1,3*operaindex-2),3*subM*subM,mpi_real8,0,i,MPI_COMM_WORLD,ierr)
-		! non-block
-			call MPI_ISEND(operamatsma(1,1,3*operaindex-2),3*subM*subM,mpi_real8,0,i,MPI_COMM_WORLD,sendrequest(i),ierr)
-		else
-		! block
-		!	call MPI_SEND(operamatsma(1,1,3*operaindex),subM*subM,mpi_real8,0,i,MPI_COMM_WORLD,ierr)
-		! non-block
-			call MPI_ISEND(operamatsma(1,1,3*operaindex),subM*subM,mpi_real8,0,i,MPI_COMM_WORLD,sendrequest(i),ierr)
+			do j=1,2,1
+				Hbufrowindex=0
+				operaindex=orbid1(i,2)*3-3+j
+				if(domain=='R' .and. logic_C2==0) then
+					call SparseDirectProduct(4,4,onesitemat(:,j+3),osmcolindex(:,j+3),osmrowindex(:,j+3),&
+									dim1,dim1,operamatsma1(:,operaindex),smacolindex1(:,operaindex),smarowindex1(:,operaindex),&
+									Hbufmat,Hbufcolindex,Hbufrowindex,Hbigdim)
+					do k=1,Hbufrowindex(4*dim1+1)-1,1
+						Hbufmat(k)=Hbufmat(k)*DBLE(phase(Hbufcolindex(k)))*(-1.0D0)
+					end do
+				else
+					call SparseDirectProduct(dim1,dim1,operamatsma1(:,operaindex),smacolindex1(:,operaindex),smarowindex1(:,operaindex),&
+									4,4,onesitemat(:,j+3),osmcolindex(:,j+3),osmrowindex(:,j+3),&
+									Hbufmat,Hbufcolindex,Hbufrowindex,Hbigdim)
+					do k=1,Hbufrowindex(4*dim1+1)-1,1
+						Hbufmat(k)=Hbufmat(k)*DBLE(phase(Hbufcolindex(k)))
+					end do
+				end if
+				!======================================================================
+				! store the bondorder mat
+				if(logic_bondorder==1 .and. ifbondord==.true.) then
+					if(myid/=orbid2(i,orbadd,1)) then
+						write(*,*) "=============================================="
+						write(*,*) "myid/=orbid2(i,orbadd,1)",myid,orbid2(i,orbadd,1)
+						write(*,*) "=============================================="
+						stop
+					end if
+					operaindex2=orbid2(i,orbadd,2)*2-2+j
+					bigrowindex2(1:4*dim1+1,operaindex2)=Hbufrowindex(1:4*dim1+1)
+					nnonzero=Hbufrowindex(4*dim1+1)-1
+					bigcolindex2(1:nnonzero,operaindex2)=Hbufcolindex(1:nnonzero)
+					operamatbig2(1:nnonzero,operaindex2)=Hbufmat(1:nnonzero)
+				end if
+				!======================================================================
+
+				! ai^+*aj
+				call SpmatAdd(4*dim1,4*dim1,H0mat,H0colindex,H0rowindex,&
+				'N',t(i,orbadd),4*dim1,4*dim1,Hbufmat,Hbufcolindex,Hbufrowindex,Hbigdim)
+				! aj^+*ai
+				call SpmatAdd(4*dim1,4*dim1,H0mat,H0colindex,H0rowindex,&
+				'T',t(i,orbadd),4*dim1,4*dim1,Hbufmat,Hbufcolindex,Hbufrowindex,Hbigdim)
+			end do
 		end if
+
+		! ppp term
+		Hbufrowindex=0
+		operaindex=orbid1(i,2)*3
+		if(domain=='R' .and. logic_C2==0) then
+			call SparseDirectProduct(4,4,onesitemat(:,3),osmcolindex(:,3),osmrowindex(:,3),&
+							dim1,dim1,operamatsma1(:,operaindex),smacolindex1(:,operaindex),smarowindex1(:,operaindex),&
+							Hbufmat,Hbufcolindex,Hbufrowindex,Hbigdim)
+		else
+			call SparseDirectProduct( dim1,dim1,operamatsma1(:,operaindex),smacolindex1(:,operaindex),smarowindex1(:,operaindex),&
+							4,4,onesitemat(:,3),osmcolindex(:,3),osmrowindex(:,3),&
+							Hbufmat,Hbufcolindex,Hbufrowindex,Hbigdim)
+		end if
+
+		call SpmatAdd(4*dim1,4*dim1,H0mat,H0colindex,H0rowindex,&
+			'N',pppV(i,orbadd),4*dim1,4*dim1,Hbufmat,Hbufcolindex,Hbufrowindex,Hbigdim)
+	end if
+	end do
+	
+	! every process pack the H0mat mat and send to 0 process
+	do j=orbstart,orbend,1
+		if(myid==orbid1(j,1)) then
+			position1=0
+			call MPI_PACK(H0rowindex,4*subM+1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
+			call MPI_PACK(H0colindex,H0rowindex(4*dim1+1)-1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
+			call MPI_PACK(H0mat,H0rowindex(4*dim1+1)-1,MPI_real8,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
+			call MPI_ISEND(packbuf,position1,MPI_PACKED,0,myid,MPI_COMM_WORLD,sendrequest,ierr)
+			exit  ! only send once
+		end if
+	end do
+
+!==============================================================================================================
+
+	! construct the L/R(without sigmaL/R) subspace operator matrix in 4M basis
+	do i=orbstart,orbend,1
+	if(myid==orbid1(i,1)) then
+		
+		bigrowindex1(:,orbid1(i,2)*3-2:orbid1(i,2)*3)=0
 		
 		if(domain=='R' .and. logic_C2==0 ) then
 			do j=1,3,1
+				operaindex=(orbid1(i,2)-1)*3+j
+				call SparseDirectProduct(4,4,II,IIcolindex,IIrowindex,&
+								dim1,dim1,operamatsma1(:,operaindex),smacolindex1(:,operaindex),smarowindex1(:,operaindex),&
+								operamatbig1(:,operaindex),bigcolindex1(:,operaindex),bigrowindex1(:,operaindex),bigdim1)
 				if(j<=2) then
-					call DirectProduct(II,4, &
-						operamatsma(1:dim1,1:dim1,3*(operaindex-1)+j),dim1, &
-						operamatbig(1:dim1*4,1:dim1*4,3*(operaindex-1)+j))
-					do k=1,4*dim1
-						operamatbig(:,k,3*(operaindex-1)+j)=operamatbig(:,k,3*(operaindex-1)+j)*DBLE(phase(k))
+					do k=1,bigrowindex1(4*dim1+1,operaindex)-1,1
+						operamatbig1(k,operaindex)=operamatbig1(k,operaindex)*DBLE(phase(bigcolindex1(k,operaindex)))
 					end do
-				else
-					call DirectProduct(II,4, &
-						operamatsma(1:dim1,1:dim1,3*(operaindex-1)+j),dim1, &
-						operamatbig(1:dim1*4,1:dim1*4,3*(operaindex-1)+j))
 				end if
 			end do
 		else
 			do j=1,3,1
-				call DirectProduct(operamatsma(1:dim1,1:dim1,3*(operaindex-1)+j),dim1, &
-					II,4,operamatbig(1:dim1*4,1:dim1*4,3*(operaindex-1)+j))
+				operaindex=(orbid1(i,2)-1)*3+j
+				call SparseDirectProduct(dim1,dim1,operamatsma1(:,operaindex),smacolindex1(:,operaindex),smarowindex1(:,operaindex),&
+								4,4,II,IIcolindex,IIrowindex,&
+								operamatbig1(:,operaindex),bigcolindex1(:,operaindex),bigrowindex1(:,operaindex),bigdim1)
 			end do
 		end if
 	end if
 	end do
 
+!==============================================================================================================
 
 ! construct the sigmaL/R subspace operator matrix in 4M basis
-	if(myid==orbid(orbadd)) then
-		if(mod(orbadd,nprocs-1)==0) then
-			operaindex=orbadd/(nprocs-1)
-		else
-			operaindex=orbadd/(nprocs-1)+1
-		end if
+	
+	if(myid==orbid1(orbadd,1)) then
 		
-		operamatbig(1:4*dim1,1:4*dim1,3*operaindex-2:3*operaindex)=0.0D0
+		bigrowindex1(:,orbid1(orbadd,2)*3-2:orbid1(orbadd,2)*3)=0
+		
 		if(domain=='R' .and. logic_C2==0) then
-			do i=1,3,1
-				do j=1,4*dim1,4
-					operamatbig(j:j+3,j:j+3,3*(operaindex-1)+i)=onesitemat(:,:,i)
-				end do
+			do j=1,3,1
+				operaindex=(orbid1(orbadd,2)-1)*3+j
+				call SparseDirectProduct(4,4,onesitemat(:,j),osmcolindex(:,j),osmrowindex(:,j),&
+								dim1,dim1,IM,IMcolindex,IMrowindex,&
+								operamatbig1(:,operaindex),bigcolindex1(:,operaindex),bigrowindex1(:,operaindex),bigdim1)
 			end do
 		else 
-			do i=1,3,1
-				do j1=1,4,1 ! column
-				do j2=1,4,1 ! row
-					do k=1,dim1,1
-						if(i<=2) then
-							operamatbig(k+(j2-1)*dim1,k+(j1-1)*dim1,3*operaindex-3+i)=onesitemat(j2,j1,i)*DBLE(phase(k))
-						else
-							operamatbig(k+(j2-1)*dim1,k+(j1-1)*dim1,3*operaindex-3+i)=onesitemat(j2,j1,i)
-						end if
+			do j=1,3,1
+				operaindex=(orbid1(orbadd,2)-1)*3+j
+				call SparseDirectProduct(dim1,dim1,IM,IMcolindex,IMrowindex,&
+								4,4,onesitemat(:,j),osmcolindex(:,j),osmrowindex(:,j),&
+								operamatbig1(:,operaindex),bigcolindex1(:,operaindex),bigrowindex1(:,operaindex),bigdim1)
+				if(j<=2) then
+					do k=1,bigrowindex1(4*dim1+1,operaindex)-1,1
+						operamatbig1(k,operaindex)=operamatbig1(k,operaindex)*DBLE(phase(bigcolindex1(k,operaindex)))
 					end do
-				end do
-				end do
+				end if
 			end do
 		end if
 	end if
 
-! cosntruct the L+sigmaL/R+sigmaR Hamiltonian operator in 4M basis
+	! cosntruct the L+sigmaL/R+sigmaR Hamiltonian operator in 4M basis
 	if(myid==0) then
-		allocate(Hbuffer(4*subM,4*subM),stat=error)
-		if(error/=0) stop
-		
-		Hbig(:,:,Hindex)=0.0D0
-!===========================================================
-
-		allocate(recvoperabuffer(subM,subM,3),stat=error)
-		if(error/=0) stop
-		allocate(operabuffer(subM,subM,3),stat=error)
-		if(error/=0) stop
-		
-		call MPI_IRECV(recvoperabuffer(1,1,1),3*subM*subM,mpi_real8,MPI_ANY_SOURCE,MPI_ANY_TAG,MPI_COMM_WORLD,recvrequest,ierr)
-
-!===========================================================
-
-!     L/R Hamiltonian contribute
-		if(domain=='R' .and. logic_C2==0) then
-			call directproduct(II,4, &
-				Hsma(1:dim1,1:dim1,Hindex),dim1, &
-				Hbuffer(1:4*dim1,1:4*dim1))
-		else
-			call directproduct(Hsma(1:dim1,1:dim1,Hindex),dim1, &
-				II,4,Hbuffer(1:4*dim1,1:4*dim1))
-		end if
-		Hbig(1:4*dim1,1:4*dim1,Hindex)=Hbuffer(1:4*dim1,1:4*dim1)
-
-!===========================================================
-
-!     sigmaL Hamiltonian contribute. site energy+HubbardU
-		Hbuffer=0.0D0
-		if(domain=='R' .and. logic_C2==0) then
-			do i=1,4*dim1,4
-				Hbuffer(i+1,i+1)=t(orbadd,orbadd)
-				Hbuffer(i+2,i+2)=t(orbadd,orbadd)
-				Hbuffer(i+3,i+3)=2.0D0*t(orbadd,orbadd)+HubbardU(orbadd)
-			end do
-		else
-			do i=1,dim1,1
-				Hbuffer(1*dim1+i,1*dim1+i)=t(orbadd,orbadd)
-				Hbuffer(2*dim1+i,2*dim1+i)=t(orbadd,orbadd)
-				Hbuffer(3*dim1+i,3*dim1+i)=2.0D0*t(orbadd,orbadd)+HubbardU(orbadd)
-			end do
-		end if
-		Hbig(1:4*dim1,1:4*dim1,Hindex)=Hbuffer(1:4*dim1,1:4*dim1)+Hbig(1:4*dim1,1:4*dim1,Hindex)
-
-!===========================================================
-
-!     L sigmaL/R sigmaR interaction operator contribute
-
+		count1=0    ! 0 process should recv how many times
+		shouldrecv=0
 		do i=orbstart,orbend,1
-		
-		! block
-		!	if(bondlink(orbadd,i)==1) then
-		!		call MPI_RECV(operabuffer(1,1,1),3*subM*subM,mpi_real8,orbid(i),i,MPI_COMM_WORLD,status,ierr)
-		!	else
-		!		call MPI_RECV(operabuffer(1,1,3),subM*subM,mpi_real8,orbid(i),i,MPI_COMM_WORLD,status,ierr)
-		!	end if
-
-		! nonblock
-			call MPI_WAIT(recvrequest,status,ierr)
-			recvtag=status(MPI_TAG)
-			if(bondlink(recvtag,orbadd)==1) then
-				operabuffer=recvoperabuffer
-			else
-				operabuffer(:,:,3)=recvoperabuffer(:,:,1)
-			end if
-
-			if(i<orbend) then
-				call MPI_IRECV(recvoperabuffer(1,1,1),3*subM*subM,mpi_real8,MPI_ANY_SOURCE,MPI_ANY_TAG,MPI_COMM_WORLD,recvrequest,ierr)
-			end if
-			
-		!transfer integral term
-			if(bondlink(recvtag,orbadd)==1) then
-			do j=1,2,1
-				if(domain=='R' .and. logic_C2==0) then
-					call directproduct(onesitemat(:,:,j+3),4, &
-						operabuffer(1:dim1,1:dim1,j),dim1, &
-						Hbuffer(1:4*dim1,1:4*dim1))
-					do k=1,4*dim1,1
-						Hbuffer(:,k)=Hbuffer(:,k)*DBLE(phase(k))*(-1.0D0)
-					end do
-				else
-					call directproduct(operabuffer(1:dim1,1:dim1,j),dim1, &
-						onesitemat(:,:,3+j),4, &
-						Hbuffer(1:4*dim1,1:4*dim1))
-					do k=1,4*dim1,1
-						Hbuffer(:,k)=Hbuffer(:,k)*DBLE(phase(k))
-					end do
+			havecount=.false.
+			do j=1,count1,1
+				if(orbid1(i,1)==shouldrecv(j)) then
+					havecount=.true.
+					exit
 				end if
-				Hbig(1:4*dim1,1:4*dim1,Hindex)=Hbig(1:4*dim1,1:4*dim1,Hindex)+&
-						(Hbuffer(1:4*dim1,1:4*dim1)+transpose(Hbuffer(1:4*dim1,1:4*dim1)))*t(recvtag,orbadd)
 			end do
+			if(havecount==.false.) then
+				count1=count1+1
+				shouldrecv(count1)=orbid1(i,1)
 			end if
-		! ppp term
-			if(domain=='R' .and. logic_C2==0) then
-				call directproduct(onesitemat(:,:,3),4,operabuffer(1:dim1,1:dim1,3),dim1,Hbuffer(1:4*dim1,1:4*dim1))
-			else
-				call directproduct(operabuffer(1:dim1,1:dim1,3),dim1,onesitemat(:,:,3),4,Hbuffer(1:4*dim1,1:4*dim1))
-			end if
-			Hbig(1:4*dim1,1:4*dim1,Hindex)=Hbig(1:4*dim1,1:4*dim1,Hindex)+&
-				Hbuffer(1:4*dim1,1:4*dim1)*pppV(recvtag,orbadd)
 		end do
+		
+		! initiate the Hbig matrix
+		Hbigrowindex(:,Hindex)=1
+		
+		! get the ppp term and transfer integral term
+		do i=1,count1,1
+			call MPI_RECV(packbuf,packsize,MPI_PACKED,MPI_ANY_SOURCE,MPI_ANY_TAG,MPI_COMM_WORLD,status,ierr)
+			position1=0
+			call MPI_UNPACK(packbuf,packsize,position1,H0rowindex,4*subM+1,MPI_integer4,MPI_COMM_WORLD,ierr)
+			call MPI_UNPACK(packbuf,packsize,position1,H0colindex,H0rowindex(4*dim1+1)-1,MPI_integer4,MPI_COMM_WORLD,ierr)
+			call MPI_UNPACK(packbuf,packsize,position1,H0mat,H0rowindex(4*dim1+1)-1,MPI_real8,MPI_COMM_WORLD,ierr)
+			
+			call SpmatAdd(4*dim1,4*dim1,Hbig(:,Hindex),Hbigcolindex(:,Hindex),Hbigrowindex(:,Hindex),&
+			'N',1.0D0,4*dim1,4*dim1,H0mat,H0colindex,H0rowindex,Hbigdim)
+		end do
+
+!===========================================================
+
+	!     L/R Hamiltonian contribute
+		H0rowindex=1
+
+		if(domain=='R' .and. logic_C2==0) then
+			call SparseDirectProduct(4,4,II,IIcolindex,IIrowindex,&
+							dim1,dim1,Hsma(:,Hindex),Hsmacolindex(:,Hindex),Hsmarowindex(:,Hindex),&
+							H0mat,H0colindex,H0rowindex,Hbigdim)
+		else
+			call SparseDirectProduct(dim1,dim1,Hsma(:,Hindex),Hsmacolindex(:,Hindex),Hsmarowindex(:,Hindex),&
+							4,4,II,IIcolindex,IIrowindex,&
+							H0mat,H0colindex,H0rowindex,Hbigdim)
+		end if
+			
+		call SpmatAdd(4*dim1,4*dim1,Hbig(:,Hindex),Hbigcolindex(:,Hindex),Hbigrowindex(:,Hindex),&
+			'N',1.0D0,4*dim1,4*dim1,H0mat,H0colindex,H0rowindex,Hbigdim)
+
+!===========================================================
+
+	!     sigmaL Hamiltonian contribute. site energy+HubbardU
+
+		H0rowindex=1
+
+		if(domain=='R' .and. logic_C2==0) then
+			call SparseDirectProduct(4,4,onesitemat(:,6),osmcolindex(:,6),osmrowindex(:,6),&
+							dim1,dim1,IM,IMcolindex,IMrowindex,&
+							H0mat,H0colindex,H0rowindex,Hbigdim)
+		else
+			call SparseDirectProduct(dim1,dim1,IM,IMcolindex,IMrowindex,&
+							4,4,onesitemat(:,6),osmcolindex(:,6),osmrowindex(:,6),&
+							H0mat,H0colindex,H0rowindex,Hbigdim)
+		end if
+
+		call SpmatAdd(4*dim1,4*dim1,Hbig(:,Hindex),Hbigcolindex(:,Hindex),Hbigrowindex(:,Hindex),&
+			'N',1.0D0,4*dim1,4*dim1,H0mat,H0colindex,H0rowindex,Hbigdim)
+		
 !=========================================================================
 	
 	! construct the symmmlinkbig
 		if(logic_spinreversal/=0) then
 			call Creatsymmlinkbig(dim1,domain,Hindex)
 		end if
-
-		deallocate(Hbuffer)
-		deallocate(operabuffer)
-		deallocate(recvoperabuffer)
+		
 	end if
 
-! free the sendrequest
+!===================================================================
+! bond order matrix construct
+! no phase in two operator matrix
+	if(logic_bondorder==1 .and. ifbondord==.true.) then
+		! transfer the L/R space(without sigmaL/R) from M basis to 4M basis
+		do i=orbstart,orbend,1
+		do j=i,orbend,1
+			if(bondlink(i,j)/=0) then
+				if(myid==orbid2(i,j,1)) then
+					do k=1,2,1
+						operaindex2=orbid2(i,j,2)*2-2+k
+						bigrowindex2(:,operaindex2)=0
+						if(domain=='R' .and. logic_C2==0) then
+							call SparseDirectProduct(4,4,II,IIcolindex,IIrowindex,&
+								dim1,dim1,operamatsma2(:,operaindex2),smacolindex2(:,operaindex2),smarowindex2(:,operaindex2),&
+								operamatbig2(:,operaindex2),bigcolindex2(:,operaindex2),bigrowindex2(:,operaindex2),bigdim2)
+						else
+							call SparseDirectProduct(dim1,dim1,operamatsma2(:,operaindex2),smacolindex2(:,operaindex2),smarowindex2(:,operaindex2),&
+								4,4,II,IIcolindex,IIrowindex,&
+								operamatbig2(:,operaindex2),bigcolindex2(:,operaindex2),bigrowindex2(:,operaindex2),bigdim2)
+						end if
+					end do
+				end if
+			end if
+		end do
+		end do
+
+		! construct the sigmaL/R subspace operator matrix in 4M basis
+		if(myid==orbid2(orbadd,orbadd,1)) then
+			do j=1,2,1
+				operaindex2=(orbid2(orbadd,orbadd,2)-1)*2+j
+				bigrowindex2(:,operaindex2)=0
+				if(domain=='R' .and. logic_C2==0) then
+					! in onesite matrix the niup/down index is 7/8
+					call SparseDirectProduct(4,4,onesitemat(:,j+6),osmcolindex(:,j+6),osmrowindex(:,j+6),&
+							dim1,dim1,IM,IMcolindex,IMrowindex,&
+							operamatbig2(:,operaindex2),bigcolindex2(:,operaindex2),bigrowindex2(:,operaindex2),bigdim2)
+				else
+					call SparseDirectProduct(dim1,dim1,IM,IMcolindex,IMrowindex,&
+							4,4,onesitemat(:,j+6),osmcolindex(:,j+6),osmrowindex(:,j+6),&
+							operamatbig2(:,operaindex2),bigcolindex2(:,operaindex2),bigrowindex2(:,operaindex2),bigdim2)
+				end if
+			end do
+		end if
+	end if
+!===================================================================
+
+	! wait for the sendrequest
 	do i=orbstart,orbend,1
-		if(myid==orbid(i)) then
-			call MPI_REQUEST_FREE(sendrequest(i),ierr)
+		if(myid==orbid1(i,1)) then
+			call MPI_WAIT(sendrequest,status,ierr)
+			exit
 		end if
 	end do
 
+	if(allocated(packbuf)) deallocate(packbuf)
+	if(allocated(H0mat)) deallocate(H0mat,H0colindex,H0rowindex)
+	if(allocated(Hbufmat)) deallocate(Hbufmat,Hbufcolindex,Hbufrowindex)
 	deallocate(phase)
+
 	return
 end subroutine System_Big
 

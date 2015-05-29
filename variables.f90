@@ -40,10 +40,14 @@ module variables
 	logic_C2                ! if use C2 like symmetry :: +1 A ;-1 B ; 0 none
 	integer(kind=i4),allocatable :: treelink(:,:)  ! treelink information
 
+	integer(kind=i4),parameter :: &
+	logic_bondorder=1         ! if calculate bond order
 !=========================================================
 	
 	! loadbalance part
-	integer(kind=i4),allocatable :: orbid(:)         ! the orbid(norbs) is the process id every orbital
+	integer(kind=i4),allocatable ::  &
+	orbid1(:,:) , &        ! the orbid(norbs,2) is the process id every orbital; 
+	orbid2(:,:,:)         ! the orbid2(norbs,norbs,2) is the process id every 2 electron operator 
 
 !=========================================================
 
@@ -67,18 +71,12 @@ module variables
 	t(:,:) , &                    ! transfer integral in PPP/one electron integral  
 	v(:,:,:,:) , &                ! two electron integral full Quantum Chemistry
 	hubbardU(:) , &               ! hubbard term
-	pppV(:,:) , &                 ! PPP term
-	operamatbig(:,:,:) , &        ! operator matrix in 4M basis a+(up),a+(down),n
-	Hbig(:,:,:) , &               ! subspace HL and HR in 4M basis
-	operamatsma(:,:,:) , &        ! operator matrix in M basis a+(up),a+(down),n
-	Hsma(:,:,:)                   ! subspace HL and HR in 4M basis
+	pppV(:,:)                     ! PPP term
 	integer(kind=i4),allocatable :: &
 	quantasmaL(:,:) , &           ! L space good quantum number (N and Sz)in M basis
 	quantasmaR(:,:) , &           ! R space good quantum number (N and Sz)in M basis
 	quantabigL(:,:) , &           ! L space good quantum number (N and Sz)in 4M basis
 	quantabigR(:,:)               ! R space good quantum number (N and Sz)in 4M basis
-	real(kind=r8) :: onesitemat(4,4,5)            ! one site matrix in 4*4 basis 
-	real(kind=r8),allocatable :: coeffIF(:,:,:)   ! coeffIF is the inital and final wavefunction coefficient 
 
 !============================================================
 
