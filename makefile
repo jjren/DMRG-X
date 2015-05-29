@@ -27,7 +27,7 @@ object = kinds_mod.o communicate.o exit_mod.o variables.o checkinfo.o \
 	   selectstates.o\
 	   excitedbasis.o \
 	    meanfield.o C2_copy.o\
-	  transmoment.o bondord.o analysis.o infinit_initmat.o main.o   \
+	  transmoment.o bondord.o analysis.o infinit_initmat.o count.o main.o   \
 	   # count.o fullmat.o  
 # object = kinds_mod.o communicate.o exit_mod.o variables.o ppp_term.o \
 #          loadbalance.o infinit_MPS.o onesitematix.o infinit_initmat.o

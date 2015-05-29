@@ -61,12 +61,6 @@ subroutine Hamiltonian(direction)
 		ortho=1.0D-9
 	end if
 
-	! test mode
-	crite=1.0D-10
-	critc=1.0D-10
-	critr=1.0D-10
-	ortho=1.0D-9
-
 	call Davidson_Wrapper(direction,lim,ilow,ihigh,iselec,niv,mblock,crite,critc,critr,ortho,maxiter)
 	
 	deallocate(iselec)

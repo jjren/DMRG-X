@@ -41,10 +41,10 @@ module module_sparse
 	integer(kind=i4),public :: bigdim1,smadim1,bigdim2,smadim2,Hbigdim,Hsmadim,coeffIFdim  ! in sparse form operamatbig/operamatsma,Hbig/Hsma dim
 	
 	! parameter
-	real(kind=r4),parameter,public :: pppmatratio=1.0,&
-	hopmatratio=1.0,LRoutratio=1.0,UVmatratio=1.0,coeffIFratio=1.0
+	real(kind=r4),parameter,public :: pppmatratio=30.0,&
+	hopmatratio=30.0,LRoutratio=30.0,UVmatratio=20.0,coeffIFratio=10.0
 	
-	real(kind=r4),parameter,public :: bigratio1=1.0,smaratio1=1.0,bigratio2=1.0,smaratio2=1.0,Hbigratio=1.0,Hsmaratio=1.0  ! sparse radio
+	real(kind=r4),parameter,public :: bigratio1=40.0,smaratio1=10.0,bigratio2=40.0,smaratio2=10.0,Hbigratio=15.0,Hsmaratio=8.0  ! sparse radio
 	logical,parameter,public :: sparseform=.true.
 
 	contains

@@ -50,6 +50,9 @@ program main
 	! do wave function analysis
 	call Analysis
 
+	! print the sparse info
+	call countnonzero
+
 	call MPI_BARRIER(MPI_COMM_WORLD,ierr)
 	endtime=MPI_WTIME()
 	call master_print_message(endtime-starttime,"RUMTIME:")
