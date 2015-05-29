@@ -18,6 +18,18 @@ subroutine Infinit_MPS
 	
 	call master_print_message("enter subroutine infinit_MPS")
 
+	! the exactsite refer to the space that L space or R space that can be accurately discribe
+	! (without sigmaL and sigmaR)
+	exactsite=1
+	do while(.true.)
+		if(4**exactsite<=subM) then
+			exactsite=exactsite+1
+		else
+			exactsite=exactsite-1
+			exit
+		end if
+	end do
+
 	! if mode==r and isweep/=0 means the infinit DMRG is finished
 	! isweep means the initial finit-MPS stage
 	if(mode=='r' .and. isweep/=0) then
@@ -117,7 +129,7 @@ subroutine Infinit_MPS
 			call System_Big('R')
 			call System_Constructquanta('R')
 		else
-		!	call C2_copy('i')
+			call C2_copy('i')
 		end if
 		call Store_Operator('R')
 !============================================================

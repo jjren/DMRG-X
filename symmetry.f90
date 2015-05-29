@@ -50,36 +50,34 @@ end subroutine CreatSymmlinkbig
 !===============================================================================
 !===============================================================================
 
-subroutine CreatSymmlinkgood
+subroutine CreatSymmlinkgood(igoodstate,leftindex,rightindex)
 	
 	use exit_mod
 	implicit none
 	
-	integer :: m,i,j
+	integer :: igoodstate,leftindex,rightindex
 	integer :: error
+	integer :: guessngoodstates
+	
+	! guess number of ngoodstates
+	guessngoodstates=16*subM*subM/5
 
-	allocate(symmlinkgood(ngoodstates,2),stat=error)
-	if(error/=0) stop
+	if(igoodstate>guessngoodstates) then
+		call master_print_message(igoodstate,"igoodstate>guessgoodstates")
+		stop
+	end if
+
+	if(.not. allocated(symmlinkgood)) then
+		allocate(symmlinkgood(guessngoodstates,2),stat=error)
+		if(error/=0) stop
+	end if
 	! in the good quantum number states space
 	! get the symmetry link information
 	! symmlinkgood(m,1) means the left space index in 4M basis
 	! symmlinkgood(m,2) means the right space index in 4M basis
 
-	m=0
-	do i=1,4*Rrealdim,1
-	do j=1,4*Lrealdim,1
-	if((quantabigL(j,1)+quantabigR(i,1)==nelecs) .and. &
-		quantabigL(j,2)+quantabigR(i,2)==totalSz) then
-		m=m+1
-		symmlinkgood(m,1)=j
-		symmlinkgood(m,2)=i
-		end if
-	end do
-	end do
-	if(m/=ngoodstates) then
-		call master_print_message(m,"symmlinkgood m/=ngoodstates")
-		call exit_DMRG(sigAbort,"symmlinkgood m/=ngoodstates")
-	end if
+	symmlinkgood(igoodstate,1)=leftindex
+	symmlinkgood(igoodstate,2)=rightindex
 return
 
 end subroutine CreatSymmlinkgood
@@ -788,7 +786,7 @@ return
 end subroutine SymmetrizeMatrix
 
 !====================================================================
-subroutine destorysymm
+subroutine destroysymm
 
 	implicit none
 	
@@ -797,7 +795,7 @@ subroutine destorysymm
 	deallocate(columnindex)
 	deallocate(symmlinkgood)
 return
-end subroutine destorysymm
+end subroutine destroysymm
 
 !====================================================================
 end module Symmetry

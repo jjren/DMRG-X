@@ -19,7 +19,8 @@ module module_sparse
 	operamatbig2(:,:) , &         ! sparse form 2 electron operamatbig
 	operamatsma2(:,:) , &         ! sparse form 2 electron operamatsma
 	Hbig(:,:)         , &         ! Hbig in sparse form
-	Hsma(:,:)                     ! Hsma in sparse form
+	Hsma(:,:)         , &         ! Hsma in sparse form
+	coeffIF(:,:)                  ! coeffIF is the inital and final wavefunction coefficient 
 	
 	integer(kind=i4),allocatable,public :: &
 	bigrowindex1(:,:) , &         ! 1 electron operamatbig rowindex
@@ -33,15 +34,17 @@ module module_sparse
 	Hbigcolindex(:,:) , &         ! Hbig colindex
 	Hbigrowindex(:,:) , &         ! Hbig rowindex
 	Hsmacolindex(:,:) , &         ! Hsma colindex
-	Hsmarowindex(:,:)             ! Hsma rowindex
+	Hsmarowindex(:,:) , &         ! Hsma rowindex
+	coeffIFcolindex(:,:) ,&       ! coeffIF colindex
+	coeffIFrowindex(:,:)          ! coeffIF rowindex
 
-	integer(kind=i4),public :: bigdim1,smadim1,bigdim2,smadim2,Hbigdim,Hsmadim  ! in sparse form operamatbig/operamatsma,Hbig/Hsma dim
+	integer(kind=i4),public :: bigdim1,smadim1,bigdim2,smadim2,Hbigdim,Hsmadim,coeffIFdim  ! in sparse form operamatbig/operamatsma,Hbig/Hsma dim
 	
 	! parameter
-	real(kind=r4),parameter,public :: pppmatratio=2.0,&
-	hopmatratio=2.0,LRoutratio=2.0,UVmatratio=2.0
+	real(kind=r4),parameter,public :: pppmatratio=1.0,&
+	hopmatratio=1.0,LRoutratio=1.0,UVmatratio=1.0,coeffIFratio=1.0
 	
-	real(kind=r4),parameter :: bigratio1=5.0,smaratio1=5.0,bigratio2=5.0,smaratio2=5.0,Hbigratio=5.0,Hsmaratio=5.0  ! sparse radio
+	real(kind=r4),parameter,public :: bigratio1=1.0,smaratio1=1.0,bigratio2=1.0,smaratio2=1.0,Hbigratio=1.0,Hsmaratio=1.0  ! sparse radio
 	logical,parameter,public :: sparseform=.true.
 
 	contains
@@ -67,6 +70,7 @@ subroutine AllocateArray(operanum1,operanum2)
 	smadim2=NINT(DBLE(subM*subM)/smaratio2,i4)
 	Hbigdim=NINT(DBLE(16*subM*subM)/Hbigratio,i4)
 	Hsmadim=NINT(DBLE(subM*subM)/Hsmaratio,i4)
+	coeffIFdim=NINT(DBLE(16*subM*subM)/coeffIFratio,i4)
 
 ! allocate memory 
 	if(myid/=0) then
@@ -83,25 +87,26 @@ subroutine AllocateArray(operanum1,operanum2)
 		if(error/=0) stop
 		allocate(smarowindex1(subM+1,3*operanum1(myid)),stat=error)
 		if(error/=0) stop
-
-		allocate(operamatbig2(bigdim2,2*operanum2(myid)),stat=error)
-		if(error/=0) stop
-		allocate(bigcolindex2(bigdim2,2*operanum2(myid)),stat=error)
-		if(error/=0) stop
-		allocate(bigrowindex2(4*subM+1,2*operanum2(myid)),stat=error)
-		if(error/=0) stop
-
-		allocate(operamatsma2(smadim2,2*operanum2(myid)),stat=error)
-		if(error/=0) stop
-		allocate(smacolindex2(smadim2,2*operanum2(myid)),stat=error)
-		if(error/=0) stop
-		allocate(smarowindex2(subM+1,2*operanum2(myid)),stat=error)
-		if(error/=0) stop
-		
 		bigrowindex1=1   ! set the matrix to be 0
 		smarowindex1=1
-		bigrowindex2=1
-		smarowindex2=1
+		
+		if(logic_bondorder==1) then
+			allocate(operamatbig2(bigdim2,2*operanum2(myid)),stat=error)
+			if(error/=0) stop
+			allocate(bigcolindex2(bigdim2,2*operanum2(myid)),stat=error)
+			if(error/=0) stop
+			allocate(bigrowindex2(4*subM+1,2*operanum2(myid)),stat=error)
+			if(error/=0) stop
+
+			allocate(operamatsma2(smadim2,2*operanum2(myid)),stat=error)
+			if(error/=0) stop
+			allocate(smacolindex2(smadim2,2*operanum2(myid)),stat=error)
+			if(error/=0) stop
+			allocate(smarowindex2(subM+1,2*operanum2(myid)),stat=error)
+			if(error/=0) stop
+			bigrowindex2=1
+			smarowindex2=1
+		end if
 	else
 	! 2 means the R space ;1 means the L space
 	
@@ -118,9 +123,17 @@ subroutine AllocateArray(operanum1,operanum2)
 		if(error/=0) stop
 		allocate(Hsmarowindex(subM+1,2),stat=error)
 		if(error/=0) stop
+
+		allocate(coeffIF(coeffIFdim,nstate),stat=error)
+		if(error/=0) stop
+		allocate(coeffIFcolindex(coeffIFdim,nstate),stat=error)
+		if(error/=0) stop
+		allocate(coeffIFrowindex(4*subM+1,nstate),stat=error)
+		if(error/=0) stop
 		
 		Hbigrowindex=1
 		Hsmarowindex=1
+		coeffIFrowindex=1
 	end if
 
 return

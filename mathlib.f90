@@ -86,10 +86,8 @@ subroutine SparseDirectProduct( ancols,anrows,amat,acolindex,arowindex,&
 		end do
 	end do
 
-!	write(*,*) "nonzero=",nonzero
-!	write(*,*) "maxnelement=",maxnelement
-
 	return
+
 end subroutine SparseDirectProduct
 
 !===============================================
@@ -244,10 +242,7 @@ subroutine spmatrotatebasis(Uncols,Unrows,Umat,Ucolindex,Urowindex,&
 		Umat,Ucolindex,Urowindex, &
 		Amat,Acolindex,Arowindex,maxnelement,info)
 
-	if(info==0) then
-	!	write(*,*) "maxnelement=",maxnelement
-	!	write(*,*) "Arowindex(Anrows+1)-1=",Arowindex(Anrows+1)-1
-	else
+	if(info/=0) then
 		write(*,*) "================================================="
 		write(*,*) "info/=0 spmatrotatebasis second step failed!",info
 		write(*,*) "================================================="
@@ -264,20 +259,26 @@ end subroutine spmatrotatebasis
 !=============================================
 !=============================================
 
-subroutine CSCtoCSR(operation,ncols,nrows,Amat,Acolindex,Arowindex,Arowindexnew)
+subroutine CSCtoCSR(operation,nleadaft,nleadbef,Amat,Acolindex,Arowindex,Arowindexnew)
 ! convert sparse matrix CSC format to CSR format; vice versa
 ! dcsrcsc only support square matrix
 ! CSCtoCSR have no such limitation
+! nleadaft is the CSR ncols; CSC nrows
+! nleadbef is the CSR nrows; CSS ncols
+! Arowindex is sum 
+! Acolindex is index
+! in fact CSC to CSR and CSR to CSC is the same ; They both are tranpose
+
 	implicit none
-	include 'mkl_spblas.fi'
+	include "mkl_spblas.fi"
 
 	character(len=2) :: operation
-	integer(kind=i4) :: ncols,nrows
+	integer(kind=i4) :: nleadaft,nleadbef
 	integer(kind=i4) :: &
-	Arowindex(nrows+1) , &
-	Arowindexnew(ncols+1) , &
-	Acolindex(Arowindex(nrows+1)-1)
-	real(kind=r8) :: Amat(Arowindex(nrows+1)-1)
+	Arowindex(nleadbef+1) , &
+	Arowindexnew(nleadaft+1) , &
+	Acolindex(Arowindex(nleadbef+1)-1)
+	real(kind=r8) :: Amat(Arowindex(nleadbef+1)-1)
 	! local
 	integer :: job(8),dim1,info
 	integer(kind=i4),allocatable :: Browindex(:),Crowindex(:),Ccolindex(:)
@@ -285,24 +286,24 @@ subroutine CSCtoCSR(operation,ncols,nrows,Amat,Acolindex,Arowindex,Arowindexnew)
 	integer :: error
 	integer :: i,j
 
-	if(ncols>nrows) then
-		dim1=ncols
+	if(nleadaft>nleadbef) then
+		dim1=nleadaft
 	else
-		dim1=nrows
+		dim1=nleadbef
 	end if
 
 	allocate(Browindex(dim1+1),stat=error)
 	if(error/=0) stop
 	allocate(Crowindex(dim1+1),stat=error)
 	if(error/=0) stop
-	allocate(Ccolindex(Arowindex(nrows+1)-1),stat=error)
+	allocate(Ccolindex(Arowindex(nleadbef+1)-1),stat=error)
 	if(error/=0) stop
-	allocate(Cmat(Arowindex(nrows+1)-1),stat=error)
+	allocate(Cmat(Arowindex(nleadbef+1)-1),stat=error)
 	if(error/=0) stop
 
-	Browindex(1:nrows+1)=Arowindex(1:nrows+1)
-	if(ncols>nrows) then
-		Browindex(nrows+2:dim1+1)=Arowindex(nrows+1)
+	Browindex(1:nleadbef+1)=Arowindex(1:nleadbef+1)
+	if(nleadaft>nleadbef) then
+		Browindex(nleadbef+2:dim1+1)=Arowindex(nleadbef+1)
 	end if
 
 	job(2)=1
@@ -322,24 +323,10 @@ subroutine CSCtoCSR(operation,ncols,nrows,Amat,Acolindex,Arowindex,Arowindexnew)
 		write(*,*) "========================================"
 		stop
 	end if
-	
-!	open(unit=11,file="test.tmp",status="replace")
-!	do i=1,nrows,1
-!		do j=Arowindex(i),Arowindex(i+1)-1,1
-!			write(11,*) Amat(j),Acolindex(j),i
-!		end do
-!	end do
-!	do i=1,ncols,1
-!		do j=Crowindex(i),Crowindex(i+1)-1,1
-!			write(11,*) Cmat(j),Ccolindex(j),i
-!		end do
-!	end do
-!	close(11)
 
-
-	Amat=Cmat
+	call copy(Cmat,Amat)
 	Acolindex=Ccolindex
-	Arowindexnew=Crowindex(1:ncols+1)
+	Arowindexnew=Crowindex(1:nleadaft+1)
 
 	deallocate(Browindex)
 	deallocate(Crowindex)
@@ -386,7 +373,8 @@ subroutine SpMatAdd(Ancols,Anrows,Amat,Amatcol,Amatrow,&
 		write(*,*) "=============================="
 		stop
 	end if
-	Amat=Cmat
+	
+	call copy(Cmat,Amat)
 	Amatcol=Cmatcol
 	Amatrow=Cmatrow
 
@@ -427,6 +415,222 @@ subroutine SpMatIJ(Anrows,irow,icol,Amat,Amatcol,Amatrow,output)
 	return
 
 end subroutine SpMatIJ
+
+!=============================================
+!=============================================
+
+subroutine SpMMtoDens(transA,transB,Anrows,Ancols,Bnrows,Bncols,Cnrows,Cncols ,&
+	Amat,Acolindex,Arowindex,Bmat,Bcolindex,Browindex,Cmat,ldc)
+! this subroutine do sparse matrix matrix product the output is a dense matrix
+	implicit none
+	include "mkl_spblas.fi"
+	character(len=1) :: transA,transB
+	integer(kind=i4) :: Anrows,Ancols,Bnrows,Bncols,Cnrows,Cncols,ldc
+	integer(kind=i4) :: Arowindex(Anrows+1),Browindex(Bnrows+1)
+	integer(kind=i4) :: Acolindex(Arowindex(Anrows+1)-1),Bcolindex(Browindex(Bnrows+1)-1)
+	real(kind=r8) :: Amat(Arowindex(Anrows+1)-1),Bmat(Browindex(Bnrows+1)-1),Cmat(Cnrows,Cncols)
+	
+	! local
+	integer(kind=i4),allocatable :: Bcolindexdummy(:),Browindexdummy(:),Ccolindexdummy(:),Crowindexdummy(:)
+	real(kind=r8),allocatable :: Bmatdummy(:),Cmatdummy
+	integer :: error
+
+
+!	if(transB=='T') then
+!		allocate(Bcolindexdummy(Browindex(Bnrows+1)-1),stat=error)
+!		if(error/=0) stop
+!		allocate(Bmatdummy(Browindex(Bnrows+1)-1),stat=error)
+!		if(error/=0) stop
+!		allocate(Browindexdummy(Bncols+1),stat=error)
+!		if(error/=0) stop
+!		Bmatdummy=Bmat
+!		Bcolindexdummy=Bcolindex
+!
+!		call CSCtoCSR('RC',Bncols,Bnrows,Bmatdummy,Bcolindexdummy,Browindex,Browindexdummy)
+!		call mkl_dcsrmultcsr('N',0,8,,4*Lrealdim,4*Rrealdim, &
+!				Amat,Acolindex,Arowindex,&
+!				Bmatdummy,Bcolindexdummy,Browindexdummy,&
+!				buffmat,buffmatcol,buffmatrow,LRoutnelement,info)
+!	!	call mkl_dcsrmultd(transA,Anrows,Ancols,Bnrows,Amat,Acolindex,Arowindex,Bmatdummy,Bcolindexdummy,Browindexdummy,Cmat,ldc)
+!		deallocate(Browindexdummy,Bcolindexdummy,Bmatdummy)
+!	else
+!	
+!	!	call mkl_dcsrmultd(transA,Anrows,Ancols,Bncols,Amat,Acolindex,Arowindex,Bmatdummy,Bcolindexdummy,Browindexdummy,Cmat,ldc)
+!	end if
+
+return
+
+end subroutine SpMMtoDens
+
+!=============================================
+!=============================================
+
+subroutine SpMMtoSp(transA,transB,Anrows,Ancols,Bnrows,Bncols,Cnrows,&
+	Amat,Acolindex,Arowindex,Bmat,Bcolindex,Browindex,Cmat,Ccolindex,Crowindex,maxnelement)
+! this subroutine do sparse matrix matrix product the output is a sparse matrix
+	implicit none
+	include "mkl_spblas.fi"
+
+	character(len=1) :: transA,transB
+	integer(kind=i4) :: Anrows,Ancols,Bnrows,Bncols,maxnelement,Cnrows
+	integer(kind=i4) :: Arowindex(Anrows+1),Browindex(Bnrows+1),Crowindex(Cnrows+1)
+	integer(kind=i4) :: Acolindex(Arowindex(Anrows+1)-1),Bcolindex(Browindex(Bnrows+1)-1),Ccolindex(maxnelement)
+	real(kind=r8) :: Amat(Arowindex(Anrows+1)-1),Bmat(Browindex(Bnrows+1)-1),Cmat(maxnelement)
+	
+	! local
+	integer(kind=i4),allocatable :: Bcolindexdummy(:),Browindexdummy(:)
+	real(kind=r8),allocatable :: Bmatdummy(:)
+	integer :: error,info
+
+	if(transB=='T') then
+		allocate(Bcolindexdummy(Browindex(Bnrows+1)-1),stat=error)
+		if(error/=0) stop
+		allocate(Bmatdummy(Browindex(Bnrows+1)-1),stat=error)
+		if(error/=0) stop
+		allocate(Browindexdummy(Bncols+1),stat=error)
+		if(error/=0) stop
+
+		! copy the Bmat to another work array
+		call copy(Bmat,Bmatdummy)
+		Bcolindexdummy=Bcolindex
+
+		call CSCtoCSR('RC',Bncols,Bnrows,Bmatdummy,Bcolindexdummy,Browindex,Browindexdummy)
+		call mkl_dcsrmultcsr(transA,0,8,Anrows,Ancols,Bnrows, &
+				Amat,Acolindex,Arowindex,&
+				Bmatdummy,Bcolindexdummy,Browindexdummy,&
+				Cmat,Ccolindex,Crowindex,maxnelement,info)
+		if(info/=0) then
+			write(*,*) "===================="
+			write(*,*) "SpMMtoSp 1st failed!"
+			write(*,*) "===================="
+			stop
+		end if
+		deallocate(Browindexdummy,Bcolindexdummy,Bmatdummy)
+	else
+		call mkl_dcsrmultcsr(transA,0,8,Anrows,Ancols,Bncols, &
+				Amat,Acolindex,Arowindex,&
+				Bmat,Bcolindex,Browindex,&
+				Cmat,Ccolindex,Crowindex,maxnelement,info)
+		if(info/=0) then
+			write(*,*) "===================="
+			write(*,*) "SpMMtoSp 1st failed!"
+			write(*,*) "===================="
+			stop
+		end if
+	end if
+
+return
+
+end subroutine SpMMtoSp
+
+!=============================================
+!=============================================
+
+subroutine SpMMtoSptodens(transA,transB,Anrows,Ancols,Bnrows,Bncols,Cnrows,Cncols,&
+	Amat,Acolindex,Arowindex,Bmat,Bcolindex,Browindex,Cmat)
+	implicit none
+	include "mkl_spblas.fi"
+	character(len=1) :: transA,transB
+	integer(kind=i4) :: Anrows,Ancols,Bnrows,Bncols,Cnrows,Cncols
+	integer(kind=i4) :: Arowindex(Anrows+1),Browindex(Bnrows+1)
+	integer(kind=i4) :: Acolindex(Arowindex(Anrows+1)-1),Bcolindex(Browindex(Bnrows+1)-1)
+	real(kind=r8) :: Amat(Arowindex(Anrows+1)-1),Bmat(Browindex(Bnrows+1)-1),Cmat(Cnrows,Cncols)
+	
+	! local
+	integer(kind=i4),allocatable :: Ccolindexdummy(:),Crowindexdummy(:)
+	real(kind=r8),allocatable :: Cmatdummy(:)
+	integer :: maxnelement,job(8)
+	integer :: error,info
+	
+	maxnelement=Cnrows*Cncols
+
+	allocate(Cmatdummy(maxnelement),stat=error)
+	if(error/=0) stop
+	allocate(Ccolindexdummy(maxnelement),stat=error)
+	if(error/=0) stop
+	allocate(Crowindexdummy(Cnrows+1),stat=error)
+	if(error/=0) stop
+	
+	! C is in CSR format
+	call SpMMtoSp(transA,transB,Anrows,Ancols,Bnrows,Bncols,Cnrows,&
+	Amat,Acolindex,Arowindex,Bmat,Bcolindex,Browindex,cmatdummy,ccolindexdummy,crowindexdummy,maxnelement)
+
+	! transfer C to the dense format
+	job(1)=1
+	job(2)=1
+	job(3)=1
+	job(4)=2
+	job(5)=0
+	job(6)=1
+	call mkl_ddnscsr(job,Cnrows,Cncols,Cmat,Cnrows,cmatdummy,ccolindexdummy,crowindexdummy,info)
+	if(info/=0) then
+		write(*,*) "======================"
+		write(*,*) "SpMMtoSptodens failed!"
+		write(*,*) "======================"
+		stop
+	end if
+
+	deallocate(Cmatdummy,Ccolindexdummy,Crowindexdummy)
+return
+
+end subroutine SpMMtoSptodens
+
+!=============================================
+!=============================================
+
+subroutine SpMMtrace(trans,dim1,Amat,Acolindex,Arowindex,Bmat,Bcolindex,Browindex,output)
+! this subroutine do square Matrix Matrix Product trace in CSR format
+! if trans=='T' then Bmat need not transpose
+! if trans=='N' then Bmat need tranpose
+	implicit none
+	
+	character(len=1) trans
+	integer :: dim1
+	integer(kind=i4) :: Arowindex(dim1+1),Browindex(dim1+1)
+	integer(kind=i4) :: Acolindex(Arowindex(dim1+1)-1),Bcolindex(Browindex(dim1+1)-1)
+	real(kind=r8) :: Amat(Arowindex(dim1+1)-1),Bmat(Browindex(dim1+1)-1)
+	real(kind=r8) :: output
+
+	! local
+	integer(kind=i4),allocatable :: Bcolindexdummy(:),Browindexdummy(:)
+	real(kind=r8),allocatable :: Bmatdummy(:)
+	integer :: error,i,j,k
+
+	allocate(Browindexdummy(dim1+1),stat=error)
+	if(error/=0) stop
+	allocate(Bcolindexdummy(Browindex(dim1+1)-1),stat=error)
+	if(error/=0) stop
+	allocate(Bmatdummy(Browindex(dim1+1)-1),stat=error)
+	if(error/=0) stop
+	
+	! copy the Bmat to another workarray
+	Bcolindexdummy=Bcolindex
+	call copy(Bmat,Bmatdummy)
+
+	if(trans=='T') then
+		Browindexdummy=Browindex
+	else if(trans=='N') then
+		call CSCtoCSR('RC',dim1,dim1,Bmatdummy,Bcolindexdummy,Browindex,Browindexdummy)
+	end if
+
+	output=0.0D0
+	do i=1,dim1,1
+		do j=Arowindex(i),Arowindex(i+1)-1,1
+			do k=Browindexdummy(i),Browindexdummy(i+1)-1,1
+				if(Bcolindexdummy(k)==Acolindex(j)) then
+					output=output+Bmatdummy(k)*Amat(j)
+					exit
+				else if(Bcolindexdummy(k)>Acolindex(j)) then
+					exit
+				end if
+			end do
+		end do
+	end do
+	
+	deallocate(Bmatdummy,Bcolindexdummy,Browindexdummy)
+return
+
+end subroutine SpMMtrace
 
 !=============================================
 !=============================================

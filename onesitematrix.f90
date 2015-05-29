@@ -7,9 +7,11 @@ Module OnesiteMatrix
 	use kinds_mod
 
 	implicit none
+	
+	integer,parameter :: noperators=8
 
-	real(kind=r8) :: onesitemat(4,6)            ! one site matrix in 4*4 basis 
-	integer(kind=i4) :: osmrowindex(5,6),osmcolindex(4,6)
+	real(kind=r8) :: onesitemat(4,noperators)            ! one site matrix in 4*4 basis 
+	integer(kind=i4) :: osmrowindex(5,noperators),osmcolindex(4,noperators)
 	! onesitemat(:,:,x)
 	! x=1 means a(+)up
 	! x=2 means a(+)down
@@ -17,6 +19,8 @@ Module OnesiteMatrix
 	! x=4 means a up
 	! x=5 means a down
 	! x=6 means small Hamiltonian
+	! x=7 means niup operator  ; only used in bond order calculation
+	! x=8 means nidown operator  ; only used in bond order calculation
 
 	contains
 !====================================================
@@ -105,6 +109,27 @@ subroutine ConstructOnesiteMatrix(orbindex)
 	osmrowindex(4,6)=3
 	osmrowindex(5,6)=4
 
+	! x=7 means niup operator  ; only used in bond order calculation
+	onesitemat(1,7)=1.0D0
+	onesitemat(2,7)=1.0D0
+	osmcolindex(1,7)=2
+	osmcolindex(2,7)=4
+	osmrowindex(1,7)=1
+	osmrowindex(2,7)=1
+	osmrowindex(3,7)=2
+	osmrowindex(4,7)=2
+	osmrowindex(5,7)=3
+
+	! x=8 means niup operator  ; only used in bond order calculation
+	onesitemat(1,8)=1.0D0
+	onesitemat(2,8)=1.0D0
+	osmcolindex(1,8)=3
+	osmcolindex(2,8)=4
+	osmrowindex(1,8)=1
+	osmrowindex(2,8)=1
+	osmrowindex(3,8)=1
+	osmrowindex(4,8)=2
+	osmrowindex(5,8)=3
 return
 
 end subroutine ConstructOnesiteMatrix

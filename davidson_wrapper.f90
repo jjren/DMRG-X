@@ -9,6 +9,7 @@ Subroutine Davidson_Wrapper(direction,lim,ilow,ihigh,iselec,niv,mblock,&
 	USE InitialGuess
 	USE symmetry
 	use communicate
+	use module_sparse
 
 	implicit none
 
@@ -44,6 +45,11 @@ Subroutine Davidson_Wrapper(direction,lim,ilow,ihigh,iselec,niv,mblock,&
 		if((quantabigL(j,1)+quantabigR(i,1)==nelecs) .and. &
 		quantabigL(j,2)+quantabigR(i,2)==totalSz) then
 			ngoodstates=ngoodstates+1
+			! construct the symmlinkgood 
+			if((logic_spinreversal/=0 .or. &
+				(logic_C2/=0 .and. nleft==nright))) then
+				call CreatSymmlinkgood(ngoodstates,j,i)
+			end if
 		end if
 	end do
 	end do
@@ -51,8 +57,6 @@ Subroutine Davidson_Wrapper(direction,lim,ilow,ihigh,iselec,niv,mblock,&
 	
 	if((logic_spinreversal/=0 .or. &
 		(logic_C2/=0 .and. nleft==nright))) then
-		! construct the symmlinkgood 
-		call CreatSymmlinkgood
 		! construct the symmetry matrix S in sparse format
 		call SymmetryMat
 		dimN=nsymmstate
@@ -123,39 +127,41 @@ Subroutine Davidson_Wrapper(direction,lim,ilow,ihigh,iselec,niv,mblock,&
 		end if
 		
 		! transfer the symmetry state to the non-symmetry state S*fai
-		allocate(nosymmout(ngoodstates*niv),stat=error)
+		allocate(nosymmout(ngoodstates*nstate),stat=error)
 		if(error/=0) stop
 
 		if(logic_spinreversal/=0 .or. (logic_C2/=0 .and. nleft==nright)) then
-			do i=1,niv
+			do i=1,nstate,1
 				call SymmetrizeState(ngoodstates,&
 					nosymmout((i-1)*ngoodstates+1:i*ngoodstates),Davidwork((i-1)*nsymmstate+1:i*nsymmstate),'u')
 			end do
 		else
-			nosymmout=DavidWORK(1:ngoodstates*niv)
+			nosymmout=DavidWORK(1:ngoodstates*nstate)
 		end if
 		!  no need do GramSchmit; the result fullfill orthnormal
 		!  call GramSchmit(niv,ngoodstates,nosymmout,norm)
 		!  write(*,*) "davidson nosymmout norm=",norm
 		 
-		coeffIF=0.0D0
-! the DavidWORK only contains the ngoodstates coeff other nongoodstates should be set to 0
-		m=1
+		! transfer the nosymmout to coeffIF
 		do k=1,IHIGH,1
-		do i=1,4*Rrealdim,1
-		do j=1,4*Lrealdim,1
-			if((quantabigL(j,1)+quantabigR(i,1)==nelecs) .and. &
-				quantabigL(j,2)+quantabigR(i,2)==totalSz) then
-				coeffIF(j,i,k)=nosymmout(m)
-				m=m+1
-			end if
+			call coefftosparse(4*Lrealdim,4*Rrealdim,&
+				coeffIFdim,coeffIF(:,k),coeffIFcolindex(:,k),coeffIFrowindex(:,k),&
+				ngoodstates,nosymmout((k-1)*ngoodstates+1:k*ngoodstates))
+			coeffIFrowindex(4*Lrealdim+1:4*subM+1,k)=coeffIFrowindex(4*Lrealdim+1,k)
 		end do
-		end do
-		end do
-! write the coeffIF
-		reclength=nstate*32*subM*subM
+
+		! write the coeffIF
+		reclength=nstate*coeffIFdim*2
 		open(unit=109,file="coeffIF.tmp",access="Direct",form="unformatted",recl=reclength,status="replace")
 		write(109,rec=1) coeffIF
+		close(109)
+		reclength=nstate*coeffIFdim
+		open(unit=109,file="coeffIFcol.tmp",access="Direct",form="unformatted",recl=reclength,status="replace")
+		write(109,rec=1) coeffIFcolindex
+		close(109)
+		reclength=(4*subM+1)*nstate
+		open(unit=109,file="coeffIFrow.tmp",access="Direct",form="unformatted",recl=reclength,status="replace")
+		write(109,rec=1) coeffIFrowindex
 		close(109)
 
 !=================================================================================
@@ -193,7 +199,7 @@ Subroutine Davidson_Wrapper(direction,lim,ilow,ihigh,iselec,niv,mblock,&
 
 ! deallocate symmetry workarray
 	if(logic_spinreversal/=0 .or. (logic_C2/=0 .and. nleft==nright)) then
-		call DestorySymm
+		call DestroySymm
 	end if
 
 return

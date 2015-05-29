@@ -44,7 +44,7 @@ subroutine Sweep(direction)
 	end if
 	
 	if(nleft==nright .and. logic_C2/=0) then
-	!	call C2_Copy(direction)
+		call C2_Copy(direction)
 	else
 		call Enviro_Big(envirodomain)
 	end if

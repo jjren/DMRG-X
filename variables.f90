@@ -40,6 +40,8 @@ module variables
 	logic_C2                ! if use C2 like symmetry :: +1 A ;-1 B ; 0 none
 	integer(kind=i4),allocatable :: treelink(:,:)  ! treelink information
 
+	integer(kind=i4),parameter :: &
+	logic_bondorder=1         ! if calculate bond order
 !=========================================================
 	
 	! loadbalance part
@@ -75,7 +77,6 @@ module variables
 	quantasmaR(:,:) , &           ! R space good quantum number (N and Sz)in M basis
 	quantabigL(:,:) , &           ! L space good quantum number (N and Sz)in 4M basis
 	quantabigR(:,:)               ! R space good quantum number (N and Sz)in 4M basis
-	real(kind=r8),allocatable :: coeffIF(:,:,:)   ! coeffIF is the inital and final wavefunction coefficient 
 
 
 !============================================================

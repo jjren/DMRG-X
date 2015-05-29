@@ -6,6 +6,7 @@ Subroutine Infinit_InitMat(domain)
 	use exit_mod
 	use module_sparse
 	use onesitematrix
+	use BondOrder_mod
 
 	implicit none
 	
@@ -63,7 +64,7 @@ Subroutine Infinit_InitMat(domain)
 		operamatsma1(1:4,3*operaindex-2:3*operaindex)=onesitemat(:,1:3)
 		smarowindex1(1:5,3*operaindex-2:3*operaindex)=osmrowindex(:,1:3)
 		smacolindex1(1:4,3*operaindex-2:3*operaindex)=osmcolindex(:,1:3)
-
+		
 	else if(myid==0) then
 		! set the matrix be 0
 		Hsmarowindex(:,Hindex)=1
@@ -79,6 +80,11 @@ Subroutine Infinit_InitMat(domain)
 			symmlinksma(3,1,Hindex)=2
 			symmlinksma(4,1,Hindex)=-4
 		end if
+	end if
+	
+	! bond order onsite matrix
+	if(logic_bondorder==1) then
+		call init_BOmat(orbindex)
 	end if
 
 return

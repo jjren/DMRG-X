@@ -20,7 +20,8 @@ Module MeanField
 		energyE(:)    , &         ! orbital energy
 		densD(:,:)    , &         ! the densD without *2, bond order matrix needs*2
 		densDold(:,:) , &         ! Dij=sum(i,1->occ) C(i,miu) cross c(j,miu)*  ! read LiJun's pdf
-		workarray(:,:)            
+		workarray(:,:)    
+	integer :: nocc
 	contains
 
 !=============================================================
@@ -33,7 +34,7 @@ subroutine SCFMain
 	use F95_precision
 	implicit none
 	
-	integer :: guessmode,scfmaxiter,nocc
+	integer :: guessmode,scfmaxiter
 	real(kind=r8) :: norm,threshold,HFenergy,nuclrepulsion
 	logical :: ifconverged
 	integer :: i,j,k
@@ -143,6 +144,7 @@ subroutine SCFMain
 	call master_print_message(nuclrepulsion,"nuclrepulsion=")
 	call master_print_message(HFenergy,"HFenergy=")
 
+	call Mean_BondOrd
 	
 	deallocate(oneelecH)
 	deallocate(twoelecG)
@@ -275,6 +277,34 @@ subroutine Motra
 return
 
 end subroutine Motra
+
+!=============================================================
+!=============================================================
+
+subroutine Mean_BondOrd
+! this subroutine calculate the mean field bond order matrix
+	
+	use blas95
+	use f95_precision
+	implicit none
+
+	real(kind=r8) :: mean_bomat(norbs,norbs)
+	integer :: i,j
+
+	open(unit=1002,file="mean_bomat.tmp",status="replace")
+	do i=1,norbs,1
+	do j=i,norbs,1
+		if(bondlink(i,j)/=0) then
+			mean_bomat(i,j)=dot(coeffC(i,1:nocc),coeffC(j,1:nocc))
+			mean_bomat(i,j)=mean_bomat(i,j)*2.0D0    ! up down spin
+			! i/=j should *2 ai^+*aj+aj^+*ai
+			write(1002,*) i,j,mean_bomat(i,j)
+		end if
+	end do
+	end do
+	close(1002)
+return
+end subroutine Mean_BondOrd
 
 !=============================================================
 !=============================================================

@@ -47,7 +47,7 @@ Subroutine LoadBalance
 	do i=1,(norbs+1)/2,1
 	do j=i,(norbs+1)/2,1
 		if(bondlink(i,j)/=0) then
-			orbid2(i,j,1)=orbid1(i,1)
+			orbid2(i,j,1)=orbid1(i,1)  ! be careful it is i here
 			orbid2(j,i,1)=orbid1(i,1)
 			operanum2(orbid1(i,1))=operanum2(orbid1(i,1))+1
 			orbid2(i,j,2)=operanum2(orbid1(i,1))
@@ -59,7 +59,7 @@ Subroutine LoadBalance
 	do i=(norbs+1)/2+1,norbs,1
 	do j=i,norbs,1
 		if(bondlink(i,j)/=0) then
-			orbid2(i,j,1)=orbid1(j,1)
+			orbid2(i,j,1)=orbid1(j,1)   ! be careful it is j here
 			orbid2(j,i,1)=orbid1(j,1)
 			operanum2(orbid1(j,1))=operanum2(orbid1(j,1))+1
 			orbid2(i,j,2)=operanum2(orbid1(j,1))
@@ -73,7 +73,7 @@ Subroutine LoadBalance
 		write(*,*) "orbid1=",orbid1(:,1)
 		write(*,*) "index on every process",orbid1(:,2)
 		write(*,*) "bond order operator distribute"
-	!	write(*,*) "orbid2=",orbid2(:,:,2)
+		write(*,*) "orbid2=",orbid2(:,:,2)
 	end if
 
 !============================================================================
@@ -82,8 +82,6 @@ Subroutine LoadBalance
 	call AllocateArray(operanum1,operanum2)
 
 	if(myid==0) then
-		allocate(coeffIF(4*subM,4*subM,nstate),stat=error)
-		if(error/=0) stop
 		if(logic_spinreversal/=0) then
 			allocate(symmlinksma(subM,1,2),stat=error)
 			if(error/=0) stop

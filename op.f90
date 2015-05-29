@@ -21,8 +21,6 @@ subroutine op(bigdim,smadim,coeff,newcoeff)
 	use symmetry
 	use mathlib
 	use module_sparse
-	use BLAS95
-	use F95_PRECISION
 
 	implicit none
 	include "mkl_spblas.fi"
@@ -35,16 +33,12 @@ subroutine op(bigdim,smadim,coeff,newcoeff)
 	
 	real(kind=r8),allocatable :: LRcoeffin(:,:),LRcoeffout(:,:),coeffnosymm(:),coeffnosymmreduce(:)
 	integer(kind=i4),allocatable :: LRcoeffincol(:,:),LRcoeffinrow(:,:),&
-	LRcoeffoutcol(:,:),LRcoeffoutrow(:,:),&
-	LRcoeffinrowdummy(:,:)
+	LRcoeffoutcol(:,:),LRcoeffoutrow(:,:)
 	
 	real(kind=r8),allocatable :: hopmat(:,:,:),pppVmat(:,:),buffmat(:)
 	integer(kind=i4),allocatable :: &
 	hopmatcol(:,:,:),pppVmatcol(:,:),buffmatcol(:),&
 	hopmatrow(:,:,:),pppVmatrow(:,:),buffmatrow(:)
-
-	real(kind=r8),allocatable :: operamatbuf(:)
-	integer(kind=i4),allocatable :: operamatbufcol(:),operamatbufrow(:)
 
 	integer(kind=i4) :: pppnelement,hopnelement,LRoutnelement
 
@@ -207,37 +201,13 @@ subroutine op(bigdim,smadim,coeff,newcoeff)
 
 ! R space process do it
 ! to transform the 16M*M coeff to 4M*4M(L*R) format ; coeff(16M^2,n) to coeff(4M,4M,n) 
-! since the input coeff is ngoodstates and other nongoodstates sets to 0
 	if(allocated(LRcoeffin)) then
-		! CSR format and fortran's column major format not corresponds
-		allocate(LRcoeffinrowdummy(4*Rrealdim+1,smadim),stat=error)
-		if(error/=0) stop
-		LRcoeffinrowdummy(1,:)=1
-
-		! in the CSC form
-		n=0
+		! transfer the coeffnosymm to matrix form
 		do k=1,smadim,1
-			m=0
-			do i=1,4*Rrealdim,1
-			do j=1,4*Lrealdim,1
-				if((quantabigL(j,1)+quantabigR(i,1)==nelecs) .and. &
-					quantabigL(j,2)+quantabigR(i,2)==totalSz) then
-					m=m+1
-					LRcoeffin(m,k)=coeffnosymm(m+n)
-					LRcoeffincol(m,k)=j
-				end if
-			end do
-			LRcoeffinrowdummy(i+1,k)=m+1
-			end do
-			n=m+n
+			call coefftosparse(4*Lrealdim,4*Rrealdim,ngoodstates,&
+				LRcoeffin(:,k),LRcoeffincol(:,k),LRcoeffinrow(:,k),&
+				ngoodstates,coeffnosymm((k-1)*ngoodstates+1:k*ngoodstates))
 		end do
-
-		! CSC transfer to CSR form
-		do k=1,smadim,1
-			call CSCtoCSR('CR',4*Lrealdim,4*Rrealdim,LRcoeffin(:,k),LRcoeffincol(:,k),LRcoeffinrowdummy(:,k),LRcoeffinrow(:,k))
-		end do
-
-		deallocate(LRcoeffinrowdummy)
 	end if
 
 ! L space process and 0 process initializaiton
@@ -330,13 +300,7 @@ subroutine op(bigdim,smadim,coeff,newcoeff)
 			end do
 			
 			if(ifhop==.true.) then
-				allocate(operamatbuf(bigdim1),stat=error)
-				if(error/=0) stop
-				allocate(operamatbufcol(bigdim1),stat=error)
-				if(error/=0) stop
-				allocate(operamatbufrow(4*Rrealdim+1),stat=error)
-				if(error/=0) stop
-
+				
 				! construct hopmat
 				do j=1,smadim,1
 					do k=1,4,1
@@ -349,24 +313,14 @@ subroutine op(bigdim,smadim,coeff,newcoeff)
 									hopmat(:,k,j),hopmatcol(:,k,j),hopmatrow(:,k,j),hopnelement,info)
 							call checkinfo(info)
 						else
-							!call gemm(LRcoeffin(:,:,j),operamatbig(1:4*Rrealdim,1:4*Rrealdim,(operaindex-1)*3+k-2)&
-							!,hopmat(:,:,k,j),'N','T',1.0D0,0.0D0)
-							operamatbuf=operamatbig1(:,operaindex*3-5+k)
-							operamatbufcol=bigcolindex1(:,operaindex*3-5+k)
-							! CSR to CSC need transfer N to T ; the operamatbig here needs T
-							call CSCtoCSR('RC',4*Rrealdim,4*Rrealdim, &
-							operamatbuf,operamatbufcol,bigrowindex1(:,operaindex*3-5+k),operamatbufrow)
-
-							call mkl_dcsrmultcsr('N',0,8,4*Lrealdim,4*Rrealdim,4*Rrealdim, &
+							call  SpMMtoSp('N','T',4*Lrealdim,4*Rrealdim,4*Rrealdim,4*Rrealdim,4*Lrealdim,&
 									LRcoeffin(:,j),LRcoeffincol(:,j),LRcoeffinrow(:,j), &
-									operamatbuf,operamatbufcol,operamatbufrow, &
-									hopmat(:,k,j),hopmatcol(:,k,j),hopmatrow(:,k,j),hopnelement,info)
-							call checkinfo(info)
+									operamatbig1(:,operaindex*3-5+k),bigcolindex1(:,operaindex*3-5+k),bigrowindex1(:,operaindex*3-5+k), &
+									hopmat(:,k,j),hopmatcol(:,k,j),hopmatrow(:,k,j),hopnelement)
 						end if
 					end do
 				end do
 
-				deallocate(operamatbuf,operamatbufcol,operamatbufrow)
 			!---------------------------------------------------------
 				! the +1 -1 phase added to l' of hopmat
 				allocate(phase(4*Lrealdim),stat=error)
@@ -581,7 +535,7 @@ subroutine op(bigdim,smadim,coeff,newcoeff)
 					newcoeff(bigdim*(i-1)+1:i*bigdim),'s')
 			end do
 		else
-			newcoeff=coeffnosymmreduce
+			call copy(coeffnosymmreduce,newcoeff)
 		end if
 	end if
 

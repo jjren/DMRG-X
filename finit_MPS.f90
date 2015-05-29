@@ -14,18 +14,6 @@ Subroutine Finit_MPS
 
 	call master_print_message("enter in subroutine finit_MPS")
 
-! the exactsite refer to the space that L space or R space that can be accurately discribe
-! (without sigmaL and sigmaR)
-	exactsite=1
-	do while(.true.)
-		if(4**exactsite<=subM) then
-			exactsite=exactsite+1
-		else
-			exactsite=exactsite-1
-			exit
-		end if
-	end do
-
 ! ibegin is the initial L space index(without sigmaL)
 	if(mod(norbs,2)==0) then
 		ibegin=norbs/2

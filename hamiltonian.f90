@@ -34,7 +34,7 @@ subroutine Hamiltonian(direction)
 	lim=nstate+20    ! this number 20 can be changed consider the efficiency
 	niv=nstate
 	mblock=nstate
-	maxiter=200
+	maxiter=400
 	allocate(iselec(lim),stat=error)
 	if(error/=0) stop
 	iselec=-1
@@ -60,6 +60,12 @@ subroutine Hamiltonian(direction)
 		critr=1.0D-10
 		ortho=1.0D-9
 	end if
+
+	! test mode
+	crite=1.0D-10
+	critc=1.0D-10
+	critr=1.0D-10
+	ortho=1.0D-9
 
 	call Davidson_Wrapper(direction,lim,ilow,ihigh,iselec,niv,mblock,crite,critc,critr,ortho,maxiter)
 	

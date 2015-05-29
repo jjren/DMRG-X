@@ -7,6 +7,8 @@ subroutine splitsvdL(singularvalue,leftu,statebegin,stateend,indexlp1)
 	USE blas95
 	use lapack95
 	USE F95_PRECISION
+	use mathlib
+	use module_sparse
 
 	implicit none
 
@@ -25,6 +27,7 @@ subroutine splitsvdL(singularvalue,leftu,statebegin,stateend,indexlp1)
 	logical :: done
 	integer,allocatable :: subspacenum(:)
 	real(kind=8) :: sum1
+	integer :: ldc
 ! szl0 means the number of sz>0 states
 ! szzero means the number of sz=0 state
 
@@ -41,13 +44,15 @@ subroutine splitsvdL(singularvalue,leftu,statebegin,stateend,indexlp1)
 	coeffbuffer=0.0D0
 	coeffresult=0.0D0
 
-!	write(*,*) "coeffIF"
-!	write(*,*) coeffIF(1:4*Lrealdim,1:4*Rrealdim,:)
 
 ! the L+sigmaL space reduced density matrix
 	do i=statebegin,stateend,1
-		call gemm(coeffIF(1:4*Lrealdim,1:4*Rrealdim,i),coeffIF(1:4*Lrealdim,1:4*Rrealdim,i),&
-		coeffbuffer(1:4*Lrealdim,1:4*Lrealdim),'N','T',1.0D0,0.0D0)
+		ldc=4*subM
+		call SpMMtoDens('N','T',4*Lrealdim,4*Rrealdim,4*Lrealdim,4*Rrealdim,4*subM,4*subM,&
+		coeffIF(:,i),coeffIFcolindex(:,i),coeffIFrowindex(:,i),&
+		coeffIF(:,i),coeffIFcolindex(:,i),coeffIFrowindex(:,i),&
+		coeffbuffer,ldc)
+		
 		if(exscheme==1) then
 			coeffwork=coeffwork+coeffbuffer*nweight(i)
 		else

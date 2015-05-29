@@ -1,33 +1,41 @@
-MKLROOT=/export/home/jjren/apps/intel/mkl
+MKLROOT=/opt/intel/mkl
 MKLLIB=$(MKLROOT)/lib/intel64
 mklinc=$(MKLROOT)/include/intel64/lp64 
 mklinc1=$(MKLROOT)/include
 
 FCCFLAG= -lmkl_blas95_lp64 -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core -lmkl_lapack95_lp64 -liomp5 -lpthread -lm
 
-FC=mpiifort
+FC=mpif90
+FCCOMPILEOPTS= -g -debug
 
-DMRG-X:$(object) 
-	$(FC) -o DMRG-X $(object) -I$(mklinc) -I$(mklinc1)-L$(MKLLIB) $(FCCFLAG)
-#op.o: 
-#	$(FC) -c -g op.f90 -I$(mklinc) -L$(MKLLIB) $(FCCFLAG)
-#Renormalization.o: 
-#	$(FC) -c -g Renormalization.f90 -I$(mklinc) -L$(MKLLIB) $(FCCFLAG)
-#InitialGuess.o: 
-#	$(FC) -c -g InitialGuess.f90 -I$(mklinc) -L$(MKLLIB) $(FCCFLAG)
-fullmat.o: 
-	$(FC) -c -g fullmat.f90 -I$(mklinc) -L$(MKLLIB) $(FCCFLAG)
-#splitsvdL.o: 
-#	$(FC) -c -g splitsvdL.f90 -I$(mklinc) -L$(MKLLIB) $(FCCFLAG)
-#splitsvdR.o: 
-#	$(FC) -c -g splitsvdR.f90 -I$(mklinc) -L$(MKLLIB) $(FCCFLAG)
-davidson.o: 
-	$(FC) -c -g davidson.f -I$(mklinc) -I$(mklinc1) -L$(MKLLIB) $(FCCFLAG)
+.SUFFIXES: .f90 .f
 
-object = contructquanta.o davidson.o davidson_wrapper.o GetHDiag.o \
-	   hamiltonian.o infinit_MPS.o infinit_smallL.o infinit_smallR.o \
-	   InitialGuess.o loadbalance.o main.o \
-	   mathlib.o onesitematrix.o op.o PPP_term.o readinput.o Renormalization.o \
-	    store_operator.o system_bigL.o system_bigR.o variables.o \
-	   enviro_bigL.o enviro_bigR.o finit_MPS.o fromleftsweep.o \
-	   fromrightsweep.o splitsvdL.o splitsvdR.o fullmat.o\
+%.o : %.f90
+	$(FC) -c $(FCCOMPILEOPTS) -I/$(mklinc) -I/$(mklinc1) $<
+%.o : %.f
+	$(FC) -c $(FCCOMPILEOPTS) -I/$(mklinc) -I/$(mklinc1) $<
+
+object = kinds_mod.o communicate.o exit_mod.o variables.o checkinfo.o \
+	   ppp_term.o contructquanta.o mathlib.o module_sparse.o davidson.o \
+	   symmetry.o InitialGuess.o coefftosparse.o davidson_wrapper.o GetHDiag.o \
+	   op.o onesitematrix.o Renormalization.o splitsvd_direct.o\
+	   hamiltonian.o infinit_MPS.o  \
+	   loadbalance.o  \
+	     system_big.o readinput.o  \
+	    store_operator.o   \
+	   enviro_big.o finit_MPS.o sweep.o \
+	   selectstates.o\
+	   excitedbasis.o \
+	    meanfield.o C2_copy.o\
+	  transmoment.o bondord.o analysis.o infinit_initmat.o main.o   \
+	   # count.o fullmat.o  
+# object = kinds_mod.o communicate.o exit_mod.o variables.o ppp_term.o \
+#          loadbalance.o infinit_MPS.o onesitematix.o infinit_initmat.o
+DMRG-X : $(object)
+	$(FC) -o $@ $^ -L$(MKLLIB) $(FCCFLAG)
+
+clean:
+	rm -f *.o *.mod DMRG-X
+
+	
+

@@ -14,6 +14,7 @@ program main
 	use exit_mod
 	use mpi
 	use MeanField
+	use analysis_mod
 
 	implicit none
 	
@@ -46,13 +47,8 @@ program main
 	! do finit DMRG process
 	call Finit_MPS
 	
-	! calculate transition moment between gs and ex if nstate/=1
-	if(nstate/=1) then
-		call TransMoment
-	end if
-	
-	! count if the matrix operamat is sparse or not
-!	call countnonzero
+	! do wave function analysis
+	call Analysis
 
 	call MPI_BARRIER(MPI_COMM_WORLD,ierr)
 	endtime=MPI_WTIME()

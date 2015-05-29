@@ -13,7 +13,8 @@ subroutine Store_Operator(domain)
 	! local
 	integer :: i,j,k,l
 	integer :: reclength,operaindex,Hindex,recindex
-	integer :: orbstart,orbend,orbref,orbnow
+	integer :: orbstart,orbend,orbref,orbnow,nsuborbs
+	integer :: count1
 	! orbref is the reference orbindex 1 or norbs
 	! orbnow is nleft+1 or norbs-nright
 	character(len=50) :: filename,Hfilename,Hcolfilename,Hrowfilename,symmfilename,quantafilename
@@ -37,12 +38,14 @@ subroutine Store_Operator(domain)
 		orbstart=1
 		orbend=nleft+1
 		orbref=1
+		nsuborbs=nleft+1
 	else if (domain=='R') then
 		orbnow=norbs-nright
 		write(filename,'(i5.5,a9)') orbnow,'right.tmp'
 		orbstart=norbs-nright
 		orbend=norbs
 		orbref=norbs
+		nsuborbs=nright+1
 	else
 		call exit_DMRG(sigAbort,"domain/=L .and. domain/='R' failed!")
 	end if
@@ -144,6 +147,34 @@ subroutine Store_Operator(domain)
 		close(107)
 	end if
 	call MPI_FILE_CLOSE(thefile,ierr)
+
+!============================================================
+	! store the bondorder matrix
+	if(logic_bondorder==1 .and. nsuborbs==exactsite+1) then
+		write(filename,'(a1,a6)') domain,'bo.tmp'
+		call MPI_FILE_OPEN(MPI_COMM_WORLD,trim(filename),MPI_MODE_WRONLY+MPI_MODE_CREATE,MPI_INFO_NULL,thefile,ierr)
+		if(myid/=0) then
+			count1=0
+			do i=orbstart,orbend,1
+			do j=i,orbend,1
+				if(bondlink(i,j)/=0) then
+					count1=count1+1
+					if(myid==orbid2(i,j,1)) then
+						operaindex=orbid2(i,j,2)
+						! store mat-> colindex->rowindex in CSR format
+						offset=(count1-1)*(bigdim2*12+(4*subM+1)*4)*2
+						call MPI_FILE_WRITE_AT(thefile,offset,operamatbig2(1,2*operaindex-1),bigdim2*2,mpi_real8,status,ierr)
+						offset=offset+bigdim2*8*2
+						call MPI_FILE_WRITE_AT(thefile,offset,bigcolindex2(1,2*operaindex-1),bigdim2*2,mpi_integer4,status,ierr)
+						offset=offset+bigdim2*4*2
+						call MPI_FILE_WRITE_AT(thefile,offset,bigrowindex2(1,2*operaindex-1),(4*subM+1)*2,mpi_integer4,status,ierr)
+					end if
+				end if
+			end do
+			end do
+		end if
+		call MPI_FILE_CLOSE(thefile,ierr)
+	end if
 
 !=====================================================
 ! print operamatbig
