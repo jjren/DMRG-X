@@ -99,7 +99,7 @@ subroutine Calc_BOmat_subspace(domain)
 	integer :: status(MPI_STATUS_SIZE) ! MPI flag
 
 	if(myid/=0) then
-		nmid=NINT(DBLE(16*subM*subM)/bigratio2,i4)
+		nmid=CEILING(DBLE(16*subM*subM)/hopmatratio)
 		allocate(midmat(nmid),stat=error)
 		if(error/=0) stop
 		allocate(midcolindex(nmid),stat=error)
@@ -222,8 +222,8 @@ subroutine Calc_BOmat_link
 	integer :: status(MPI_STATUS_SIZE),hopsendrequest(nprocs-1),hoprecvrequest
 	integer :: ierr
 
-	hopnelement=NINT(DBLE(16*subM*subM)/bigratio1,i4)
-	midnelement=NINT(DBLE(16*subM*subM)/hopmatratio,i4)
+	hopnelement=CEILING(DBLE(16*subM*subM)/bigratio1)
+	midnelement=CEILING(DBLE(16*subM*subM)/hopmatratio)
 	
 	do i=1,nleft+1,1
 	do j=norbs,norbs-nright,-1

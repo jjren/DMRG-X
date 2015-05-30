@@ -97,7 +97,7 @@ subroutine transmoment_subspace(domain)
 	
 	
 	if(myid/=0) then
-		nmid=NINT(DBLE(16*subM*subM)/coeffIFratio,i4)
+		nmid=CEILING(DBLE(16*subM*subM)/hopmatratio)
 		allocate(midmat(nmid),stat=error)
 		if(error/=0) stop
 		allocate(midcolindex(nmid),stat=error)

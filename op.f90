@@ -63,9 +63,9 @@ subroutine op(bigdim,smadim,coeff,newcoeff)
 	if(error/=0) stop
 
 	! set the sparse matrix dim
-	pppnelement=NINT(DBLE(16*Lrealdim*Rrealdim)/pppmatratio,i4)
-	hopnelement=NINT(DBLE(16*Lrealdim*Rrealdim)/hopmatratio,i4)
-	LRoutnelement=NINT(DBLE(16*Lrealdim*Rrealdim)/LRoutratio,i4)
+	pppnelement=CEILING(DBLE(16*subM*subM)/pppmatratio)
+	hopnelement=CEILING(DBLE(16*subM*subM)/hopmatratio)
+	LRoutnelement=CEILING(DBLE(16*subM*subM)/LRoutratio)
 	
 	if(myid/=0) then
 		do i=norbs,norbs-nright,-1

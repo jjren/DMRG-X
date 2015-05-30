@@ -251,7 +251,7 @@ subroutine RotateBasis(domain)
 	end if
 
 	! define the U and V nonzero element numbers
-	arraylength=NINT(DBLE(4*subM*subM)/UVmatratio,i4)
+	arraylength=CEILING(DBLE(4*subM*subM)/UVmatratio)
 
 	! leftu rightv store in CSR format
 	allocate(rotatemat(arraylength),stat=error)

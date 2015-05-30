@@ -40,12 +40,9 @@ module module_sparse
 
 	integer(kind=i4),public :: bigdim1,smadim1,bigdim2,smadim2,Hbigdim,Hsmadim,coeffIFdim  ! in sparse form operamatbig/operamatsma,Hbig/Hsma dim
 	
-	! parameter
-	real(kind=r4),parameter,public :: pppmatratio=30.0,&
-	hopmatratio=30.0,LRoutratio=30.0,UVmatratio=20.0,coeffIFratio=10.0
-	
-	real(kind=r4),parameter,public :: bigratio1=40.0,smaratio1=10.0,bigratio2=40.0,smaratio2=10.0,Hbigratio=15.0,Hsmaratio=8.0  ! sparse radio
-	logical,parameter,public :: sparseform=.true.
+	! sparse parameter
+	real(kind=r8),public :: pppmatratio,hopmatratio,LRoutratio,UVmatratio,coeffIFratio
+	real(kind=r8),public :: bigratio1,smaratio1,bigratio2,smaratio2,Hbigratio,Hsmaratio  ! sparse radio
 
 	contains
 
@@ -62,15 +59,17 @@ subroutine AllocateArray(operanum1,operanum2)
 	
 	! local
 	integer :: error
+	
+	call sparse_default
 
 ! set the sparse mat dim
-	bigdim1=NINT(DBLE(16*subM*subM)/bigratio1,i4)
-	bigdim2=NINT(DBLE(16*subM*subM)/bigratio2,i4)
-	smadim1=NINT(DBLE(subM*subM)/smaratio1,i4)
-	smadim2=NINT(DBLE(subM*subM)/smaratio2,i4)
-	Hbigdim=NINT(DBLE(16*subM*subM)/Hbigratio,i4)
-	Hsmadim=NINT(DBLE(subM*subM)/Hsmaratio,i4)
-	coeffIFdim=NINT(DBLE(16*subM*subM)/coeffIFratio,i4)
+	bigdim1=CEILING(DBLE(16*subM*subM)/bigratio1)
+	bigdim2=CEILING(DBLE(16*subM*subM)/bigratio2)
+	smadim1=CEILING(DBLE(subM*subM)/smaratio1)
+	smadim2=CEILING(DBLE(subM*subM)/smaratio2)
+	Hbigdim=CEILING(DBLE(16*subM*subM)/Hbigratio)
+	Hsmadim=CEILING(DBLE(subM*subM)/Hsmaratio)
+	coeffIFdim=CEILING(DBLE(16*subM*subM)/coeffIFratio)
 
 ! allocate memory 
 	if(myid/=0) then
@@ -139,6 +138,57 @@ subroutine AllocateArray(operanum1,operanum2)
 return
 
 end subroutine AllocateArray
+
+!=========================================================================================================
+!=========================================================================================================
+
+subroutine sparse_default
+! set the default ratio according to the subM
+	use communicate
+	implicit none
+
+	if(abs(subM-128)<20) then
+		bigratio1=35.0
+		smaratio1=8.0
+		bigratio2=35.0
+		smaratio2=8.0
+		Hbigratio=15.0
+		Hsmaratio=8.0
+		pppmatratio=35.0
+		hopmatratio=40.0
+		LRoutratio=10.0
+		UVmatratio=10.0
+		coeffIFratio=10.0
+	else if (abs(subM-256)<50) then
+		bigratio1=45.0
+		smaratio1=10.0
+		bigratio2=45.0
+		smaratio2=10.0
+		Hbigratio=18.0
+		Hsmaratio=10.0
+		pppmatratio=12.0
+		hopmatratio=18.0
+		LRoutratio=10.0
+		UVmatratio=12.0
+		coeffIFratio=13.0
+	end if
+
+	if(myid==0) then
+		write(*,*) "bigratio1=",    bigratio1
+		write(*,*) "smaratio1=",    smaratio1
+		write(*,*) "bigratio2=",    bigratio2
+		write(*,*) "smaratio2=",    smaratio2
+		write(*,*) "Hbigratio=",    Hbigratio
+		write(*,*) "Hsmaratio=",    Hsmaratio
+		write(*,*) "pppmatratio=",  pppmatratio
+		write(*,*) "hopmatratio=",  hopmatratio
+		write(*,*) "LRoutratio=" ,  LRoutratio
+		write(*,*) "UVmatratio=" ,  UVmatratio
+		write(*,*) "coeffIFratio=", coeffIFratio
+	end if
+return
+
+end subroutine sparse_default
 
 !=========================================================================================================
 !=========================================================================================================
