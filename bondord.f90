@@ -99,7 +99,7 @@ subroutine Calc_BOmat_subspace(domain)
 	integer :: status(MPI_STATUS_SIZE) ! MPI flag
 
 	if(myid/=0) then
-		nmid=CEILING(DBLE(16*subM*subM)/hopmatratio)
+		nmid=CEILING(DBLE(16*subM*subM)/pppmatratio)
 		allocate(midmat(nmid),stat=error)
 		if(error/=0) stop
 		allocate(midcolindex(nmid),stat=error)
