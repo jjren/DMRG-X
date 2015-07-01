@@ -38,8 +38,8 @@ module stateOverlap
     real(kind=8)    :: smallOverlapThresh = 0.9 
     integer         :: smallOverlapCounter      
     
-    real(kind=8)    :: alpha1                      ! when enter in subroutine retrieveFormerState, 
-    real(kind=8)    :: alpha2                      ! coeffIF = alpha*coeffIF of this step + (1-alpha)*coeffIF of last step
+    !real(kind=8)    :: alpha1                      ! when enter in subroutine retrieveFormerState, 
+    !real(kind=8)    :: alpha2                      ! coeffIF = alpha*coeffIF of this step + (1-alpha)*coeffIF of last step
                                                    ! alpha1 used when "reachedmax", alpha2 used when "stoptrying"
     contains
     subroutine initStateSpecific
@@ -147,6 +147,16 @@ module stateOverlap
                 maxOverlapIndex = targetStateIndex
             else
                 targetStateFlag = 'ngetsame'
+                if(stateOverlapValue(targetStateIndex)/=stateOverlapValue(targetStateIndex)) then
+                    write(*,*) "targetStateIndex =",targetStateIndex
+                    write(*,*) "highestStateIndex =",highestStateIndex
+                    write(*,*) "ngoodstates =", ngoodstates
+                    write(*,*) "nosymmout((1+ngoodstates*(targetStateIndex-1)) : ngoodstates*targetStateIndex)"
+                    write(*,*) nosymmout((1+ngoodstates*(targetStateIndex-1)) : ngoodstates*targetStateIndex)
+                    write(*,*) "initial_vector(1:ngoodstates)"
+                    write(*,*) initial_vector(1:ngoodstates)
+                    stop
+                end if
             end if
         case('trylower')
             maxOverlapValue = 0.0
@@ -428,59 +438,61 @@ module stateOverlap
         end if
     end subroutine cleanStateSpecificVariables
     
-    subroutine retrieveFormerState(direction,davidWORK,IWRSZ,NUME,dimN)
-        implicit none
-        real(kind=8), allocatable   :: tmpCoeffIF(:,:)
-        real(kind=8), allocatable   :: nosymmguess(:)
-        character(len=1)  :: direction 
-        integer           :: IWRSZ,NUME,dimN
-        real(kind=r8)     :: davidWORK(IWRSZ)
-        integer           :: i,j,m,error
-
-        write(*,*) "enter in subroutine retrieveFormerState"
-        write(*,*) "coeffIF = alpha*coeffIF of this step + (1-alpha)*coeffIF of last step"
-
-        allocate(nosymmguess(ngoodstates),stat=error)
-        if(error/=0) stop
-        call SingleInitialFinite(nosymmguess,ngoodstates,direction)
-        
-        allocate(tmpCoeffIF(4*subM,4*subM),stat=error)
-        if(error/=0) stop
-        tmpCoeffIF=0.0D0
-        m=1
-	    do i=1,4*Rrealdim,1
-	        do j=1,4*Lrealdim,1
-		        if((quantabigL(j,1)+quantabigR(i,1)==nelecs) .and. &
-			        quantabigL(j,2)+quantabigR(i,2)==totalSz) then
-			        tmpCoeffIF(j,i) = nosymmguess(m)!=LRcoeff(j,i)
-			        m=m+1
-		        end if
-	        end do
-        end do
-        if(m-1/=ngoodstates) then
-            write(*,*) "m-1/=ngoodstates error in subroutine retrieveFormerState"
-            stop
-        end if
-        
-        if(targetStateFlag=='reachedmax') then
-            write(*,*) "alpha = alpha1 =", alpha1 
-            coeffIF(:,:,formerStateIndex) = alpha1 * coeffIF(:,:,formerStateIndex) &
-                                            + (1 - alpha1) * tmpCoeffIF(:,:)
-        else if(targetStateFlag=='stoptrying') then
-            write(*,*) "alpha = alpha2 =", alpha2
-            coeffIF(:,:,formerStateIndex) = alpha2 * coeffIF(:,:,formerStateIndex) &
-                                            + (1 - alpha2) * tmpCoeffIF(:,:)
-        else
-            write(*,*) "unexpected targetStateFlag in subroutine retrieveFormerState"
-        end if        
-        
-        targetStateIndex = formerStateIndex
-        davidWORK(NUME*dimN+targetStateIndex) = formerStateEnergy
-        write(*,*) "retrieved last state wavefunction with energy=", formerStateEnergy
-        
-        deallocate(tmpCoeffIF)
-        deallocate(nosymmguess)
-        
-    end subroutine retrieveFormerState
+    !subroutine retrieveFormerState(direction,davidWORK,IWRSZ,NUME,dimN)
+    !    implicit none
+    !    real(kind=8), allocatable   :: tmpCoeffIF(:,:)
+    !    real(kind=8), allocatable   :: nosymmguess(:)
+    !    character(len=1)  :: direction 
+    !    integer           :: IWRSZ,NUME,dimN
+    !    real(kind=r8)     :: davidWORK(IWRSZ)
+    !    integer           :: i,j,m,error
+    !
+    !    write(*,*) "enter in subroutine retrieveFormerState"
+    !    write(*,*) "coeffIF = alpha*coeffIF of this step + (1-alpha)*coeffIF of last step"
+    !
+    !    allocate(nosymmguess(ngoodstates),stat=error)
+    !    if(error/=0) stop
+    !    call SingleInitialFinite(nosymmguess,ngoodstates,direction)
+    !    
+    !    allocate(tmpCoeffIF(4*subM,4*subM),stat=error)
+    !    if(error/=0) stop
+    !    tmpCoeffIF=0.0D0
+    !    m=1
+	  !  do i=1,4*Rrealdim,1
+	  !      do j=1,4*Lrealdim,1
+		!        if((quantabigL(j,1)+quantabigR(i,1)==nelecs) .and. &
+		!	        quantabigL(j,2)+quantabigR(i,2)==totalSz) then
+		!	        tmpCoeffIF(j,i) = nosymmguess(m)!=LRcoeff(j,i)
+		!	        m=m+1
+		!        end if
+	  !      end do
+    !    end do
+    !    if(m-1/=ngoodstates) then
+    !        write(*,*) "m-1/=ngoodstates error in subroutine retrieveFormerState"
+    !        stop
+    !    end if
+    !    
+    !    if(targetStateFlag=='reachedmax') then
+    !        write(*,*) "alpha = alpha1 =", alpha1 
+    !        coeffIF(:,:,formerStateIndex) = alpha1 * coeffIF(:,:,formerStateIndex) &
+    !                                        + (1 - alpha1) * tmpCoeffIF(:,:)
+    !        coeffIF(:,:,formerStateIndex) = tmpCoeffIF(:,:)
+    !    else if(targetStateFlag=='stoptrying') then
+    !        write(*,*) "alpha = alpha2 =", alpha2
+    !        coeffIF(:,:,formerStateIndex) = alpha2 * coeffIF(:,:,formerStateIndex) &
+    !                                        + (1 - alpha2) * tmpCoeffIF(:,:)
+    !        coeffIF(:,:,formerStateIndex) = tmpCoeffIF(:,:)
+    !    else
+    !        write(*,*) "unexpected targetStateFlag in subroutine retrieveFormerState"
+    !    end if        
+    !    
+    !    targetStateIndex = formerStateIndex
+    !    davidWORK(NUME*dimN+targetStateIndex) = formerStateEnergy
+    !    write(*,*) "retrieved last state wavefunction with energy=", formerStateEnergy
+    !    
+    !    deallocate(tmpCoeffIF)
+    !    deallocate(nosymmguess)
+    !    
+    !end subroutine retrieveFormerState
         
 end module stateOverlap

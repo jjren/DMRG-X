@@ -90,8 +90,8 @@ Subroutine ReadInput
                 stop
             end if
             read(10,*) overlapThresh
-            read(10,*) alpha1
-            read(10,*) alpha2
+            !read(10,*) alpha1
+            !read(10,*) alpha2
         end if
 		if(exscheme==1 .or. exscheme==3 .or. exscheme==4) then    
 			read(10,*) nweight(1:nstate) ! nweight is the average DMRG excited state
@@ -224,8 +224,8 @@ Subroutine ReadInput
             call MPI_PACK(realTargetStateIndex,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
             call MPI_PACK(highestStateIndex,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
             call MPI_PACK(overlapThresh,1,MPI_real8,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
-            call MPI_PACK(alpha1,1,MPI_real8,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
-            call MPI_PACK(alpha2,1,MPI_real8,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
+            !call MPI_PACK(alpha1,1,MPI_real8,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
+            !call MPI_PACK(alpha2,1,MPI_real8,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
         end if
 		call MPI_PACK(nweight(1),nstate,MPI_real8,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
 		call MPI_PACK(blocks,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
@@ -267,8 +267,8 @@ Subroutine ReadInput
             call MPI_UNPACK(packbuf,packsize,position1,realTargetStateIndex,1, MPI_integer4,MPI_COMM_WORLD,ierr)
             call MPI_UNPACK(packbuf,packsize,position1,highestStateIndex,1, MPI_integer4,MPI_COMM_WORLD,ierr)
             call MPI_UNPACK(packbuf,packsize,position1,overlapThresh,1, MPI_real8,MPI_COMM_WORLD,ierr)
-            call MPI_UNPACK(packbuf,packsize,position1,alpha1,1, MPI_real8,MPI_COMM_WORLD,ierr)
-            call MPI_UNPACK(packbuf,packsize,position1,alpha2,1, MPI_real8,MPI_COMM_WORLD,ierr)
+            !call MPI_UNPACK(packbuf,packsize,position1,alpha1,1, MPI_real8,MPI_COMM_WORLD,ierr)
+            !call MPI_UNPACK(packbuf,packsize,position1,alpha2,1, MPI_real8,MPI_COMM_WORLD,ierr)
         end if
 		allocate(nweight(nstate),stat=error)
 		if(error/=0) stop
@@ -326,8 +326,8 @@ Subroutine ReadInput
             write(*,*) "targetStateIndex=",realTargetStateIndex
             write(*,*) "highestStateIndex=",highestStateIndex
             write(*,*) "overlapThresh=",overlapThresh
-            write(*,*) "alpha1=", alpha1
-            write(*,*) "alpha2=", alpha2
+            !write(*,*) "alpha1=", alpha1
+            !write(*,*) "alpha2=", alpha2
         end if
 		write(*,*) "nweight=",nweight
 		write(*,*) "energythresh",energythresh ! other process do not know this number

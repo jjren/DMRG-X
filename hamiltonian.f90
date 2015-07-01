@@ -121,7 +121,7 @@ contains
         critr = 1.0D-9
         ortho = 1.0D-8
         crite = getCrite()
-        maxiter = 400
+        maxiter = 800
         
 	    ! state indices to be targeted in davidson diagonalization
         if(exscheme == 4 .and. startedStateSpecific) then
@@ -337,21 +337,33 @@ contains
                 write(*,*) "already tried all states with index less than", highestStateIndex
                 write(*,*) "can't trace former state with overlap higher than", overlapThresh
                 write(*,*) "highest overlap is", maxOverlapValue, "from state", maxOverlapIndex
-                write(*,*) "try to retrieve wavefunction from last step......"
-                call retrieveFormerState(direction,davidWORK,IWRSZ,NUME,dimN)
-                targetStateFlag = 'none'
-                !formerStateIndex = maxOverlapIndex        formerStateIndex shall not change
-                davidFinished = .true.
+                !write(*,*) "try to retrieve wavefunction from last step......"
+                !call retrieveFormerState(direction,davidWORK,IWRSZ,NUME,dimN)
+                if(maxOverlapValue <= 0.1) then
+                    write(*,*) "maxOverlapValue <= 0.1, we have lost the correct state" 
+                    stop
+                else
+                    write(*,*) "using state ", maxOverlapIndex
+                    targetStateFlag = 'none'
+                    formerStateIndex = maxOverlapIndex
+                    davidFinished = .true.
+                end if
             else if(targetStateFlag == 'stoptrying') then
                 write(*,*) "When targetting high index state, NLOOPS>MAXITER. Stop trying..."
-                write(*,*) "already tried all states with index less than", targetStateIndex -1
+                write(*,*) "already tried all states with index less than", targetStateIndex - 1
                 write(*,*) "can't trace former state with overlap higher than", overlapThresh
                 write(*,*) "highest overlap is", maxOverlapValue, "from state", maxOverlapIndex
-                write(*,*) "try to retrieve wavefunction from last step......"
-                call retrieveFormerState(direction,davidWORK,IWRSZ,NUME,dimN)
-                targetStateFlag = 'none'
-                !formerStateIndex = maxOverlapIndex       formerStateIndex shall not change
-                davidFinished = .true.
+                !write(*,*) "try to retrieve wavefunction from last step......"
+                !call retrieveFormerState(direction,davidWORK,IWRSZ,NUME,dimN)
+                if(maxOverlapValue <= 0.1) then
+                    write(*,*) "maxOverlapValue <= 0.1, we have lost the correct state" 
+                    stop
+                else
+                    write(*,*) "using state ", maxOverlapIndex
+                    targetStateFlag = 'none'
+                    formerStateIndex = maxOverlapIndex
+                    davidFinished = .true.
+                end if
             else 
                 write(*,*) "unexpected targetStateFlag"
                 stop
