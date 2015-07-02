@@ -403,6 +403,7 @@ subroutine DirectCopy(domain)
 	end do
 
 	! bond order matrix
+	if(logic_bondorder==1) then
 	do i=orbstart,orbend,1
 	do j=i,orbend,1
 		if(bondlink(i,j)/=0) then
@@ -419,6 +420,7 @@ subroutine DirectCopy(domain)
 		end if
 	end do
 	end do
+	end if
 
 	if(myid==0) then
 		Hsmarowindex(:,Hindex)=0

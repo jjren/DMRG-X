@@ -41,7 +41,7 @@ module variables
 	integer(kind=i4),allocatable :: treelink(:,:)  ! treelink information
 
 	integer(kind=i4),parameter :: &
-	logic_bondorder=1         ! if calculate bond order
+	logic_bondorder= 0       ! if calculate bond order
 !=========================================================
 	
 	! loadbalance part

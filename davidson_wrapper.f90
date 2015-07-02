@@ -37,7 +37,11 @@ Subroutine Davidson_Wrapper(direction,lim,ilow,ihigh,iselec,niv,mblock,&
 	! check how many states fullfill good quantum number
 	! every process do it
 	! ngoodstates is the number of good quantum number states
-
+	
+	! allocate the symmetry work array
+	if(logic_spinreversal/=0 .or. (logic_C2/=0 .and. nleft==nright)) then
+		call SymmAllocateArray
+	end if
 
 	ngoodstates=0
 	do i=1,4*Rrealdim,1
@@ -46,13 +50,18 @@ Subroutine Davidson_Wrapper(direction,lim,ilow,ihigh,iselec,niv,mblock,&
 		quantabigL(j,2)+quantabigR(i,2)==totalSz) then
 			ngoodstates=ngoodstates+1
 			! construct the symmlinkgood 
-			if((logic_spinreversal/=0 .or. &
-				(logic_C2/=0 .and. nleft==nright))) then
+			if(logic_spinreversal/=0 .or. (logic_C2/=0 .and. nleft==nright)) then
 				call CreatSymmlinkgood(ngoodstates,j,i)
 			end if
 		end if
 	end do
+		! construct the symmlinkcol
+		! the nonzero LRcoeff element of every column
+		if(logic_spinreversal/=0 .or. (logic_C2/=0 .and. nleft==nright)) then
+			symmlinkcol(i+1)=ngoodstates+1
+		end if
 	end do
+
 	dimN=ngoodstates
 	
 	if((logic_spinreversal/=0 .or. &
@@ -150,19 +159,20 @@ Subroutine Davidson_Wrapper(direction,lim,ilow,ihigh,iselec,niv,mblock,&
 			coeffIFrowindex(4*Lrealdim+1:4*subM+1,k)=coeffIFrowindex(4*Lrealdim+1,k)
 		end do
 
-		! write the coeffIF
-		reclength=nstate*coeffIFdim*2
-		open(unit=109,file="coeffIF.tmp",access="Direct",form="unformatted",recl=reclength,status="replace")
-		write(109,rec=1) coeffIF
-		close(109)
-		reclength=nstate*coeffIFdim
-		open(unit=109,file="coeffIFcol.tmp",access="Direct",form="unformatted",recl=reclength,status="replace")
-		write(109,rec=1) coeffIFcolindex
-		close(109)
-		reclength=(4*subM+1)*nstate
-		open(unit=109,file="coeffIFrow.tmp",access="Direct",form="unformatted",recl=reclength,status="replace")
-		write(109,rec=1) coeffIFrowindex
-		close(109)
+	!	write the coeffIF in two partical density matrix calculation
+
+	!	reclength=nstate*coeffIFdim*2
+	!	open(unit=109,file="coeffIF.tmp",access="Direct",form="unformatted",recl=reclength,status="replace")
+	!	write(109,rec=1) coeffIF
+	!	close(109)
+	!	reclength=nstate*coeffIFdim
+	!	open(unit=109,file="coeffIFcol.tmp",access="Direct",form="unformatted",recl=reclength,status="replace")
+	!	write(109,rec=1) coeffIFcolindex
+	!	close(109)
+	!	reclength=(4*subM+1)*nstate
+	!	open(unit=109,file="coeffIFrow.tmp",access="Direct",form="unformatted",recl=reclength,status="replace")
+	!	write(109,rec=1) coeffIFrowindex
+	!	close(109)
 
 !=================================================================================
 ! write the final out

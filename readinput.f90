@@ -14,8 +14,8 @@ Subroutine ReadInput
 	character(len=2) :: symbol       ! the element symbol not used
 
 	character(len=1),allocatable :: packbuf(:)  
-	integer(kind=i4) :: position1
-	integer(kind=i4) :: packsize       
+	integer :: position1
+	integer :: packsize       
 	real(kind=r8) :: dummyt           ! transfer integral intermediate variable
 
 	if(myid==0) then
@@ -213,7 +213,8 @@ Subroutine ReadInput
 		write(*,*) "packsizedefine=",packsize,"packbufsize=",position1
 	end if
 	
-	call MPI_bcast(packbuf,packsize,MPI_PACKED,0,MPI_COMM_WORLD,ierr)
+	call MPI_BCAST(position1,1,MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
+	call MPI_BCAST(packbuf,position1,MPI_PACKED,0,MPI_COMM_WORLD,ierr)
 
 	if(myid/=0) then
 		position1=0

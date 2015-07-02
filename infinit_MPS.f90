@@ -15,8 +15,13 @@ subroutine Infinit_MPS
 	! treal bondlinkreal store the initial real value
 	integer :: error,ierr
 	integer :: isystem,i,j
+	integer :: logic_C2real
 	
 	call master_print_message("enter subroutine infinit_MPS")
+	
+	! in the infinite procedure didnot constrain the logic_C2
+	! only in the diagonalization process
+	logic_C2real=logic_C2
 
 	! the exactsite refer to the space that L space or R space that can be accurately discribe
 	! (without sigmaL and sigmaR)
@@ -136,7 +141,9 @@ subroutine Infinit_MPS
 
 	! construct the total H(direct method) and davidson diagnalization
 		if(4*Lrealdim>subM) then
+			logic_C2=0
 			call Hamiltonian('i')
+			logic_C2=logic_C2real
 		end if
 	! Renormalization all the operator matrix
 		call Renormalization('i')
@@ -171,10 +178,11 @@ subroutine Infinit_MPS
 		call System_Big('L')
 		call System_Constructquanta('L')
 		call Store_Operator('L')
+		logic_C2=0
 		call Hamiltonian('i')
+		logic_C2=logic_C2real
 		call Renormalization('i')
 	end if
-
 	
 	deallocate(treal)
 	deallocate(bondlinkreal)

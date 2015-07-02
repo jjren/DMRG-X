@@ -148,29 +148,77 @@ subroutine sparse_default
 	implicit none
 
 	if(abs(subM-128)<20) then
-		bigratio1=35.0
+		bigratio1=32.0
 		smaratio1=8.0
-		bigratio2=35.0
+		bigratio2=32.0
 		smaratio2=8.0
-		Hbigratio=15.0
+		Hbigratio=12.0
 		Hsmaratio=8.0
-		pppmatratio=35.0
-		hopmatratio=40.0
+		pppmatratio=10.0
+		hopmatratio=12.0
 		LRoutratio=10.0
 		UVmatratio=10.0
 		coeffIFratio=10.0
 	else if (abs(subM-256)<50) then
-		bigratio1=45.0
-		smaratio1=10.0
-		bigratio2=45.0
-		smaratio2=10.0
-		Hbigratio=18.0
-		Hsmaratio=10.0
-		pppmatratio=12.0
-		hopmatratio=18.0
+		bigratio1=20.0
+		smaratio1=5.0
+		bigratio2=20.0
+		smaratio2=5.0
+		Hbigratio=10.0
+		Hsmaratio=5.0
+		pppmatratio=10.0
+		hopmatratio=12.0
 		LRoutratio=10.0
-		UVmatratio=12.0
-		coeffIFratio=13.0
+		UVmatratio=10.0
+		coeffIFratio=10.0
+	else if (abs(subM-512)<50) then
+		bigratio1=25.0
+		smaratio1=5.0
+		bigratio2=25.0
+		smaratio2=5.0
+		Hbigratio=10.0
+		Hsmaratio=5.0
+		pppmatratio=10.0
+		hopmatratio=12.0
+		LRoutratio=10.0
+		UVmatratio=10.0
+		coeffIFratio=10.0
+	else if (abs(subM-1024)<100) then
+		bigratio1=25.0
+		smaratio1=5.0
+		bigratio2=25.0
+		smaratio2=5.0
+		Hbigratio=10.0
+		Hsmaratio=5.0
+		pppmatratio=10.0
+		hopmatratio=12.0
+		LRoutratio=10.0
+		UVmatratio=10.0
+		coeffIFratio=10.0
+	else if (abs(subM-2048)<200) then
+		bigratio1=30.0
+		smaratio1=8.0
+		bigratio2=30.0
+		smaratio2=8.0
+		Hbigratio=12.0
+		Hsmaratio=8.0
+		pppmatratio=12.0
+		hopmatratio=12.0
+		LRoutratio=10.0
+		UVmatratio=10.0
+		coeffIFratio=10.0
+	else
+		bigratio1=10.0
+		smaratio1=5.0
+		bigratio2=10.0
+		smaratio2=5.0
+		Hbigratio=10.0
+		Hsmaratio=2.0
+		pppmatratio=5.0
+		hopmatratio=5.0
+		LRoutratio=5.0
+		UVmatratio=5.0
+		coeffIFratio=5.0
 	end if
 
 	if(myid==0) then

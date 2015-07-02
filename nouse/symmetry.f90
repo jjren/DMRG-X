@@ -10,6 +10,7 @@ module Symmetry
 	! symmat(rowindex(nsymmstate+1)-1),columnindex(rowindex(nsymmstate+1)-1)
 	! rowindex(nsymmstate+1) :: the symmetry matrix in 3-array CSR sparse form
 	! nsymmstate :: the number of symmetry state
+	real(kind=r8) :: starttime,endtime
 
 
 contains
@@ -193,6 +194,7 @@ subroutine SymmetryMat
 				end if
 			end do
 		end if
+		write(*,*) spinline(:,:)
 
 ! C2 symmetry part
 ! the rule is if L space fai1 fai2, corresponding R space fai3,fai4
@@ -352,7 +354,10 @@ subroutine SymmetryMat
 	end if
 	call MPI_BCAST(columnindex,rowindex(nsymmstate+1)-1,MPI_integer,0,MPI_COMM_WORLD,ierr)
 	call MPI_BCAST(symmat,rowindex(nsymmstate+1)-1,MPI_real8,0,MPI_COMM_WORLD,ierr)
-
+	
+	if(myid==0) then
+		write(*,*) symmat(1:rowindex(nsymmstate+1)-1)
+	end if
 return
 end subroutine SymmetryMat
 

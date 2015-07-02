@@ -55,7 +55,7 @@ program main
 
 	call MPI_BARRIER(MPI_COMM_WORLD,ierr)
 	endtime=MPI_WTIME()
-	call master_print_message(endtime-starttime,"RUMTIME:")
+	call master_print_message(endtime-starttime,"RUNTIME:")
 	call exit_DMRG(0,"Program DMRG-X end successfully")
 
 end program main

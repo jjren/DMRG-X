@@ -74,6 +74,7 @@ subroutine transmoment_subspace(domain)
 	! local
 	integer :: operaindex,orbstart,orbend
 	integer :: status(MPI_STATUS_SIZE)
+	real(kind=r8) :: localratio
 	integer :: nmid
 	real(kind=r8),allocatable :: midmat(:)
 	integer(kind=i4),allocatable :: midcolindex(:),midrowindex(:)
@@ -97,7 +98,8 @@ subroutine transmoment_subspace(domain)
 	
 	
 	if(myid/=0) then
-		nmid=CEILING(DBLE(16*subM*subM)/hopmatratio)
+		localratio=5.0
+		nmid=CEILING(DBLE(16*subM*subM)/localratio)
 		allocate(midmat(nmid),stat=error)
 		if(error/=0) stop
 		allocate(midcolindex(nmid),stat=error)

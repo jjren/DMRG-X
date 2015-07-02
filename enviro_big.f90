@@ -12,12 +12,12 @@ Subroutine Enviro_Big(domain)
 
 	character(len=1) :: domain
 
-	integer :: i,j
+	integer :: i,j,k
 	integer :: orbnow,orbstart,orbend,orbref,nsuborbs
 	integer :: reclength,operaindex,recindex,Hindex
 	character(len=50) :: filename,Hfilename,Hcolfilename,Hrowfilename,symmfilename,quantafilename
 	logical :: alive
-	integer :: count1
+	integer :: count1,dim1,nonzero
 
 	integer :: thefile,status(MPI_STATUS_SIZE)  ! MPI flag
 	integer(kind=MPI_OFFSET_KIND) ::offset
@@ -34,6 +34,7 @@ Subroutine Enviro_Big(domain)
 		orbend=nleft+1
 		orbref=1
 		nsuborbs=nleft+1
+		dim1=Lrealdim
 	else if (domain=='R') then
 		orbnow=norbs-nright
 		write(filename,'(i5.5,a9)') orbnow,'right.tmp'
@@ -41,6 +42,7 @@ Subroutine Enviro_Big(domain)
 		orbend=norbs
 		orbref=norbs
 		nsuborbs=nright+1
+		dim1=Rrealdim
 	else
 		call exit_DMRG(sigAbort,"domain/=L .and. domain/='R' failed!")
 	end if
@@ -54,11 +56,15 @@ Subroutine Enviro_Big(domain)
 			operaindex=orbid1(i,2)
 			! get mat-> colindex->rowindex CSR format
 			offset=abs(i-orbref)*(bigdim1*12+(4*subM+1)*4)*3
-			call MPI_FILE_READ_AT(thefile,offset,operamatbig1(1,3*operaindex-2),bigdim1*3,mpi_real8,status,ierr)
-			offset=offset+bigdim1*8*3
-			call MPI_FILE_READ_AT(thefile,offset,bigcolindex1(1,3*operaindex-2),bigdim1*3,mpi_integer4,status,ierr)
-			offset=offset+bigdim1*4*3
-			call MPI_FILE_READ_AT(thefile,offset,bigrowindex1(1,3*operaindex-2),(4*subM+1)*3,mpi_integer4,status,ierr)
+			do j=1,3,1
+				call MPI_FILE_READ_AT(thefile,offset,bigrowindex1(1,3*operaindex-3+j),(4*subM+1),mpi_integer4,status,ierr)
+				offset=offset+(4*subM+1)*4
+				nonzero=bigrowindex1(4*dim1+1,3*operaindex-3+j)-1
+				call MPI_FILE_READ_AT(thefile,offset,operamatbig1(1,3*operaindex-3+j),nonzero,mpi_real8,status,ierr)
+				offset=offset+nonzero*8
+				call MPI_FILE_READ_AT(thefile,offset,bigcolindex1(1,3*operaindex-3+j),nonzero,mpi_integer4,status,ierr)
+				offset=offset+nonzero*4
+			end do
 		end if
 		end do
 	! 0 process
@@ -81,30 +87,6 @@ Subroutine Enviro_Big(domain)
 		recindex=abs(orbnow-orbref)+1
 
 !----------------open a binary file-------------
-		reclength=2*Hbigdim
-		inquire(file=trim(Hfilename),exist=alive)
-		if(alive) then
-			open(unit=102,file=trim(Hfilename),access="Direct",form="unformatted",recl=reclength,status="old")
-		else
-			write(*,*) trim(Hfilename),"doesn't exist!"
-			stop
-		end if
-! norbs is 1; norbs-1 is 2
-		read(102,rec=recindex) Hbig(:,Hindex)
-		close(102)
-
-		! colindex
-		reclength=Hbigdim
-		inquire(file=trim(Hcolfilename),exist=alive)
-		if(alive) then
-			open(unit=110,file=trim(Hcolfilename),access="Direct",form="unformatted",recl=reclength,status="old")
-		else
-			open(unit=110,file=trim(Hcolfilename),access="Direct",form="unformatted",recl=reclength,status="replace")
-		end if
-		! sigmaR index =norbs is 1; norbs-1 is 2
-		read(110,rec=recindex) Hbigcolindex(:,Hindex)
-		close(110)
-
 		! rowindex
 		reclength=subM*4+1
 		inquire(file=trim(Hrowfilename),exist=alive)
@@ -116,6 +98,33 @@ Subroutine Enviro_Big(domain)
 		! sigmaR index =norbs is 1; norbs-1 is 2
 		read(112,rec=recindex) Hbigrowindex(:,Hindex)
 		close(112)
+
+		nonzero=Hbigrowindex(4*dim1+1,Hindex)-1   ! nonzero element numbers in Hbig
+		
+		reclength=2*Hbigdim
+		inquire(file=trim(Hfilename),exist=alive)
+		if(alive) then
+			open(unit=102,file=trim(Hfilename),access="Direct",form="unformatted",recl=reclength,status="old")
+		else
+			write(*,*) trim(Hfilename),"doesn't exist!"
+			stop
+		end if
+! norbs is 1; norbs-1 is 2
+		read(102,rec=recindex) Hbig(1:nonzero,Hindex)
+		close(102)
+
+		! colindex
+		reclength=Hbigdim
+		inquire(file=trim(Hcolfilename),exist=alive)
+		if(alive) then
+			open(unit=110,file=trim(Hcolfilename),access="Direct",form="unformatted",recl=reclength,status="old")
+		else
+			open(unit=110,file=trim(Hcolfilename),access="Direct",form="unformatted",recl=reclength,status="replace")
+		end if
+		! sigmaR index =norbs is 1; norbs-1 is 2
+		read(110,rec=recindex) Hbigcolindex(1:nonzero,Hindex)
+		close(110)
+
 !------------------------------read the symmlink---
 		if(logic_spinreversal/=0) then
 			reclength=2*subM
@@ -171,13 +180,17 @@ Subroutine Enviro_Big(domain)
 					count1=count1+1
 					if(myid==orbid2(i,j,1)) then
 						operaindex=orbid2(i,j,2)
-						! read mat-> colindex->rowindex in CSR format
 						offset=(count1-1)*(bigdim2*12+(4*subM+1)*4)*2
-						call MPI_FILE_READ_AT(thefile,offset,operamatbig2(1,2*operaindex-1),bigdim2*2,mpi_real8,status,ierr)
-						offset=offset+bigdim2*8*2
-						call MPI_FILE_READ_AT(thefile,offset,bigcolindex2(1,2*operaindex-1),bigdim2*2,mpi_integer4,status,ierr)
-						offset=offset+bigdim2*4*2
-						call MPI_FILE_READ_AT(thefile,offset,bigrowindex2(1,2*operaindex-1),(4*subM+1)*2,mpi_integer4,status,ierr)
+						do k=1,2,1
+							! read mat-> colindex->rowindex in CSR format
+							call MPI_FILE_READ_AT(thefile,offset,bigrowindex2(1,2*operaindex-2+k),(4*subM+1),mpi_integer4,status,ierr)
+							nonzero=bigrowindex2(4*dim1+1,2*operaindex-2+k)-1
+							offset=offset+(4*subM+1)*4
+							call MPI_FILE_READ_AT(thefile,offset,operamatbig2(1,2*operaindex-2+k),nonzero,mpi_real8,status,ierr)
+							offset=offset+nonzero*8
+							call MPI_FILE_READ_AT(thefile,offset,bigcolindex2(1,2*operaindex-2+k),nonzero,mpi_integer4,status,ierr)
+							offset=offset+nonzero*4
+						end do
 					end if
 				end if
 			end do

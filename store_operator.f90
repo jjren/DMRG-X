@@ -11,10 +11,10 @@ subroutine Store_Operator(domain)
 
 	character(len=1) :: domain
 	! local
-	integer :: i,j,k,l
+	integer :: i,j,k
 	integer :: reclength,operaindex,Hindex,recindex
 	integer :: orbstart,orbend,orbref,orbnow,nsuborbs
-	integer :: count1
+	integer :: count1,nonzero,dim1
 	! orbref is the reference orbindex 1 or norbs
 	! orbnow is nleft+1 or norbs-nright
 	character(len=50) :: filename,Hfilename,Hcolfilename,Hrowfilename,symmfilename,quantafilename
@@ -39,6 +39,7 @@ subroutine Store_Operator(domain)
 		orbend=nleft+1
 		orbref=1
 		nsuborbs=nleft+1
+		dim1=Lrealdim
 	else if (domain=='R') then
 		orbnow=norbs-nright
 		write(filename,'(i5.5,a9)') orbnow,'right.tmp'
@@ -46,6 +47,7 @@ subroutine Store_Operator(domain)
 		orbend=norbs
 		orbref=norbs
 		nsuborbs=nright+1
+		dim1=Rrealdim
 	else
 		call exit_DMRG(sigAbort,"domain/=L .and. domain/='R' failed!")
 	end if
@@ -57,11 +59,15 @@ subroutine Store_Operator(domain)
 				operaindex=orbid1(i,2)
 				! store mat-> colindex->rowindex in CSR format
 				offset=abs(i-orbref)*(bigdim1*12+(4*subM+1)*4)*3
-				call MPI_FILE_WRITE_AT(thefile,offset,operamatbig1(1,3*operaindex-2),bigdim1*3,mpi_real8,status,ierr)
-				offset=offset+bigdim1*8*3
-				call MPI_FILE_WRITE_AT(thefile,offset,bigcolindex1(1,3*operaindex-2),bigdim1*3,mpi_integer4,status,ierr)
-				offset=offset+bigdim1*4*3
-				call MPI_FILE_WRITE_AT(thefile,offset,bigrowindex1(1,3*operaindex-2),(4*subM+1)*3,mpi_integer4,status,ierr)
+				do j=1,3,1
+					call MPI_FILE_WRITE_AT(thefile,offset,bigrowindex1(1,3*operaindex-3+j),(4*subM+1),mpi_integer4,status,ierr)
+					offset=offset+(4*subM+1)*4
+					nonzero=bigrowindex1(4*dim1+1,3*operaindex-3+j)-1
+					call MPI_FILE_WRITE_AT(thefile,offset,operamatbig1(1,3*operaindex-3+j),nonzero,mpi_real8,status,ierr)
+					offset=offset+nonzero*8
+					call MPI_FILE_WRITE_AT(thefile,offset,bigcolindex1(1,3*operaindex-3+j),nonzero,mpi_integer4,status,ierr)
+					offset=offset+nonzero*4
+				end do
 			end if
 		end do
 	else if(myid==0) then
@@ -82,30 +88,7 @@ subroutine Store_Operator(domain)
 		end if
 		recindex=abs(orbnow-orbref)+1
 !----------------open a binary file-------------
-		! mat
-		reclength=2*Hbigdim
-		inquire(file=trim(Hfilename),exist=alive)
-		if(alive) then
-			open(unit=101,file=trim(Hfilename),access="Direct",form="unformatted",recl=reclength,status="old")
-		else
-			open(unit=101,file=trim(Hfilename),access="Direct",form="unformatted",recl=reclength,status="replace")
-		end if
-		! sigmaR index =norbs is 1; norbs-1 is 2
-		write(101,rec=recindex) Hbig(:,Hindex)
-		close(101)
 		
-		! colindex
-		reclength=Hbigdim
-		inquire(file=trim(Hcolfilename),exist=alive)
-		if(alive) then
-			open(unit=109,file=trim(Hcolfilename),access="Direct",form="unformatted",recl=reclength,status="old")
-		else
-			open(unit=109,file=trim(Hcolfilename),access="Direct",form="unformatted",recl=reclength,status="replace")
-		end if
-		! sigmaR index =norbs is 1; norbs-1 is 2
-		write(109,rec=recindex) Hbigcolindex(:,Hindex)
-		close(109)
-
 		! rowindex
 		reclength=subM*4+1
 		inquire(file=trim(Hrowfilename),exist=alive)
@@ -117,6 +100,33 @@ subroutine Store_Operator(domain)
 		! sigmaR index =norbs is 1; norbs-1 is 2
 		write(111,rec=recindex) Hbigrowindex(:,Hindex)
 		close(111)
+
+		! Hmat
+		nonzero=Hbigrowindex(4*dim1+1,Hindex)-1   ! nonzero element numbers in Hbig
+	
+		reclength=2*Hbigdim
+		inquire(file=trim(Hfilename),exist=alive)
+		if(alive) then
+			open(unit=101,file=trim(Hfilename),access="Direct",form="unformatted",recl=reclength,status="old")
+		else
+			open(unit=101,file=trim(Hfilename),access="Direct",form="unformatted",recl=reclength,status="replace")
+		end if
+		! sigmaR index =norbs is 1; norbs-1 is 2
+		write(101,rec=recindex) Hbig(1:nonzero,Hindex)
+		close(101)
+		
+		! colindex
+		reclength=Hbigdim
+		inquire(file=trim(Hcolfilename),exist=alive)
+		if(alive) then
+			open(unit=109,file=trim(Hcolfilename),access="Direct",form="unformatted",recl=reclength,status="old")
+		else
+			open(unit=109,file=trim(Hcolfilename),access="Direct",form="unformatted",recl=reclength,status="replace")
+		end if
+		! sigmaR index =norbs is 1; norbs-1 is 2
+		write(109,rec=recindex) Hbigcolindex(1:nonzero,Hindex)
+		close(109) 
+
 !------------------------------write the symmetry matrix---
 		if(logic_spinreversal/=0) then
 			reclength=2*subM
@@ -161,13 +171,17 @@ subroutine Store_Operator(domain)
 					count1=count1+1
 					if(myid==orbid2(i,j,1)) then
 						operaindex=orbid2(i,j,2)
-						! store mat-> colindex->rowindex in CSR format
 						offset=(count1-1)*(bigdim2*12+(4*subM+1)*4)*2
-						call MPI_FILE_WRITE_AT(thefile,offset,operamatbig2(1,2*operaindex-1),bigdim2*2,mpi_real8,status,ierr)
-						offset=offset+bigdim2*8*2
-						call MPI_FILE_WRITE_AT(thefile,offset,bigcolindex2(1,2*operaindex-1),bigdim2*2,mpi_integer4,status,ierr)
-						offset=offset+bigdim2*4*2
-						call MPI_FILE_WRITE_AT(thefile,offset,bigrowindex2(1,2*operaindex-1),(4*subM+1)*2,mpi_integer4,status,ierr)
+						do k=1,2,1
+							! store mat-> colindex->rowindex in CSR format
+							call MPI_FILE_WRITE_AT(thefile,offset,bigrowindex2(1,2*operaindex-2+k),(4*subM+1),mpi_integer4,status,ierr)
+							nonzero=bigrowindex2(4*dim1+1,2*operaindex-2+k)-1
+							offset=offset+(4*subM+1)*4
+							call MPI_FILE_WRITE_AT(thefile,offset,operamatbig2(1,2*operaindex-2+k),nonzero,mpi_real8,status,ierr)
+							offset=offset+nonzero*8
+							call MPI_FILE_WRITE_AT(thefile,offset,bigcolindex2(1,2*operaindex-2+k),nonzero,mpi_integer4,status,ierr)
+							offset=offset+nonzero*4
+						end do
 					end if
 				end if
 			end do

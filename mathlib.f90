@@ -401,12 +401,15 @@ subroutine SpMatIJ(Anrows,irow,icol,Amat,Amatcol,Amatrow,output)
 
 	iffind=.false.
 	do i=Amatrow(irow),Amatrow(irow+1)-1,1
-		if(Amatcol(i)==icol) then
+		if(Amatcol(i)<icol) then
+			cycle
+		else if(Amatcol(i)==icol) then
 			output=Amat(i)
 			iffind=.true.
 			exit
+		else if(Amatcol(i)>icol) then
+			exit
 		end if
-		if(Amatcol(i)>icol) exit
 	end do
 	if(iffind==.false.) then
 		output=0.0D0
@@ -501,7 +504,7 @@ subroutine SpMMtoSp(transA,transB,Anrows,Ancols,Bnrows,Bncols,Cnrows,&
 				Cmat,Ccolindex,Crowindex,maxnelement,info)
 		if(info/=0) then
 			write(*,*) "===================="
-			write(*,*) "SpMMtoSp 1st failed!"
+			write(*,*) "SpMMtoSp 1st failed!",info
 			write(*,*) "===================="
 			stop
 		end if
@@ -513,7 +516,7 @@ subroutine SpMMtoSp(transA,transB,Anrows,Ancols,Bnrows,Bncols,Cnrows,&
 				Cmat,Ccolindex,Crowindex,maxnelement,info)
 		if(info/=0) then
 			write(*,*) "===================="
-			write(*,*) "SpMMtoSp 1st failed!"
+			write(*,*) "SpMMtoSp 2st failed!",info
 			write(*,*) "===================="
 			stop
 		end if
