@@ -63,7 +63,7 @@ module variables
 	stepPerSweep, &                      ! how many steps in one finite DMRG sweep
 	isweep                               ! the at present isweep
 	real(kind=r8) :: energythresh        ! energy convegence threshold in the middle of every sweep
-	logical       :: reachedEnergyThresh   = .false.  !during finite sweep, whether the crite of davidson reached 0.1*energythresh
+	logical       :: reachedEnergyThresh   = .false.  ! during finite sweep, whether the crite of davidson reached 0.1*energythresh
 	real(kind=r8),allocatable :: sweepenergy(:,:)     ! store every sweep energy in the middle
 	integer(kind=i4) :: Lrealdim,Rrealdim   ! L/R space real dimension
 	integer(kind=i4) :: nleft,nright        ! L/R space site number L+sigmaL+sigmaR+R

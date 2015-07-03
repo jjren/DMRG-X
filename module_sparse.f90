@@ -168,7 +168,19 @@ subroutine sparse_default
 	use communicate
 	implicit none
 
-	if(abs(subM-128)<20) then
+	if(subM<100) then
+		bigratio1=1.0
+		smaratio1=1.0
+		bigratio2=1.0
+		smaratio2=1.0
+		Hbigratio=1.0
+		Hsmaratio=1.0
+		pppmatratio=1.0
+		hopmatratio=1.0
+		LRoutratio=1.0
+		UVmatratio=1.0
+		coeffIFratio=1.0
+	else if(abs(subM-120)<20) then
 		bigratio1=32.0
 		smaratio1=8.0
 		bigratio2=32.0
