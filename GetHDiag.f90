@@ -30,12 +30,12 @@ Subroutine GetHDiag(HDIAGnosymm)
 		buffermat0=0.0D0
 		allocate(Hdiagdummy(16*Lrealdim*Rrealdim),stat=error)
 		if(error/=0) stop
-    end if
-    
-    !if(targetStateFlag=="uncertain") then
-    !    write(*,*) myid, "is here"
-    !end if
-    !call MPI_BARRIER(MPI_COMM_WORLD,ierr)
+	end if
+
+	!if(targetStateFlag=="uncertain") then
+	!    write(*,*) myid, "is here"
+	!end if
+	!call MPI_BARRIER(MPI_COMM_WORLD,ierr)
 
 	! L space
 	do i=1,nleft+1,1

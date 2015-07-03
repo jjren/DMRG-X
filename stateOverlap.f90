@@ -13,7 +13,6 @@ module stateOverlap
                     :: storedStateIndex(:)            ! after every sweep is over the state index to be traced is stored
     real(kind=r8),allocatable &
                     :: stateSpecificSweepEnergy(:)    ! sweepenergy for state specific DMRG sweep
-    real(kind=r8)   :: formerStateEnergy
     integer(kind=4) :: maxStateSpecificSweeps = 100   ! maximum number of max overlap sweeps
     integer(kind=4) :: maxStateSpecificSteps
                                                       ! they are considered equal

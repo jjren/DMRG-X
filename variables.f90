@@ -87,10 +87,11 @@ module variables
 	logical          :: startedStateSpecific = .false. ! whether conduct state-specific DMRG by maximum overlap algorithm
 	integer(kind=4)  :: formerStateIndex               ! the excited state of last step
 	integer(kind=4)  :: targetStateIndex               ! the excited state to be targetted (traced) in this step
-	character(len=10):: targetStateFlag  = 'none'           ! 'none': not started yet or already finished
 	integer          :: realTargetStateIndex           ! user specified index which to be traced
 	integer(kind=4)  :: highestStateIndex              ! highest state considered when tracing excited state
 	real(kind=r8)     :: overlapThresh                  ! If two states have a bigger overlap than this value,
+	real(kind=r8)   :: formerStateEnergy
+	character(len=10):: targetStateFlag  = 'none'           ! 'none': not started yet or already finished
                                                             ! 'trysame': target the state with the same index of last step
                                                             ! 'getsame': the state above is correct(overlap is large)
                                                             ! 'ngetsame': the state above is incorrect(overlap is small)

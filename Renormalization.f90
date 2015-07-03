@@ -27,7 +27,6 @@ Subroutine Renormalization(direction)
 ! direction=i means is the infinit MPS
 ! direction=r means r block is the system
 	use mpi
-	use stateOverlap
 	implicit none
 	
 	character(len=1) :: direction

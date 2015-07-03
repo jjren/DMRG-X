@@ -130,4 +130,6 @@ subroutine selectstates(valuework,dim1,valueindex,singularvalue,&
 		end if
 	end if
 
+return
+
 end subroutine selectstates

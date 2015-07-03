@@ -47,6 +47,7 @@ subroutine InitialStarter(direction,lvector,nvector,initialcoeff)
 			!call InitialRandom(nosymmguess,ngoodstates,nvector)
 			select case(targetStateFlag)
 			case('trysame')
+				! only the formerstateIndex is exact approximated
 				call MoreInitialFinite(nosymmguess,ngoodstates,nvector,direction)
 			case('trylower')
 				write(*,*) "directely use last davidson results as initial guess"
@@ -56,6 +57,7 @@ subroutine InitialStarter(direction,lvector,nvector,initialcoeff)
 				write(*,*) "the Initial guessvector norm",norm
 				return
 			case('tryhigher','reachedmax')
+				! targeStateIndex is the now target state
 				write(*,*) "using", targetStateIndex - 1, "states from last davidson as initial guess"
 				write(*,*) "add another random guess"
 				call InitialRandom(initialcoeff(lvector*(targetStateIndex-1)+1:lvector*targetStateIndex),lvector,1)
@@ -116,7 +118,6 @@ end subroutine InitialStarter
 	integer :: subMbefore
 	integer :: error,i,j,m,k
 	character(len=1) :: direction
-	real(kind=8)  :: norm
 	integer :: job(8),info
 
 	write(*,*) "enter MoreInitialFinit subroutine"
@@ -127,7 +128,7 @@ end subroutine InitialStarter
 		write(*,*) "-----------------------------------"
 		stop
 	end if
-	if(nvector/=nstate) then
+	if(nvector/=nstate .and. exscheme/=4) then
 		write(*,*) "MoreInitialGuess nvector/=nstate",nvector,nstate
 		stop
 	end if
@@ -190,7 +191,7 @@ end subroutine InitialStarter
 	job(5)=0
 	job(6)=1
 	! transfer coeffIF to dense matrix
-	do i=1,nstate,1
+	do i=1,nvector,1
 		call mkl_ddnscsr(job,4*subM,4*subM,LRcoeff1(:,:,i),4*subM,coeffIF(:,i),coeffIFcolindex(:,i),coeffIFrowindex(:,i),info)
 		if(info/=0) then
 			call master_print_message(info,"MoreInitFinite info/=")
@@ -226,6 +227,7 @@ end subroutine InitialStarter
 		end if
 		do i=1,nvector,1
 			call gemm(LRcoeff1(:,1:4*subMbefore,i),rightv(:,1:4*subMbefore),LRcoeff(:,1:subM,i),'N','T',1.0D0,0.0D0)
+			LRcoeff1(:,:,i)=0.0D0
 			do j=1,subM,1
 				do k=1,4,1
 					LRcoeff1(1:subM,(j-1)*4+k,i)=LRcoeff((k-1)*subM+1:k*subM,j,i)
@@ -271,7 +273,7 @@ end subroutine InitialStarter
 	! when nstate=1 then we can use the last stored matrix to
 	! contruct the Initial Guess
 	! only used in the finit MPS and nstate=1
-    ! also used in max overlap algorithm
+	! also used in max overlap algorithm
 
 	!out :: nosymmguess(lvector) :: the finit initial guess
 	!in  :: lvector :: ngoodstates,the nnosymmstate
@@ -293,7 +295,7 @@ end subroutine InitialStarter
 	real(kind=r8) :: norm
 	integer :: job(8),info
 	
-    call master_print_message("enter SingleInitialFinite subroutine")
+	call master_print_message("enter SingleInitialFinite subroutine")
         
 	! two site dmrg
 	if((nright+nleft+2)/=norbs) then

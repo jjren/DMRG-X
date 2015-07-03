@@ -14,21 +14,21 @@ subroutine Hamiltonian(direction)
     
 	! davidson input
 	integer :: &
-		lim   ,  &       ! the expanding small space in davidson iteration
-		ilow  ,  &       ! index of lowest eigenpair
-		ihigh ,  &       ! index of the highest eigenpair
-		niv   ,  &       ! number of initial vector
-		mblock,  &       ! number of vector to be targeted in each iteration
-		maxiter          ! maxiter iterations
-	real(kind=8) :: &
-		crite ,   &      ! convergence eigenvalue
-		critc ,   &      ! convergence coefficiency
-		critr ,   &      ! convergence residual vector norm
-		ortho            ! orthogonality threshold
+		lim   ,   &       ! the expanding small space in davidson iteration
+		ilow  ,   &       ! index of lowest eigenpair
+		ihigh ,   &       ! index of the highest eigenpair
+		niv   ,   &       ! number of initial vector
+		mblock,   &       ! number of vector to be targeted in each iteration
+		maxiter           ! maxiter iterations
+	real(kind=r8) :: &
+		crite ,    &      ! convergence eigenvalue
+		critc ,    &      ! convergence coefficiency
+		critr ,    &      ! convergence residual vector norm
+		ortho             ! orthogonality threshold
 	integer,allocatable :: iselec(:)        ! selected eigenpair
 	
 	! davidson output 
-	integer :: dimN,nloops,nmv,ierror,smadim,IWRSZ,NUME
+	integer :: dimN,nloops,nmv,IERROR,smadim,IWRSZ,NUME
 	logical :: hiend
     
 	real(kind=r8),allocatable :: HDIAG(:),DavidWORK(:)
@@ -143,7 +143,7 @@ end subroutine initDavidWORK
 subroutine getDavidParameters
 	! convergence threshholds and iteration parameters
 	call getCrit
-	maxiter = 800
+	maxiter = 400
 	
 	! state indices to be targeted in davidson diagonalization
 	if(exscheme == 4 .and. startedStateSpecific) then
@@ -181,7 +181,7 @@ subroutine getDavidParameters
 			stop
 		end if
 	else
-		call master_print_message(nstate,"Calculating states lower than nstate:")
+		call master_print_message(nstate,"Calculating states .LE. nstate:")
 		ilow = 1
 		ihigh = nstate
 		mblock = nstate
@@ -207,7 +207,7 @@ subroutine Davidson
 		write(*,*) "Begin Running Davidson Diagonalization"
 		call DVDSON(op,dimN,lim,HDIAG,ilow,ihigh,iselec &
 		    ,niv,mblock,crite,critc,critr,ortho,maxiter,DavidWORK,&
-		    IWRSZ,hiend,nloops,nmv,ierror)
+		    IWRSZ,hiend,nloops,nmv,IERROR)
 		    smadim=0
 		call MPI_BCAST(smadim,1,MPI_integer,0,MPI_COMM_WORLD,ierr)
 	end if
@@ -256,7 +256,7 @@ subroutine processDavidOut
 	
 	! calculate state overlap with state from former step (unsymmetrized state)
 	if(exscheme == 4 .and. startedStateSpecific) then 
-		call getStateOverlap(nosymmout, NUME, direction, ierror)
+		call getStateOverlap(nosymmout, NUME, direction, IERROR)
 	end if
 
 	! transfer the nosymmout to coeffIF
@@ -269,23 +269,23 @@ subroutine processDavidOut
 
 !	write the coeffIF in two partical density matrix calculation
 
-	if(exscheme/=4) then
-		reclength=nstate*32*subM*subM
-	else
-		reclength=highestStateIndex*32*subM*subM
-	end if        
-	open(unit=109,file="coeffIF.tmp",access="Direct",form="unformatted",recl=reclength,status="replace")
-	write(109,rec=1) coeffIF
-	close(109)
-	reclength=nstate*coeffIFdim
-	open(unit=109,file="coeffIFcol.tmp",access="Direct",form="unformatted",recl=reclength,status="replace")
-	write(109,rec=1) coeffIFcolindex
-	close(109)
-	reclength=(4*subM+1)*nstate
-	open(unit=109,file="coeffIFrow.tmp",access="Direct",form="unformatted",recl=reclength,status="replace")
-	write(109,rec=1) coeffIFrowindex
-	close(109)
-
+!	if(exscheme/=4) then
+!		reclength=nstate*32*subM*subM
+!	else
+!		reclength=highestStateIndex*32*subM*subM
+!	end if        
+!	open(unit=109,file="coeffIF.tmp",access="Direct",form="unformatted",recl=reclength,status="replace")
+!	write(109,rec=1) coeffIF
+!	close(109)
+!	reclength=nstate*coeffIFdim
+!	open(unit=109,file="coeffIFcol.tmp",access="Direct",form="unformatted",recl=reclength,status="replace")
+!	write(109,rec=1) coeffIFcolindex
+!	close(109)
+!	reclength=(4*subM+1)*nstate
+!	open(unit=109,file="coeffIFrow.tmp",access="Direct",form="unformatted",recl=reclength,status="replace")
+!	write(109,rec=1) coeffIFrowindex
+!	close(109)
+!
 end subroutine processDavidOut
 
 !================================================================
@@ -296,7 +296,7 @@ subroutine printResults
 	write(*,*) "position:",nleft+1,norbs-nright
 	write(*,*) "direction = ",direction
 	write(*,*) "NLOOPS=",nloops
-	Write(*,*) "IERROR=",ierror
+	Write(*,*) "IERROR=",IERROR
 	write(*,*) "NMV=",nmv
 	write(*,*) "crite=",crite
 	if(exscheme == 4 .and. startedStateSpecific) then  ! state specific calculation, computing overlaps
@@ -421,7 +421,7 @@ subroutine printResults
 		davidFinished = .true.
 	end if
 	
-	if(ierror/=0 .and. (exscheme/=4 .or. targetStateFlag/='none')) then
+	if(IERROR/=0 .and. (exscheme/=4 .or. targetStateFlag/='none')) then
 		call master_print_message("failed! IERROR/=0")
 		stop
 	end if
@@ -522,8 +522,8 @@ subroutine getCrit
 		end if
 
 		! in the last 3 sweeps
-		if(isweep==sweeps .or. isweep==sweeps-1 .or. &
-		isweep==sweeps-2) then
+		if(isweep==MaxSweeps .or. isweep==MaxSweeps-1 .or. &
+		isweep==MaxSweeps-2) then
 			crite=1.0D-10
 			critc=1.0D-10
 			critr=1.0D-10

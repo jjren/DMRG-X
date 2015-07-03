@@ -10,7 +10,8 @@ Subroutine Finit_MPS
 	implicit none
 
 	real(kind=r8) :: starttime,endtime
-	integer :: isystem,ibegin,i,sweepbegin,sweepend
+	integer :: ibegin,i,sweepbegin,sweepend
+	integer :: icycle,isystem
 	logical :: converged
 	integer :: ierr ! MPI_flag
 
@@ -63,8 +64,10 @@ Subroutine Finit_MPS
 	end if
 !=================================================================================
 
-	do isweep=sweepbegin,sweepend,1
-	
+	do icycle=sweepbegin,sweepend,1
+		
+		isweep=icycle
+
 		do isystem=ibegin,norbs-exactsite-2,1
 			! add nelecs 2 by 2 if the nelecs does not reach realnelecs
 			formernelecs=nelecs

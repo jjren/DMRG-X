@@ -40,7 +40,7 @@ subroutine init_communicate
 	call MPI_COMM_SIZE (MPI_COMM_WORLD, nprocs, ierr)
 	call MPI_GET_VERSION(VERSION,SUBVERSION,ierr)
 	write(*,*) "myid=",myid,"version=",version,"subversion=",subversion
-    call MPI_barrier(MPI_COMM_WORLD,ierr)
+	call MPI_barrier(MPI_COMM_WORLD,ierr)
 
 end subroutine init_communicate
 
