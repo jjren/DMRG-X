@@ -7,7 +7,12 @@ subroutine splitsvdR(singularvalue,rightv,statebegin,stateend,indexRm1)
 	USE blas95
 	use lapack95
 	USE F95_PRECISION
+<<<<<<< HEAD:splitsvdR.f90
     use selectstate
+=======
+	use module_sparse
+	use mathlib
+>>>>>>> dev:nouse/splitsvdRold.f90
 
 	implicit none
 
@@ -23,6 +28,7 @@ subroutine splitsvdR(singularvalue,rightv,statebegin,stateend,indexRm1)
 	integer,allocatable :: subspacenum(:)
 	real(kind=8) :: diffzero,scale1
 	integer :: scalenum
+	integer :: ldc
 ! szl0 means the number of sz>0 states
 ! szzero means the number of sz=0 state 
 
@@ -40,10 +46,9 @@ subroutine splitsvdR(singularvalue,rightv,statebegin,stateend,indexRm1)
 	coeffbuffer=0.0D0
 	coeffresult=0.0D0
 
-!	write(*,*) "coeffIF"
-!	write(*,*) coeffIF(1:4*Rrealdim,1:4*Rrealdim,:)
 
 ! the R+sigmaR space reduced density matrix
+<<<<<<< HEAD:splitsvdR.f90
     if(exscheme == 4 .and. startedStateSpecific) then ! He Ma  
         call gemm(coeffIF(1:4*Lrealdim,1:4*Rrealdim,formerStateIndex),&
                   coeffIF(1:4*Lrealdim,1:4*Rrealdim,formerStateIndex),&
@@ -59,6 +64,22 @@ subroutine splitsvdR(singularvalue,rightv,statebegin,stateend,indexRm1)
 		    end if
         end do
     end if
+=======
+	do i=statebegin,stateend,1
+		ldc=4*subM
+		call SpMMtoDens('T','N',4*Lrealdim,4*Rrealdim,4*Lrealdim,4*Rrealdim,4*subM,4*subM,&
+		coeffIF(:,i),coeffIFcolindex(:,i),coeffIFrowindex(:,i),&
+		coeffIF(:,i),coeffIFcolindex(:,i),coeffIFrowindex(:,i),&
+		coeffbuffer,ldc)
+		
+		
+		if(exscheme==1) then
+			coeffwork=coeffwork+coeffbuffer*nweight(i)
+		else
+			coeffwork=coeffwork+coeffbuffer
+		end if
+	end do
+>>>>>>> dev:nouse/splitsvdRold.f90
 	!write(*,*) "coeffwork"
 	!write(*,*) coeffwork
 ! split the reduced density matrix to different good quantum
@@ -525,10 +546,6 @@ if(logic_spinreversal/=0) then
 	deallocate(szzeroindex)
 	deallocate(symmlinkbigbuffer)
 end if
-!	tmp=0
-!	do while(tmp==0) 
-!		call sleep(2)
-!	end do
 return
 end subroutine
 

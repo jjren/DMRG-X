@@ -7,7 +7,12 @@ subroutine splitsvdL(singularvalue,leftu,statebegin,stateend,indexlp1)
 	USE blas95
 	use lapack95
 	USE F95_PRECISION
+<<<<<<< HEAD:splitsvdL.f90
     use selectstate
+=======
+	use mathlib
+	use module_sparse
+>>>>>>> dev:nouse/splitsvdLold.f90
 
 	implicit none
 
@@ -26,6 +31,7 @@ subroutine splitsvdL(singularvalue,leftu,statebegin,stateend,indexlp1)
 	logical :: done
 	integer,allocatable :: subspacenum(:)
 	real(kind=8) :: sum1
+	integer :: ldc
 ! szl0 means the number of sz>0 states
 ! szzero means the number of sz=0 state
 
@@ -42,10 +48,9 @@ subroutine splitsvdL(singularvalue,leftu,statebegin,stateend,indexlp1)
 	coeffbuffer=0.0D0
 	coeffresult=0.0D0
 
-!	write(*,*) "coeffIF"
-!	write(*,*) coeffIF(1:4*Lrealdim,1:4*Rrealdim,:)
 
 ! the L+sigmaL space reduced density matrix
+<<<<<<< HEAD:splitsvdL.f90
     if(exscheme == 4 .and. startedStateSpecific) then ! He Ma  
         call gemm(coeffIF(1:4*Lrealdim,1:4*Rrealdim,formerStateIndex),&
                   coeffIF(1:4*Lrealdim,1:4*Rrealdim,formerStateIndex),&
@@ -61,6 +66,21 @@ subroutine splitsvdL(singularvalue,leftu,statebegin,stateend,indexlp1)
 		    end if
         end do
     end if
+=======
+	do i=statebegin,stateend,1
+		ldc=4*subM
+		call SpMMtoDens('N','T',4*Lrealdim,4*Rrealdim,4*Lrealdim,4*Rrealdim,4*subM,4*subM,&
+		coeffIF(:,i),coeffIFcolindex(:,i),coeffIFrowindex(:,i),&
+		coeffIF(:,i),coeffIFcolindex(:,i),coeffIFrowindex(:,i),&
+		coeffbuffer,ldc)
+		
+		if(exscheme==1) then
+			coeffwork=coeffwork+coeffbuffer*nweight(i)
+		else
+			coeffwork=coeffwork+coeffbuffer
+		end if
+	end do
+>>>>>>> dev:nouse/splitsvdLold.f90
 	
 	sum1=0.0D0
 	do i=1,4*Lrealdim,1
@@ -351,7 +371,7 @@ subroutine splitsvdL(singularvalue,leftu,statebegin,stateend,indexlp1)
 			else if(valueindex(i)>szl0 .and. valueindex(i)<=szl0+szzero) then
 				if(symmlinkbigbuffer(valueindex(i))==0) then
 					write(*,*) "----------------------------------------"
-					write(*,*) "L symmlinkbigbuffer(valueindex(i)==0 failed!"
+					write(*,*) "L symmlinkbigbuffer(valueindex(i))==0 failed!"
 					write(*,*) "----------------------------------------"
 					stop
 				end if

@@ -1,6 +1,11 @@
 module excitedbase
+
+
     contains
-    subroutine excitedbasis(leftu,rightv,singularvalue,leftu2,rightv2,&
+!======================================================================
+!======================================================================
+
+subroutine excitedbasis(leftu,rightv,singularvalue,leftu2,rightv2,&
 			quantasmaL2,quantasmaR2,symmlinksma2)
 
 ! this subroutine is to get the basis in the excited exsheme=2 algorithom
@@ -152,9 +157,9 @@ module excitedbase
 	deallocate(index2)
 	deallocate(former)
 	deallocate(value)
+return
+end subroutine excitedbasis
 
-
-    return
-    end subroutine
-            
+!======================================================================
+!======================================================================
 end module excitedbase

@@ -20,44 +20,63 @@ subroutine op(bigdim,smadim,coeff,newcoeff)
 	use variables
 	use symmetry
 	use mathlib
-	use BLAS95
-	use F95_PRECISION
+	use module_sparse
 
 	implicit none
+	include "mkl_spblas.fi"
 
 	integer :: bigdim,smadim
 	real(kind=r8) :: coeff(bigdim*smadim),newcoeff(bigdim*smadim)
 	
 	! local
 	integer :: operaindex
-	real(kind=r8),allocatable :: LRcoeffin(:,:,:),LRcoeffout(:,:,:),coeffnosymm(:),coeffnosymmreduce(:)
-	real(kind=r8),allocatable :: hopmat(:,:,:,:),pppVmat(:,:,:),buffmat(:,:)
+	
+	real(kind=r8),allocatable :: LRcoeffin(:,:),LRcoeffout(:,:),coeffnosymm(:),coeffnosymmreduce(:)
+	integer(kind=i4),allocatable :: LRcoeffincol(:,:),LRcoeffinrow(:,:),&
+	LRcoeffoutcol(:,:),LRcoeffoutrow(:,:)
+	
+	real(kind=r8),allocatable :: hopmat(:,:,:),pppVmat(:,:),buffmat(:)
+	integer(kind=i4),allocatable :: &
+	hopmatcol(:,:,:),pppVmatcol(:,:),buffmatcol(:),&
+	hopmatrow(:,:,:),pppVmatrow(:,:),buffmatrow(:)
+
+	integer(kind=i4) :: pppnelement,hopnelement,LRoutnelement
+
+	character(len=1),allocatable :: hoppackbuf(:),pppVpackbuf(:)
+	integer :: position1,pppVpacksize,hoppacksize
+
 	real(kind=r8),allocatable :: phase(:)
-	integer :: error,i,j,k,l,m
+	integer :: error,i,j,k,l,m,n
+	integer :: info
 	
 	logical :: ifhop,ifhopsend,ifpppVsend
 	integer :: hoptouched(nprocs-1),hopntouched,pppVtouched(nprocs-1),pppVntouched
 	
 	! MPI flag
-	!integer :: status(MPI_STATUS_SIZE),hopsendrequest(nprocs-1),pppVsendrequest(nprocs-1),hoprecvrequest
 	integer :: status(MPI_STATUS_SIZE),hopsendrequest(nprocs-1),hoprecvrequest
 	integer :: ierr
-
+	
 !============================================================
 ! allocate workspace
 	! store nosymmetry coeff
 	allocate(coeffnosymm(ngoodstates*smadim),stat=error)
 	if(error/=0) stop
-	allocate(buffmat(4*Lrealdim,4*Rrealdim),stat=error)
-	if(error/=0) stop
+
+	! set the sparse matrix dim
+	pppnelement=CEILING(DBLE(16*subM*subM)/pppmatratio)
+	hopnelement=CEILING(DBLE(16*subM*subM)/hopmatratio)
+	LRoutnelement=CEILING(DBLE(16*subM*subM)/LRoutratio)
 	
 	if(myid/=0) then
 		do i=norbs,norbs-nright,-1
-			if(myid==orbid(i)) then
+			if(myid==orbid1(i,1)) then
 				if( .not. allocated(LRcoeffin)) then
 					! transform the 1-array to 4M*4M form 
-					! 256M if nstate=2 M=1000
-					allocate(LRcoeffin(4*Lrealdim,4*Rrealdim,smadim),stat=error)   ! coeff to LR format
+					allocate(LRcoeffin(ngoodstates,smadim),stat=error)   ! coeff to LR format
+					if(error/=0) stop
+					allocate(LRcoeffincol(ngoodstates,smadim),stat=error)   
+					if(error/=0) stop
+					allocate(LRcoeffinrow(4*Lrealdim+1,smadim),stat=error)   
 					if(error/=0) stop
 					exit
 				end if
@@ -65,9 +84,20 @@ subroutine op(bigdim,smadim,coeff,newcoeff)
 		end do
 	
 		do i=1,nleft+1,1
-			if(myid==orbid(i)) then
+			if(myid==orbid1(i,1)) then
 				if( .not. allocated(LRcoeffout)) then
-					allocate(LRcoeffout(4*Lrealdim,4*Rrealdim,smadim),stat=error)  ! newcoeff to LR format
+					allocate(LRcoeffout(LRoutnelement,smadim),stat=error)  ! newcoeff to LR format
+					if(error/=0) stop
+					allocate(LRcoeffoutcol(LRoutnelement,smadim),stat=error)  
+					if(error/=0) stop
+					allocate(LRcoeffoutrow(4*Lrealdim+1,smadim),stat=error) 
+					if(error/=0) stop
+					! intermediate array store LRcoeffout
+					allocate(buffmat(LRoutnelement),stat=error)
+					if(error/=0) stop
+					allocate(buffmatcol(LRoutnelement),stat=error)
+					if(error/=0) stop
+					allocate(buffmatrow(4*Lrealdim+1),stat=error)
 					if(error/=0) stop
 					exit
 				end if
@@ -77,26 +107,60 @@ subroutine op(bigdim,smadim,coeff,newcoeff)
 		do i=1,nleft+1,1
 		do j=norbs,norbs-nright,-1
 			if(bondlink(i,j)==1) then
-				if(myid==orbid(i) .or. myid==orbid(j)) then
+				if(myid==orbid1(i,1) .or. myid==orbid1(j,1)) then
 					if(.not. allocated(hopmat)) then
-						allocate(hopmat(4*Lrealdim,4*Rrealdim,4,smadim),stat=error) ! store the hopping matrix
+						allocate(hopmat(hopnelement,4,smadim),stat=error) ! store the hopping matrix
+						if(error/=0) stop
+						allocate(hopmatcol(hopnelement,4,smadim),stat=error) 
+						if(error/=0) stop
+						allocate(hopmatrow(4*Lrealdim+1,4,smadim),stat=error) 
+						if(error/=0) stop
+
+						hoppacksize=(hopnelement*12+4*(4*Lrealdim+1))*smadim*4+1000  ! 1000 is redundant
+						allocate(hoppackbuf(hoppacksize),stat=error) ! packbuf to send hopping matrix
 						if(error/=0) stop
 					end if
 				end if
 			end if
 		end do
 		end do
-		allocate(pppVmat(4*Lrealdim,4*Rrealdim,smadim),stat=error) ! store the pppV matrix
+
+		allocate(pppVmat(pppnelement,smadim),stat=error) ! store the pppV matrix
 		if(error/=0) stop
-	else 
-		allocate(LRcoeffin(4*Lrealdim,4*Rrealdim,smadim),stat=error)   ! coeff to LR format
+		allocate(pppVmatcol(pppnelement,smadim),stat=error) 
 		if(error/=0) stop
-		allocate(LRcoeffout(4*Lrealdim,4*Rrealdim,smadim),stat=error)   ! coeff to LR format
+		allocate(pppVmatrow(4*Lrealdim+1,smadim),stat=error) 
+		if(error/=0) stop
+
+		pppVpacksize=(pppnelement*12+4*(4*Lrealdim+1))*smadim+1000
+		allocate(pppVpackbuf(pppVpacksize),stat=error) ! packbuf to send the pppV matrix
+		if(error/=0) stop
+	else  
+		! 0 process
+		allocate(LRcoeffin(ngoodstates,smadim),stat=error)   ! coeff to LR format
+		if(error/=0) stop
+		allocate(LRcoeffincol(ngoodstates,smadim),stat=error)   
+		if(error/=0) stop
+		allocate(LRcoeffinrow(4*Lrealdim+1,smadim),stat=error)   
+		if(error/=0) stop
+		allocate(LRcoeffout(LRoutnelement,smadim),stat=error)  ! newcoeff to LR format
+		if(error/=0) stop
+		allocate(LRcoeffoutcol(LRoutnelement,smadim),stat=error)  
+		if(error/=0) stop
+		allocate(LRcoeffoutrow(4*Lrealdim+1,smadim),stat=error) 
+		if(error/=0) stop
+		! intermediate array store LRcoeffout
+		allocate(buffmat(LRoutnelement),stat=error)
+		if(error/=0) stop
+		allocate(buffmatcol(LRoutnelement),stat=error)
+		if(error/=0) stop
+		allocate(buffmatrow(4*Lrealdim+1),stat=error)
 		if(error/=0) stop
 	end if
 
 !=================================================================================================
 	
+	! unsymmetrize the coeff if needed
 	if( myid==0 ) then
 		! if symmetry==.true. then transform the symmetry coeff to the unsymmetry coeff
 		if(logic_spinreversal/=0 .or. (logic_C2/=0 .and. nleft==nright)) then
@@ -121,7 +185,7 @@ subroutine op(bigdim,smadim,coeff,newcoeff)
 	do i=1,nprocs-1,1
 		if(myid==0 .or. myid==i) then
 			do j=norbs,norbs-nright,-1
-				if(i==orbid(j)) then
+				if(i==orbid1(j,1)) then
 					if(myid==0) then
 						call MPI_SEND(coeffnosymm,ngoodstates*smadim,MPI_real8,i,1,MPI_COMM_WORLD,ierr)
 					else if(myid==i) then
@@ -137,31 +201,20 @@ subroutine op(bigdim,smadim,coeff,newcoeff)
 
 ! R space process do it
 ! to transform the 16M*M coeff to 4M*4M(L*R) format ; coeff(16M^2,n) to coeff(4M,4M,n) 
-! since the input coeff is ngoodstates and other nongoodstates sets to 0
 	if(allocated(LRcoeffin)) then
-		m=0
-		LRcoeffin=0.0D0
+		! transfer the coeffnosymm to matrix form
 		do k=1,smadim,1
-			do i=1,4*Rrealdim,1
-			do j=1,4*Lrealdim,1
-				if((quantabigL(j,1)+quantabigR(i,1)==nelecs) .and. &
-					quantabigL(j,2)+quantabigR(i,2)==totalSz) then
-					m=m+1
-					LRcoeffin(j,i,k)=coeffnosymm(m)
-				end if
-			end do
-			end do
+			call coefftosparse(4*Lrealdim,4*Rrealdim,ngoodstates,&
+				LRcoeffin(:,k),LRcoeffincol(:,k),LRcoeffinrow(:,k),&
+				ngoodstates,coeffnosymm((k-1)*ngoodstates+1:k*ngoodstates))
 		end do
-		if(m/=smadim*ngoodstates) then
-			call master_print_message("m/=smadim*ngoodstates op good quantum states number wrong!")
-			stop
-		end if
 	end if
 
 ! L space process and 0 process initializaiton
 ! L space process have LRcoeffout and send to 0 process at last
+
 	if(allocated(LRcoeffout)) then
-		LRcoeffout=0.0D0   
+		LRcoeffoutrow=1  ! define the LRcoeffout matrix is 0
 	end if
 
 !  calculate HL*1 and 1*HR 
@@ -169,13 +222,21 @@ subroutine op(bigdim,smadim,coeff,newcoeff)
 		do i=1,smadim,1
 			do k=1,2,1
 				if(k==1) then ! HL*1
-					call gemm(Hbig(1:4*Lrealdim,1:4*Lrealdim,1),LRcoeffin(:,:,i),&
-						buffmat,'N','N',1.0D0,0.0D0)
+					call mkl_dcsrmultcsr('N',0,8,4*Lrealdim,4*Lrealdim,4*Rrealdim, &
+						Hbig(:,1),Hbigcolindex(:,1),Hbigrowindex(:,1), &
+						LRcoeffin(:,i),LRcoeffincol(:,i),LRcoeffinrow(:,i), &
+						buffmat,buffmatcol,buffmatrow,LRoutnelement,info)
+					call checkinfo(info)
 				else ! 1*HR
-					call gemm(LRcoeffin(:,:,i),Hbig(1:4*Rrealdim,1:4*Rrealdim,2),&
-					buffmat,'N','N',1.0D0,0.0D0)
+					call mkl_dcsrmultcsr('N',0,8,4*Lrealdim,4*Rrealdim,4*Rrealdim, &
+						LRcoeffin(:,i),LRcoeffincol(:,i),LRcoeffinrow(:,i), &
+						Hbig(:,2),Hbigcolindex(:,2),Hbigrowindex(:,2), &
+						buffmat,buffmatcol,buffmatrow,LRoutnelement,info)
+					call checkinfo(info)
 				end if
-				LRcoeffout(:,:,i)=buffmat+LRcoeffout(:,:,i)
+				! add LRcoeffout and bufmat
+				call SpMatAdd(4*Rrealdim,4*Lrealdim,LRcoeffout(:,i),LRcoeffoutcol(:,i),LRcoeffoutrow(:,i),&
+				'N',1.0D0,4*Rrealdim,4*Lrealdim,buffmat,buffmatcol,buffmatrow,LRoutnelement)
 			end do
 		end do
 	end if
@@ -186,36 +247,42 @@ subroutine op(bigdim,smadim,coeff,newcoeff)
 ! and 0 process gather the result
 	if(myid/=0) then
 	do i=norbs,norbs-nright,-1
-		if(myid==orbid(i)) then
-			if(mod(i,nprocs-1)==0) then
-				operaindex=i/(nprocs-1)
-			else
-				operaindex=i/(nprocs-1)+1
-			end if
+		if(myid==orbid1(i,1)) then
+			operaindex=orbid1(i,2)
 !=====================================================================================
 			
 			! construct the pppVmat
 			do j=1,smadim,1
-				call gemm(LRcoeffin(:,:,j),operamatbig(1:4*Rrealdim,1:4*Rrealdim,operaindex*3)&
-					,pppVmat(:,:,j),'N','N',1.0D0,0.0D0)
+				call mkl_dcsrmultcsr('N',0,8,4*Lrealdim,4*Rrealdim,4*Rrealdim, &
+					LRcoeffin(:,j),LRcoeffincol(:,j),LRcoeffinrow(:,j), &
+					operamatbig1(:,operaindex*3),bigcolindex1(:,operaindex*3),bigrowindex1(:,operaindex*3), &
+					pppVmat(:,j),pppVmatcol(:,j),pppVmatrow(:,j),pppnelement,info)
+				call checkinfo(info)
+			end do
+			! pack the pppVmat
+			position1=0
+			do k=1,smadim,1
+				call MPI_PACK(pppVmatrow(1,k),(4*Lrealdim+1),MPI_integer4,pppVpackbuf,pppVpacksize,position1,MPI_COMM_WORLD,ierr)
+				call MPI_PACK(pppVmat(1,k),pppVmatrow(4*Lrealdim+1,k)-1,MPI_real8,pppVpackbuf,pppVpacksize,position1,MPI_COMM_WORLD,ierr)
+				call MPI_PACK(pppVmatcol(1,k),pppVmatrow(4*Lrealdim+1,k)-1,MPI_integer4,pppVpackbuf,pppVpacksize,position1,MPI_COMM_WORLD,ierr)
 			end do
 			
 			! send the pppVmat
 			pppVtouched=0
 			pppVntouched=0
 			do l=1,nleft+1,1
-				if(orbid(l)/=myid) then ! if l==myid need not send hopmat
+				if(orbid1(l,1)/=myid) then ! if l==myid need not send hopmat
 					ifpppVsend=.false.
 					do m=1,pppVntouched,1
-						if(orbid(l)==pppVtouched(m)) then
+						if(orbid1(l,1)==pppVtouched(m)) then
 							ifpppVsend=.true.   ! have send pppVmat to this process
 							exit
 						end if
 					end do
 					if(ifpppVsend==.false.) then
 						pppVntouched=pppVntouched+1
-						pppVtouched(pppVntouched)=orbid(l)
-						call MPI_SEND(pppVmat,16*Lrealdim*Rrealdim*smadim,MPI_real8,orbid(l),i,MPI_COMM_WORLD,ierr)
+						pppVtouched(pppVntouched)=orbid1(l,1)
+						call MPI_SEND(pppVpackbuf,position1,MPI_PACKED,orbid1(l,1),i,MPI_COMM_WORLD,ierr)
 					!	call MPI_ISEND(pppVmat,16*Lrealdim*Rrealdim*smadim,MPI_real8,orbid(l),i,MPI_COMM_WORLD,pppVsendrequest(pppVntouched),ierr)
 					! some problem in the isend, maybe the system buffer size limitation
 					! use bsend is possible
@@ -233,20 +300,27 @@ subroutine op(bigdim,smadim,coeff,newcoeff)
 			end do
 			
 			if(ifhop==.true.) then
+				
 				! construct hopmat
 				do j=1,smadim,1
 					do k=1,4,1
 						if(k<=2) then
 						! firstly needed to transfer from a(+) to a, so 'T' and 'T' is 'N', (ni-1)^+=(ni-1)
 						! k=1 a up,k=2 a down,k=3 n,k=4 a+ up,k=5 a+ down;
-							call gemm(LRcoeffin(:,:,j),operamatbig(1:4*Rrealdim,1:4*Rrealdim,(operaindex-1)*3+k)&
-							,hopmat(:,:,k,j),'N','N',1.0D0,0.0D0)
+							call mkl_dcsrmultcsr('N',0,8,4*Lrealdim,4*Rrealdim,4*Rrealdim, &
+									LRcoeffin(:,j),LRcoeffincol(:,j),LRcoeffinrow(:,j), &
+									operamatbig1(:,(operaindex-1)*3+k),bigcolindex1(:,operaindex*3-3+k),bigrowindex1(:,operaindex*3-3+k), &
+									hopmat(:,k,j),hopmatcol(:,k,j),hopmatrow(:,k,j),hopnelement,info)
+							call checkinfo(info)
 						else
-							call gemm(LRcoeffin(:,:,j),operamatbig(1:4*Rrealdim,1:4*Rrealdim,(operaindex-1)*3+k-2)&
-							,hopmat(:,:,k,j),'N','T',1.0D0,0.0D0)
+							call  SpMMtoSp('N','T',4*Lrealdim,4*Rrealdim,4*Rrealdim,4*Rrealdim,4*Lrealdim,&
+									LRcoeffin(:,j),LRcoeffincol(:,j),LRcoeffinrow(:,j), &
+									operamatbig1(:,operaindex*3-5+k),bigcolindex1(:,operaindex*3-5+k),bigrowindex1(:,operaindex*3-5+k), &
+									hopmat(:,k,j),hopmatcol(:,k,j),hopmatrow(:,k,j),hopnelement)
 						end if
 					end do
 				end do
+
 			!---------------------------------------------------------
 				! the +1 -1 phase added to l' of hopmat
 				allocate(phase(4*Lrealdim),stat=error)
@@ -258,9 +332,9 @@ subroutine op(bigdim,smadim,coeff,newcoeff)
 
 				do m=1,smadim,1
 				do l=1,2,1
-				do k=1,4*Rrealdim,1
 				do j=1,4*Lrealdim,1
-					hopmat(j,k,l,m)=hopmat(j,k,l,m)*phase(j)
+				do k=hopmatrow(j,l,m),hopmatrow(j+1,l,m)-1,1
+					hopmat(k,l,m)=hopmat(k,l,m)*phase(j)
 				end do
 				end do
 				end do
@@ -269,10 +343,10 @@ subroutine op(bigdim,smadim,coeff,newcoeff)
 				phase=phase*(-1.0D0)
 				do m=1,smadim,1
 				do l=3,4,1
-				do k=1,4*Rrealdim,1
 				do j=1,4*Lrealdim,1
+				do k=hopmatrow(j,l,m),hopmatrow(j+1,l,m)-1,1
 					!transfer from al*ar^(+) to ar^(+)*al
-					hopmat(j,k,l,m)=hopmat(j,k,l,m)*phase(j)
+					hopmat(k,l,m)=hopmat(k,l,m)*phase(j)
 				end do
 				end do
 				end do
@@ -280,23 +354,32 @@ subroutine op(bigdim,smadim,coeff,newcoeff)
 
 				deallocate(phase)
 			!-----------------------------------------------------------
+				! pack hopmatrix
+				position1=0
+				do k=1,smadim,1
+					do l=1,4,1
+						call MPI_PACK(hopmatrow(1,l,k),(4*Lrealdim+1),MPI_integer4,hoppackbuf,hoppacksize,position1,MPI_COMM_WORLD,ierr)
+						call MPI_PACK(hopmat(1,l,k),(hopmatrow(4*Lrealdim+1,l,k)-1),MPI_real8,hoppackbuf,hoppacksize,position1,MPI_COMM_WORLD,ierr)
+						call MPI_PACK(hopmatcol(1,l,k),(hopmatrow(4*Lrealdim+1,l,k)-1),MPI_integer4,hoppackbuf,hoppacksize,position1,MPI_COMM_WORLD,ierr)
+					end do
+				end do
 
 				! send the hopmat
 				hoptouched=0
 				hopntouched=0
 				do l=1,nleft+1,1
-					if(bondlink(i,l)==1 .and. orbid(l)/=myid) then ! if orbid(l)==myid need not send hopmat
+					if(bondlink(i,l)==1 .and. orbid1(l,1)/=myid) then ! if orbid(l)==myid need not send hopmat
 						ifhopsend=.false.
 						do m=1,hopntouched,1
-							if(orbid(l)==hoptouched(m)) then
+							if(orbid1(l,1)==hoptouched(m)) then
 								ifhopsend=.true.   ! have send hopmat to this process
 								exit
 							end if
 						end do
 						if(ifhopsend==.false.) then
 							hopntouched=hopntouched+1
-							hoptouched(hopntouched)=orbid(l)
-							call MPI_ISEND(hopmat,64*Lrealdim*Rrealdim*smadim,MPI_real8,orbid(l),i,MPI_COMM_WORLD,hopsendrequest(hopntouched),ierr)
+							hoptouched(hopntouched)=orbid1(l,1)
+							call MPI_ISEND(hoppackbuf,position1,MPI_PACKED,orbid1(l,1),i,MPI_COMM_WORLD,hopsendrequest(hopntouched),ierr)
 						end if
 					end if
 				end do
@@ -305,18 +388,24 @@ subroutine op(bigdim,smadim,coeff,newcoeff)
 !===============================================================================
 	
 ! L space recv pppVmat hopmat---------------------------------------
-		if(myid/=orbid(i)) then
+		if(myid/=orbid1(i,1)) then
 			! pppVmat recv
 			do l=1,nleft+1,1
-				if(myid==orbid(l)) then
-					call MPI_RECV(pppVmat,16*Lrealdim*Rrealdim*smadim,MPI_real8,orbid(i),i,MPI_COMM_WORLD,status,ierr)
+				if(myid==orbid1(l,1)) then
+					call MPI_RECV(pppVpackbuf,pppVpacksize,MPI_PACKED,orbid1(i,1),i,MPI_COMM_WORLD,status,ierr)
+					position1=0
+					do k=1,smadim,1
+						call MPI_UNPACK(pppVpackbuf,pppVpacksize,position1,pppVmatrow(1,k),(4*Lrealdim+1),MPI_integer4,MPI_COMM_WORLD,ierr)
+						call MPI_UNPACK(pppVpackbuf,pppVpacksize,position1,pppVmat(1,k),pppVmatrow(4*Lrealdim+1,k)-1,MPI_real8,MPI_COMM_WORLD,ierr)
+						call MPI_UNPACK(pppVpackbuf,pppVpacksize,position1,pppVmatcol(1,k),pppVmatrow(4*Lrealdim+1,k)-1,MPI_integer4,MPI_COMM_WORLD,ierr)
+					end do
 					exit  ! only recv once
 				end if
 			end do
 			! hopmat recv
 			do l=1,nleft+1,1
-				if(bondlink(l,i)==1 .and. myid==orbid(l)) then  
-					call MPI_IRECV(hopmat,64*Lrealdim*Rrealdim*smadim,MPI_real8,orbid(i),i,MPI_COMM_WORLD,hoprecvrequest,ierr)
+				if(bondlink(l,i)==1 .and. myid==orbid1(l,1)) then  
+					call MPI_IRECV(hoppackbuf,hoppacksize,MPI_PACKED,orbid1(i,1),i,MPI_COMM_WORLD,hoprecvrequest,ierr)
 					exit  ! only recv once
 				end if
 			end do
@@ -324,61 +413,71 @@ subroutine op(bigdim,smadim,coeff,newcoeff)
 !---------------------------------------------------------------------
 ! pppV calculation
 		do l=1,nleft+1,1
-			if(myid==orbid(l)) then
-				if(mod(l,nprocs-1)==0) then
-					operaindex=l/(nprocs-1)
-				else
-					operaindex=l/(nprocs-1)+1
-				end if
+			if(myid==orbid1(l,1)) then
+				operaindex=orbid1(l,2)
 
 				do j=1,smadim,1
 					! buffmat is to save the intermediate matrix
-					call gemm(operamatbig(1:4*Lrealdim,1:4*Lrealdim,operaindex*3),pppVmat(:,:,j)&
-						,buffmat,'N','N',1.0D0,0.0D0)
-					call ScaleMatrix(buffmat,4*Lrealdim,4*Rrealdim,pppV(i,l),'N')
-					LRcoeffout(:,:,j)=buffmat+LRcoeffout(:,:,j)
+					call mkl_dcsrmultcsr('N',0,8,4*Lrealdim,4*Lrealdim,4*Rrealdim, &
+						operamatbig1(:,operaindex*3),bigcolindex1(:,operaindex*3),bigrowindex1(:,operaindex*3), &
+						pppVmat(:,j),pppVmatcol(:,j),pppVmatrow(:,j), &
+						buffmat,buffmatcol,buffmatrow,LRoutnelement,info)
+					call checkinfo(info)
+					! add LRcoeffout and buffmat
+					call SpMatAdd(4*Rrealdim,4*Lrealdim,LRcoeffout(:,j),LRcoeffoutcol(:,j),LRcoeffoutrow(:,j),&
+					'N',pppV(i,l),4*Rrealdim,4*Lrealdim,buffmat,buffmatcol,buffmatrow,LRoutnelement)
 				end do
 			end if
 		end do
 !---------------------------------------------------------------------
 ! hopping term calculation
 		! wait to recv hopmat
-		if(myid/=orbid(i)) then
+		if(myid/=orbid1(i,1)) then
 			do l=1,nleft+1,1
-				if(bondlink(l,i)==1 .and. myid==orbid(l)) then  
+				if(bondlink(l,i)==1 .and. myid==orbid1(l,1)) then  
 					call MPI_WAIT(hoprecvrequest,status,ierr)
+					position1=0
+					do k=1,smadim,1
+						do j=1,4,1
+							call MPI_UNPACK(hoppackbuf,hoppacksize,position1,hopmatrow(1,j,k),(4*Lrealdim+1),MPI_integer4,MPI_COMM_WORLD,ierr)
+							call MPI_UNPACK(hoppackbuf,hoppacksize,position1,hopmat(1,j,k),(hopmatrow(4*Lrealdim+1,j,k)-1),MPI_real8,MPI_COMM_WORLD,ierr)
+							call MPI_UNPACK(hoppackbuf,hoppacksize,position1,hopmatcol(1,j,k),(hopmatrow(4*Lrealdim+1,j,k)-1),MPI_integer4,MPI_COMM_WORLD,ierr)
+						end do
+					end do
 					exit  ! every process only wait once
 				end if
 			end do
 		end if
 
 		do l=1,nleft+1,1
-			if(bondlink(i,l)==1 .and. myid==orbid(l)) then
-				if(mod(l,nprocs-1)==0) then
-					operaindex=l/(nprocs-1)
-				else
-					operaindex=l/(nprocs-1)+1
-				end if
+			if(bondlink(i,l)==1 .and. myid==orbid1(l,1)) then
+				operaindex=orbid1(l,2)
 
 				do j=1,smadim,1
 					do k=1,4,1
 						!k<=2 al^+*ar,k>2 al*ar^(+) 
 						if(k<=2) then
-							call gemm(operamatbig(1:4*Lrealdim,1:4*Lrealdim,(operaindex-1)*3+k),hopmat(:,:,k,j)&
-								,buffmat,'N','N',1.0D0,0.0D0)
+							call mkl_dcsrmultcsr('N',0,8,4*Lrealdim,4*Lrealdim,4*Rrealdim, &
+								operamatbig1(:,operaindex*3-3+k),bigcolindex1(:,operaindex*3-3+k),bigrowindex1(:,operaindex*3-3+k), &
+								hopmat(:,k,j),hopmatcol(:,k,j),hopmatrow(:,k,j), &
+								buffmat,buffmatcol,buffmatrow,LRoutnelement,info)
+							call checkinfo(info)
 						else
-							call gemm(operamatbig(1:4*Lrealdim,1:4*Lrealdim,(operaindex-1)*3+k-2),hopmat(:,:,k,j)&
-								,buffmat,'T','N',1.0D0,0.0D0)
+							call mkl_dcsrmultcsr('T',0,8,4*Lrealdim,4*Lrealdim,4*Rrealdim, &
+								operamatbig1(:,operaindex*3-5+k),bigcolindex1(:,operaindex*3-5+k),bigrowindex1(:,operaindex*3-5+k), &
+								hopmat(:,k,j),hopmatcol(:,k,j),hopmatrow(:,k,j), &
+								buffmat,buffmatcol,buffmatrow,LRoutnelement,info)
+							call checkinfo(info)
 						end if
-						call ScaleMatrix(buffmat,4*Lrealdim,4*Rrealdim,t(i,l),'N')
-						LRcoeffout(:,:,j)=buffmat+LRcoeffout(:,:,j)
+						call SpMatAdd(4*Rrealdim,4*Lrealdim,LRcoeffout(:,j),LRcoeffoutcol(:,j),LRcoeffoutrow(:,j),&
+						'N',t(i,l),4*Rrealdim,4*Lrealdim,buffmat,buffmatcol,buffmatrow,LRoutnelement)
 					end do
 				end do
 			end if
 		end do
 		
 		! confirm that the pppVmat and hopmat can be used again without problem
-		if(myid==orbid(i) .and. ifhop==.true.) then
+		if(myid==orbid1(i,1) .and. ifhop==.true.) then
 		!	do j=1,pppVntouched,1
 		!		call MPI_WAIT(pppVsendrequest(j),status,ierr)
 		!	end do
@@ -392,31 +491,34 @@ subroutine op(bigdim,smadim,coeff,newcoeff)
 	! every process transfer LRcoeffout to coeffnosymm
 	if(allocated(LRcoeffout)) then
 		m=0
-		do l=1,smadim,1
+		do k=1,smadim,1
 		do i=1,4*Rrealdim,1
 		do j=1,4*Lrealdim,1
 			if((quantabigL(j,1)+quantabigR(i,1)==nelecs) .and. &
 				quantabigL(j,2)+quantabigR(i,2)==totalSz) then
 				m=m+1
-				coeffnosymm(m)=LRcoeffout(j,i,l)
+				call SpMatIJ(4*Lrealdim,j,i,LRcoeffout(:,k),LRcoeffoutcol(:,k),LRcoeffoutrow(:,k),coeffnosymm(m))
 			end if
 		end do
 		end do
 		end do
 		if(m/=ngoodstates*smadim) then
-			write(*,*) "--------------------myid",myid
-			write(*,*) "m/ngoodstates*smadim",m
+			write(*,*) "========================"
+			write(*,*) "m/=ngoodstates*k failed!",m,smadim
+			write(*,*) "========================"
 			stop
 		end if
 	else
 		coeffnosymm=0.0D0   ! other process coeffnosymm does not sum up
 	end if
 	
-	if(allocated(LRcoeffin)) deallocate(LRcoeffin)
-	if(allocated(LRcoeffout)) deallocate(LRcoeffout)
-	if(allocated(buffmat)) deallocate(buffmat)
-	if(allocated(pppVmat)) deallocate(pppVmat)
-	if(allocated(hopmat)) deallocate(hopmat)
+	if(allocated(LRcoeffin)) deallocate(LRcoeffin,LRcoeffinrow,LRcoeffincol)
+	if(allocated(LRcoeffout)) deallocate(LRcoeffout,LRcoeffoutrow,LRcoeffoutcol)
+	if(allocated(buffmat)) deallocate(buffmat,buffmatcol,buffmatrow)
+	if(allocated(pppVmat)) deallocate(pppVmat,pppVmatrow,pppVmatcol)
+	if(allocated(hopmat)) deallocate(hopmat,hopmatrow,hopmatcol)
+	if(allocated(hoppackbuf)) deallocate(hoppackbuf)
+	if(allocated(pppVpackbuf)) deallocate(pppVpackbuf)
 	
 	if(myid==0) then
 		allocate(coeffnosymmreduce(ngoodstates*smadim),stat=error)
@@ -433,17 +535,16 @@ subroutine op(bigdim,smadim,coeff,newcoeff)
 					newcoeff(bigdim*(i-1)+1:i*bigdim),'s')
 			end do
 		else
-			newcoeff=coeffnosymmreduce
+			call copy(coeffnosymmreduce,newcoeff)
 		end if
 	end if
-	
+
 	if(allocated(coeffnosymm)) deallocate(coeffnosymm)
 	if(allocated(coeffnosymmreduce)) deallocate(coeffnosymmreduce)
-
+	
 return
 
 end subroutine op
-
 
 
 

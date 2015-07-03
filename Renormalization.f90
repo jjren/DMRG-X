@@ -1,452 +1,1092 @@
-Subroutine Renormalization(indexLp1,indexRm1,direction)
+Module Renormalization_mod
 ! after diaganolizaiton we need to renormalizaiton the many body states
 ! in fact only renormalization all the operator matrix
+
+	use variables
+	use communicate
+	use kinds_mod
+	use module_sparse
+
+	implicit none
+	save
+	private
+
+	public :: Renormalization
+
+	real(kind=r8),allocatable ::  &
+	leftu(:,:) , &
+	rightv(:,:)  , &
+	singularvalue(:)
+
+contains
+
+!===================================================
+!===================================================
+Subroutine Renormalization(direction)
 ! direction=l means l block is the system
 ! direction=i means is the infinit MPS
 ! direction=r means r block is the system
-
-! indexLp1 is the nleft+1=sigmaL index
-! indexRm1 is the indexR-1=sigmaR index
-
-	USE mpi
-	USE variables
-	use communicate
-	USE BLAS95
-	USE LAPACK95
-	USE F95_PRECISION
-    use excitedbase
-    use stateOverlap
-
+	use mpi
+	use stateOverlap
 	implicit none
 	
-	integer :: i,error,info,j,k,ierr
-	integer :: operaindex
-	! integer :: mindim
-	! mindim is the SVD minimun dimension
-	real(kind=8),allocatable ::  leftu(:,:),rightv(:,:),singularvalue(:),&
-	dummymat(:,:),leftubuffer(:,:),rightvbuffer(:,:)
-	! leftu is the left transfer unitary matrix
-	! rightv is the right transfer unitary matrix
-	! be careful that leftu is column like,U(+)U=1
-	! rightv is row like,vv(+)=1
-	! singularvalue
-	character(len=1) :: direction 
-	integer :: reclength,indexLp1,indexRm1
-	logical :: alive
-	real(kind=8) :: norm
-! exscheme2 space
-	integer,allocatable :: quantasmaL2(:,:),quantasmaR2(:,:),symmlinksma2(:,:,:)
-	real(kind=8),allocatable ::leftu2(:,:),rightv2(:,:)
+	character(len=1) :: direction
+	integer :: error,ierr
 
-! debug
-!	integer :: mindim
-!	real(kind=8),allocatable :: ww(:)
-!	real(kind=8),allocatable :: coeffbuffer(:,:)
-	
-	if(myid==0)  then
-		write(*,*) "enter Renormalization subroutine"
-	end if
+	call master_print_message("enter Renormalization subroutine")
 
-	if(4*Lrealdim>subM .or. 4*Rrealdim>subM .or. (mode=='d' .and. &
-	modeindex==1) ) then
-	if(myid==0) then
-! when nstate=1, we use SVD method to renormalize the 4M basis
-		!if(nstate==1) then
-!			mindim=min(4*Lrealdim,4*Rrealdim)
-!			allocate(leftu(4*Lrealdim,mindim),stat=error)
-!			if(error/=0) stop
-!			allocate(singularvalue(mindim),stat=error)
-!			if(error/=0) stop
-!			allocate(rightv(mindim,4*Rrealdim),stat=error)
-!			if(error/=0) stop
-!			allocate(ww(mindim-1),stat=error)
-!			if(error/=0) stop
-!			allocate(coeffbuffer(4*Lrealdim,4*Rrealdim),stat=error)
-!			if(error/=0) stop
-!			coeffbuffer=coeffIF(1:4*Lrealdim,1:4*Rrealdim,1)
-			! gesvd sigular value is the descending order
-!			call gesvd(coeffbuffer(1:4*Lrealdim,1:4*Rrealdim),singularvalue,leftu,rightv,ww,'N',info)
-!			if(info/=0) then
-!				write(*,*) "SVD failed!",indexLp1,indexRm1,info
-!			stop
-!			end if
-!			write(*,*) "singularvalue"
-!			write(*,*) singularvalue
-		!	write(*,*) leftu
-		!	write(*,*) rightv
-!			deallocate(singularvalue)
-!			deallocate(leftu)
-!			deallocate(rightv)
-!			deallocate(ww)
-!			deallocate(coeffbuffer)
-
-! the reduced density matrix diagnal element is singular value^2
-		!	singularvalue=singularvalue*singularvalue
-! when nstate/=1, two different scheme to target the excited states
-! average method
-		if(nstate==1 .or. exscheme==1 .or. (exscheme==4 .and. startedStateSpecific==.false.)) then
+	if(4*Lrealdim>subM .or. 4*Rrealdim>subM) then
+		if(myid==0) then
+			! allocate work array
 			allocate(singularvalue(subM),stat=error)
 			if(error/=0) stop
-!---------------left transfer unitary matrix-------
-			allocate(leftu(4*Lrealdim,subM),stat=error)
-			if(error/=0) stop
-			!allocate(valueL(4*Lrealdim),stat=error)
-			!if(error/=0) stop
-			!allocate(coeffbufferL(4*Lrealdim,4*Lrealdim,nstate+1),stat=error)
-			!if(error/=0) stop
-			!coeffbufferL(:,:,nstate+1)=0.0D0
-			!do i=1,nstate,1
-			!call gemm(coeffIF(1:4*Lrealdim,1:4*Rrealdim,i),coeffIF(1:4*Lrealdim,1:4*Rrealdim,i),coeffbufferL(:,:,i),'N','T',1.0D0,0.0D0)
-			!coeffbufferL(:,:,nstate+1)=coeffbufferL(:,:,nstate+1)+coeffbufferL(:,:,i)*nweight(i)
-			!end do
-			! syevd eigenvalue is the ascending order
-			!call syevd(coeffbufferL(:,:,nstate+1),valueL,'V','U',info)
-			!if(info/=0) then
-			!	write(*,*) "left diagnolization failed!",indexLp1,info
-			!	stop
-			!end if
-			!leftu=coeffbufferL(:,4*Lrealdim-subM+1:4*Lrealdim,nstate+1)
-			!singularvalue=valueL(4*Lrealdim-subM+1:4*Lrealdim)
-!---------------right transfer unitary matrix-------
-			allocate(rightv(subM,4*Rrealdim),stat=error)
-			if(error/=0) stop
-			!allocate(valueR(4*Rrealdim),stat=error)
-			!if(error/=0) stop
-			!allocate(coeffbufferR(4*Rrealdim,4*Rrealdim,nstate+1),stat=error)
-			!if(error/=0) stop
-			!coeffbufferR(:,:,nstate+1)=0.0D0
-			!do i=1,nstate,1
-			!call gemm(coeffIF(1:4*Lrealdim,1:4*Rrealdim,i),coeffIF(1:4*Lrealdim,1:4*Rrealdim,i),coeffbufferR(:,:,i),'T','N',1.0D0,0.0D0)
-			!coeffbufferR(:,:,nstate+1)=coeffbufferR(:,:,nstate+1)+coeffbufferR(:,:,i)*nweight(i)
-			!end do
-			! syevd eigenvalue is the ascending order
-			!call syevd(coeffbufferR(:,:,nstate+1),valueR,'V','U',info)
-			!if(info/=0) then
-			!	write(*,*) "right diagnolization failed!",indexRm1,info
-			!	stop
-			!end if
-			call splitsvdL(singularvalue,leftu,1,nstate,indexlp1)
-			!write(*,*) "Lsingular"
-			!write(*,*) singularvalue(1:subM)
-			call splitsvdR(singularvalue,rightv,1,nstate,indexRm1)
-			!write(*,*) "Rsingular"
-			!write(*,*) singularvalue(1:subM)
-			!rightv=transpose(coeffbufferR(:,4*Rrealdim-subM+1:4*Rrealdim,nstate+1))
-			!singularvalue=valueR(4*Rrealdim-subM+1:4*Rrealdim)
-		!	write(*,*) "quanta"
-		!	write(*,*) quantasmaL
-		!	write(*,*) quantasmaR
-		!	write(*,*) symmlinksma(:,:,1)
-		!	write(*,*) symmlinksma(:,:,2)
-			
-!--------------------------------------------------
-!He Ma  max overlap
-        else if(exscheme==4 .and. startedStateSpecific) then
-            allocate(singularvalue(subM),stat=error)
-			if(error/=0) stop
-			allocate(leftu(4*Lrealdim,subM),stat=error)
-			if(error/=0) stop
-            allocate(rightv(subM,4*Rrealdim),stat=error)
-			if(error/=0) stop
-            call splitsvdL(singularvalue,leftu,1,nstate,indexlp1)
-			call splitsvdR(singularvalue,rightv,1,nstate,indexRm1)
-            call correctR(singularvalue,leftu,rightv)
-!--------------------------------------------------
-		else if(exscheme==2) then
-			allocate(singularvalue(subM*nstate),stat=error)
-			if(error/=0) stop
-			allocate(leftu2(4*Lrealdim,subM*nstate),stat=error)
-			if(error/=0) stop
-			allocate(rightv2(subM*nstate,4*Rrealdim),stat=error)
-			if(error/=0) stop
-			allocate(quantasmaL2(subM*nstate,2),stat=error)
-			if(error/=0) stop
-			allocate(quantasmaR2(subM*nstate,2),stat=error)
-			if(error/=0) stop
-			if(logic_spinreversal/=0) then
-				allocate(symmlinksma2(subM*nstate,1,2),stat=error)
-				if(error/=0) stop
-			end if
-
-			write(*,*) "my new method to calulate the excited states!"
-			do i=1,nstate,1
-				call splitsvdL(singularvalue((i-1)*subM+1:i*subM),leftu2(:,(i-1)*subM+1:i*subM),i,i,indexlp1)
-				call splitsvdR(singularvalue((i-1)*subM+1:i*subM),rightv2((i-1)*subM+1:i*subM,:),i,i,indexRm1)
-				quantasmaL2((i-1)*subM+1:i*subM,:)=quantasmaL
-				quantasmaR2((i-1)*subM+1:i*subM,:)=quantasmaR
-				if(logic_spinreversal/=0) then
-					symmlinksma2((i-1)*subM+1:i*subM,:,:)=symmlinksma
-				end if
-			end do
-			
 			allocate(leftu(4*Lrealdim,subM),stat=error)
 			if(error/=0) stop
 			allocate(rightv(subM,4*Rrealdim),stat=error)
 			if(error/=0) stop
-
-			if(logic_spinreversal==0) then
-				call excitedbasis(leftu,rightv,singularvalue,leftu2,rightv2,quantasmaL2,quantasmaR2)
-			else
-				call excitedbasis(leftu,rightv,singularvalue,leftu2,rightv2,quantasmaL2,quantasmaR2,symmlinksma2)
+			
+			! get rotate matrix leftu/rightv and singularvalue
+			if(nstate==1) then
+				call splitsvd_direct(1,leftu,rightv,singularvalue)
+			else if(exscheme==4 .and. startedStateSpecific) then
+				call splitsvd_direct(formerStateIndex,leftu,rightv,singularvalue)
+			!	call correctR(singularvalue,leftu,rightv)
+			else if(exscheme==1 .or. (exscheme == 4 .and. startedStateSpecific==.false.) ) then
+				call splitsvd('L',Lrealdim,1,nstate)
+				call splitsvd('R',Rrealdim,1,nstate)
+			else if(exscheme==2) then
+				! my new exScheme
+				call ExScheme2
 			end if
-
-			deallocate(leftu2)
-			deallocate(rightv2)
-			deallocate(quantasmaL2)
-			deallocate(quantasmaR2)
-			if(logic_spinreversal/=0) then
-				deallocate(symmlinksma2)
-            end if
-        else
-            write(*,*) "unknown exscheme"
-            stop
+			
+			! store the wavefunction
+			call StoreWaveFunction
 		end if
-!--------------------------------------------------------------------------
-! there are some numerical inaccuracy when we do svd or diagonalizaiton and this
-! will make different good quantum number stat to mix. This is wrong. So we need
-! to Reconstruct the transfer matrix leftu and rightv
-	!	do i=1,subM,1
-	!		do j=1,4*Lrealdim,1
-	!			if(leftu(j,i)>quantaconst) then
-	!				do k=1,4*Lrealdim,1
-	!					if(quantabigL(k,1)/=quantabigL(j,1) .or. &
-	!					quantabigL(k,2)/=quantabigL(j,2)) then
-	!					leftu(k,i)=0.0D0
-	!					end if
-	!				end do
-	!				exit
-	!			end if
-	!		end do
-	!		norm=dot(leftu(:,i),leftu(:,i))
-	!		if(norm<1.0D-10) then
-	!			write(*,*) "-------------------------------------"
-	!			write(*,*) "Renormalizaiton norm<1.0D-10 caution!"
-	!			write(*,*) "-------------------------------------"
-	!		end if
-	!		leftu(:,i)=leftu(:,i)/sqrt(norm)
-	!	end do
+
+		! bcast the updated quantasmaL/R because only the 0 process know it
+		call MPI_BCAST(quantasmaL(1,1),subM*2,MPI_integer4,0,MPI_COMM_WORLD,ierr)
+		call MPI_BCAST(quantasmaR(1,1),subM*2,MPI_integer4,0,MPI_COMM_WORLD,ierr)
 		
-	!	do i=1,subM,1
-	!		do j=1,4*Rrealdim,1
-	!			if(rightv(i,j)>quantaconst) then
-	!				do k=1,4*Rrealdim,1
-	!					if(quantabigL(k,1)/=quantabigL(j,1) .or. &
-	!					quantabigL(k,2)/=quantabigL(j,2)) then
-	!					rightv(i,k)=0.0D0
-	!					end if
-	!				end do
-	!				exit
-	!			end if
-	!		end do
-	!		norm=dot(rightv(i,:),rightv(i,:))
-	!		rightv(i,:)=rightv(i,:)/sqrt(norm)
-	!	end do
-
-!--------------------------------------------------
-! write the wavefunction matrix---------------------------------------
-		if(modeindex/=1) then
-		reclength=2*subM*subM
-		inquire(file="wavefunction.tmp",exist=alive)
-		if(alive) then
-			open(unit=105,file="wavefunction.tmp",access="Direct",form="unformatted",recl=reclength,status="old")
-		else
-			open(unit=105,file="wavefunction.tmp",access="Direct",form="unformatted",recl=reclength,status="replace")
-		end if
-		open(unit=106,file="singularvalue.tmp",status="replace")
+		! rotate the bigmat to smamat
+		! L subspace
 		if(direction=='i' .or. direction=='l') then
-			! divid the leftu and rightv to small M*M matrix
-			do i=1,4,1
-			write(105,rec=4*(IndexLp1-1)+i) leftu((i-1)*Lrealdim+1:i*Lrealdim,1:subM)
-			end do
-			if(direction=='l') then
-				do i=1,4,1
-				write(105,rec=4*indexLp1+i) rightv(1:subM,i:4*Rrealdim:4)
-				end do
-			end if
+			call RotateBasis('L')
 		end if
+		! R subspace
 		if(direction=='i' .or. direction=='r') then
-			do i=1,4,1
-			write(105,rec=4*(indexRm1-1)+i) rightv(1:subM,i:4*Rrealdim:4)
-			end do
-			if(direction=='r') then
-				do i=1,4,1
-				write(105,rec=4*(indexRm1-2)+i) leftu((i-1)*Lrealdim+1:i*Lrealdim,1:subM)
-				end do
-			end if
+			call RotateBasis('R')
 		end if
-		! write singularvalue though only used in finit MPS
-		! the singularvalue we use here is the exactly singlarvalue^2
-		write(106,*) singularvalue
-		close(105)
-		close(106)
-		end if
-		
+	else
+		! direct copy bigmat to smamat
+		call DirectCopy('L')
+		call DirectCopy('R')
 	end if
+	! destroy work array
+	if(4*Lrealdim>subM .or. 4*Rrealdim>subM) then
+		if(myid==0) then
+			deallocate(singularvalue)
+			deallocate(leftu)
+			deallocate(rightv)
+		end if
+	end if
+return
 
-	call MPI_bcast(quantasmaL(:,:),subM*2,MPI_integer4,0,MPI_COMM_WORLD,ierr)
-	call MPI_bcast(quantasmaR(:,:),subM*2,MPI_integer4,0,MPI_COMM_WORLD,ierr)
-!------------------------------------------------------------
-	
-!   the two buffer are used to transfer the unitary matrix to other process
-! remember test good quantum number
-!------------------------------------------------------------------
-		allocate(dummymat(subM,4*subM),stat=error)
-		if(error/=0) stop
-		
-	if(direction=='i' .or. direction=='l') then
-		
-		allocate(leftubuffer(4*Lrealdim,subM),stat=error)
-		if(error/=0) stop
-		if(myid==0) then
-		leftubuffer=leftu
-		end if
-		
-		call MPI_BCAST(leftubuffer,4*Lrealdim*subM,mpi_real8,0,MPI_COMM_WORLD,ierr)
-! left space operator renormalization
-		do i=1,indexLp1,1
-			if(myid==orbid(i)) then
-				if(mod(i,nprocs-1)==0) then
-					operaindex=i/(nprocs-1)
-				else
-					operaindex=i/(nprocs-1)+1
-				end if
-					do j=1,3,1
-					call gemm(leftubuffer,operamatbig(1:4*Lrealdim,1:4*Lrealdim,3*(operaindex-1)+j),&
-					dummymat(:,1:4*Lrealdim),'T','N',1.0D0,0.0D0)
-					call gemm(dummymat(:,1:4*Lrealdim),leftubuffer,operamatsma(:,:,3*(operaindex-1)+j),'N','N',1.0D0,0.0D0)
-					end do
-			end if
-		end do
-! left HL renormalizaiton,adaptedmat renormalization
-		if(myid==0) then
-			call gemm(leftubuffer,Hbig(1:4*Lrealdim,1:4*Lrealdim,1),dummymat(:,1:4*Lrealdim),'T','N',1.0D0,0.0D0)
-			call gemm(dummymat(:,1:4*Lrealdim),leftubuffer,Hsma(:,:,1),'N','N',1.0D0,0.0D0)
-			!if(logic_spinreversal/=0) then
-			!	call gemm(leftubuffer,adaptedbig(1:4*Lrealdim,1:4*Lrealdim,1),dummymat(:,1:4*Lrealdim),'T','N',1.0D0,0.0D0)
-			!	call gemm(dummymat(:,1:4*Lrealdim),leftubuffer,adaptedsma(:,:,1),'N','N',1.0D0,0.0D0)
-			!end if
-		end if
-! good quantum number renormalization
-!		do i=1,subM,1
-!			do j=1,4*Lrealdim,1
-!				if (leftubuffer(j,i)>=quantaconst) then
-!					quantasmaL(i,:)=quantabigL(j,:)
-!					exit
-!				end if
-!			end do
-!		end do
-	end if
-! right space
-	if(direction=='i' .or. direction=='r') then
-		
-		allocate(rightvbuffer(subM,4*Rrealdim),stat=error)
-		if(error/=0) stop
-		if(myid==0) then
-		rightvbuffer=rightv
-		end if
-		
-		call MPI_BCAST(rightvbuffer,4*Rrealdim*subM,mpi_real8,0,MPI_COMM_WORLD,ierr)
-! right space operator
-		do i=norbs,indexRm1,-1
-			if(myid==orbid(i)) then
-				if(mod(i,nprocs-1)==0) then
-					operaindex=i/(nprocs-1)
-				else
-					operaindex=i/(nprocs-1)+1
-				end if
-					do j=1,3,1
-					call gemm(rightvbuffer,operamatbig(1:4*Rrealdim,1:4*Rrealdim,3*(operaindex-1)+j),dummymat(:,1:4*Rrealdim),'N','N',1.0D0,0.0D0)
-					call gemm(dummymat(:,1:4*Rrealdim),rightvbuffer,operamatsma(:,:,3*(operaindex-1)+j),'N','T',1.0D0,0.0D0)
-					end do
-			end if
-		end do
-! right space HR,adaptedmat
-		if(myid==0) then
-			call gemm(rightvbuffer,Hbig(1:4*Rrealdim,1:4*Rrealdim,2),dummymat(:,1:4*Rrealdim),'N','N',1.0D0,0.0D0)
-			call gemm(dummymat(:,1:4*Rrealdim),rightvbuffer,Hsma(:,:,2),'N','T',1.0D0,0.0D0)
-			!if(logic_spinreversal/=0) then
-			!	call gemm(rightvbuffer,adaptedbig(1:4*Rrealdim,1:4*Rrealdim,2),dummymat(:,1:4*Rrealdim),'N','N',1.0D0,0.0D0)
-			!	call gemm(dummymat(:,1:4*Rrealdim),rightvbuffer,adaptedsma(:,:,2),'N','T',1.0D0,0.0D0)
-			!end if
-		end if
-	!	do i=1,subM,1
-	!		do j=1,4*Rrealdim,1
-	!			if (rightvbuffer(i,j)>=quantaconst) then
-	!				quantasmaR(i,:)=quantabigR(j,:)
-	!				exit
-	!			end if
-	!		end do
-	!	end do
-		end if
-	end if
+end subroutine Renormalization
 
-!-----------------------------------------------------------------------------------------------------------------------
-! when we need not renormalization
-! operamatbig -> operamatsma 
-! Hbig -> Hsma
-! adaptedbig -> adaptedsma
-! symmlinkbig -> symmlinksma
-! only in the infinit MPS process
-if(4*Lrealdim<=subM .and. 4*Rrealdim<=subM .and. mode/='d') then
-	do i=1,indexLp1,1
-		if(myid==orbid(i)) then
-			if(mod(i,nprocs-1)==0) then
-				operaindex=i/(nprocs-1)
-			else
-				operaindex=i/(nprocs-1)+1
-			end if
-			operamatsma(1:4*Lrealdim,1:4*Lrealdim,3*(operaindex-1)+1:3*operaindex)=&
-			operamatbig(1:4*Lrealdim,1:4*Lrealdim,3*(operaindex-1)+1:3*operaindex)
+!===================================================
+!===================================================
+
+subroutine ExScheme2
+! my ExScheme2 method to target excited states
+
+	use excitedbase
+	implicit none
+
+	real(kind=r8),allocatable :: &
+	singualarvalue2(:) , &
+	leftu2(:,:)        , &
+	rightv2(:,:)        
+	integer(kind=i4),allocatable :: &
+	quantasmaL2(:,:) , &
+	quantasmaR2(:,:) , &
+	symmlinksma2(:,:,:)
+	integer :: error
+	integer :: i
+
+	allocate(singularvalue(subM*nstate),stat=error)
+	if(error/=0) stop
+	allocate(leftu2(4*Lrealdim,subM*nstate),stat=error)
+	if(error/=0) stop
+	allocate(rightv2(subM*nstate,4*Rrealdim),stat=error)
+	if(error/=0) stop
+	allocate(quantasmaL2(subM*nstate,2),stat=error)
+	if(error/=0) stop
+	allocate(quantasmaR2(subM*nstate,2),stat=error)
+	if(error/=0) stop
+	if(logic_spinreversal/=0) then
+		allocate(symmlinksma2(subM*nstate,1,2),stat=error)
+		if(error/=0) stop
+	end if
+	do i=1,nstate,1
+	!	call splitsvdL(singularvalue((i-1)*subM+1:i*subM),leftu2(:,(i-1)*subM+1:i*subM),i,i,nleft+1)
+	!	call splitsvdR(singularvalue((i-1)*subM+1:i*subM),rightv2((i-1)*subM+1:i*subM,:),i,i,norbs-nright)
+		quantasmaL2((i-1)*subM+1:i*subM,:)=quantasmaL
+		quantasmaR2((i-1)*subM+1:i*subM,:)=quantasmaR
+		if(logic_spinreversal/=0) then
+			symmlinksma2((i-1)*subM+1:i*subM,:,:)=symmlinksma
 		end if
 	end do
+	if(logic_spinreversal==0) then
+		call excitedbasis(leftu,rightv,singularvalue,leftu2,rightv2,quantasmaL2,quantasmaR2)
+	else
+		call excitedbasis(leftu,rightv,singularvalue,leftu2,rightv2,quantasmaL2,quantasmaR2,symmlinksma2)
+	end if
+	deallocate(leftu2)
+	deallocate(rightv2)
+	deallocate(quantasmaL2)
+	deallocate(quantasmaR2)
+	if(logic_spinreversal/=0) then
+		deallocate(symmlinksma2)
+	end if
+
+return
+end Subroutine ExScheme2
+
+!===================================================
+!===================================================
+
+subroutine StoreWaveFunction
+! store the wavefunction in matrix product form
+! and singularvalue
+
+	implicit none
+
+	integer :: reclength
+	logical :: alive
+	integer :: i
 	
-	do i=norbs,indexRm1,-1
-		if(myid==orbid(i)) then
-			if(mod(i,nprocs-1)==0) then
-				operaindex=i/(nprocs-1)
-			else
-				operaindex=i/(nprocs-1)+1
-			end if
-			
-			operamatsma(1:4*Rrealdim,1:4*Rrealdim,3*(operaindex-1)+1:3*operaindex)=&
-			operamatbig(1:4*Rrealdim,1:4*Rrealdim,3*(operaindex-1)+1:3*operaindex)
-		end if
+	! 4 byte as 1 direct file block
+	reclength=2*subM*subM
+	
+	! wavefunction.tmp
+	inquire(file="wavefunction.tmp",exist=alive)
+	if(alive) then
+		open(unit=105,file="wavefunction.tmp",access="Direct",form="unformatted",recl=reclength,status="old")
+	else
+		open(unit=105,file="wavefunction.tmp",access="Direct",form="unformatted",recl=reclength,status="replace")
+	end if
+
+	! singularvalue.tmp
+	open(unit=106,file="singularvalue.tmp",status="replace")
+
+	! divid the leftu and rightv to small M*M matrix
+	! leftu
+	do i=1,4,1
+		write(105,rec=4*nleft+i) leftu((i-1)*Lrealdim+1:i*Lrealdim,1:subM)
 	end do
+	! rightv
+	do i=1,4,1
+		write(105,rec=4*(norbs-nright-1)+i) rightv(1:subM,i:4*Rrealdim:4)
+	end do
+
+	! write singularvalue though only used in finit MPS
+	! the singularvalue here is the exactly singlarvalue^2
+	write(106,*) singularvalue
+	close(105)
+	close(106)
+return
+
+end subroutine StoreWaveFunction
+
+!===================================================
+!===================================================
+
+subroutine RotateBasis(domain)
+! Rotate Basis ; In fact transfer the operator matrix
+! to new basis
 	
-		quantasmaL(1:4*Lrealdim,:)=quantabigL(1:4*Lrealdim,:)
-		quantasmaR(1:4*Rrealdim,:)=quantabigR(1:4*Rrealdim,:)
+	use exit_mod
+	use mathlib
+	use mpi
+	implicit none
+	include "mkl_spblas.fi"
+
+	character(len=1) :: domain
+	! local
+	real(kind=r8),allocatable ::     &
+			rotatematdens(:,:) , &     ! store leftu and rightv
+			rotatemat(:)               ! store the CSR sparse format
+	integer :: orbstart,orbend,Hindex,dim1
+	integer :: arraylength,nrows,operaindex
+	integer(kind=i4),allocatable :: rotcolindex(:),rotrowindex(:)
+	integer :: job(8)
+	integer :: error,ierr,info
+	integer :: i,j,k
+	logical :: ifbondord
+
+	character(len=1),allocatable :: packbuf(:)
+	integer :: packsize
+	integer :: position1
+	
+	
+	if(domain=='L') then
+		orbstart=1
+		orbend=nleft+1
+		Hindex=1
+		dim1=Lrealdim
+		if(nleft<=(norbs-1)/2) then
+			ifbondord=.true.
+		else
+			ifbondord=.false.
+		end if
+	else if(domain=='R') then
+		orbstart=norbs-nright
+		orbend=norbs
+		Hindex=2
+		dim1=Rrealdim
+		if(nright<=(norbs-2)/2) then
+			ifbondord=.true.
+		else
+			ifbondord=.false.
+		end if
+	else
+		call exit_DMRG(sigAbort,"RotateBasis domain/=L/R")
+	end if
+
+	! define the U and V nonzero element numbers
+	arraylength=CEILING(DBLE(4*subM*subM)/UVmatratio)
+
+	! leftu rightv store in CSR format
+	allocate(rotatemat(arraylength),stat=error)
+	if(error/=0) stop
+	allocate(rotcolindex(arraylength),stat=error)
+	if(error/=0) stop
+	allocate(rotrowindex(4*dim1+1),stat=error) 
+	if(error/=0) stop
+
+	packsize=arraylength*12+4*(4*dim1+1)+1000
+	allocate(packbuf(packsize),stat=error) 
+	if(error/=0) stop
 
 	if(myid==0) then
-		Hsma(1:4*Lrealdim,1:4*Lrealdim,1)=Hbig(1:4*Lrealdim,1:4*Lrealdim,1)
-		Hsma(1:4*Rrealdim,1:4*Rrealdim,2)=Hbig(1:4*Rrealdim,1:4*Rrealdim,2)
-		if(logic_spinreversal/=0) then
-		!	adaptedsma(1:4*Lrealdim,1:4*Lrealdim,1)=adaptedbig(1:4*Lrealdim,1:4*Lrealdim,1)
-		!	adaptedsma(1:4*Rrealdim,1:4*Rrealdim,2)=adaptedbig(1:4*Rrealdim,1:4*Rrealdim,2)
-			symmlinksma(1:4*Lrealdim,1,1)=symmlinkbig(1:4*Lrealdim,1,1)
-			symmlinksma(1:4*Rrealdim,1,2)=symmlinkbig(1:4*Rrealdim,1,2)
+		! store the dense U/V
+		allocate(rotatematdens(4*dim1,subM),stat=error)
+		if(error/=0) stop
+		if(domain=='L') then
+			rotatematdens=leftu
+		else if(domain=='R') then
+			rotatematdens=transpose(rightv)
+		end if
+		job(1)=0
+		job(2)=1
+		job(3)=1
+		job(4)=2
+		job(5)=arraylength
+		job(6)=1
+		nrows=4*dim1
+		call mkl_ddnscsr(job,nrows,subM,rotatematdens,nrows,rotatemat,rotcolindex,rotrowindex,info)
+		if(info==0) then
+		!	call master_print_message(arraylength,"U/V maxnelement=")
+		!	call master_print_message(rotrowindex(nrows+1)-1,"U/V nonzero=")
+		else
+			call master_print_message(info,"info/=0 dens to sparse in rotatebasis")
+			stop
+		end if
+		deallocate(rotatematdens)
 
+		position1=0
+		call MPI_PACK(rotrowindex,4*dim1+1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
+		call MPI_PACK(rotatemat,rotrowindex(4*dim1+1)-1,MPI_real8,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
+		call MPI_PACK(rotcolindex,rotrowindex(4*dim1+1)-1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
+	end if
+	
+	! broadcast the rotate matrix
+	call MPI_BCAST(position1,1,MPI_integer,0,MPI_COMM_WORLD,ierr)
+	call MPI_BCAST(packbuf,position1,MPI_PACKED,0,MPI_COMM_WORLD,ierr)
+	
+	if(myid/=0) then
+		position1=0
+		call MPI_UNPACK(packbuf,packsize,position1,rotrowindex,4*dim1+1,MPI_integer4,MPI_COMM_WORLD,ierr)
+		call MPI_UNPACK(packbuf,packsize,position1,rotatemat,rotrowindex(4*dim1+1)-1,MPI_real8,MPI_COMM_WORLD,ierr)
+		call MPI_UNPACK(packbuf,packsize,position1,rotcolindex,rotrowindex(4*dim1+1)-1,MPI_integer4,MPI_COMM_WORLD,ierr)
+	end if
+	
+	! rotate the matrix
+	do i=orbstart,orbend,1
+		if(myid==orbid1(i,1)) then
+			do j=1,3,1
+				operaindex=orbid1(i,2)*3-3+j
+				call SpMatRotateBasis(subM,4*dim1,rotatemat,rotcolindex,rotrowindex, &
+							4*dim1,4*dim1,operamatbig1(:,operaindex),bigcolindex1(:,operaindex),bigrowindex1(:,operaindex), &
+							subM,operamatsma1(:,operaindex),smacolindex1(:,operaindex),smarowindex1(:,operaindex),smadim1)
+			end do
+		end if
+	end do
+
+	! rotate HL and HR
+	if(myid==0) then
+		call SpMatRotateBasis(subM,4*dim1,rotatemat,rotcolindex,rotrowindex, &
+					4*dim1,4*dim1,Hbig(:,Hindex),Hbigcolindex(:,Hindex),Hbigrowindex(:,Hindex), &
+					subM,Hsma(:,Hindex),Hsmacolindex(:,Hindex),Hsmarowindex(:,Hindex),Hsmadim)
+	end if
+
+	! rotate the bond order matrix
+	if(logic_bondorder==1 .and. ifbondord==.true.) then
+		do i=orbstart,orbend,1
+		do j=i,orbend,1
+			if(bondlink(i,j)/=0) then
+				if(myid==orbid2(i,j,1)) then
+					do k=1,2,1
+						operaindex=orbid2(i,j,2)*2-2+k
+						call SpMatRotateBasis(subM,4*dim1,rotatemat,rotcolindex,rotrowindex, &
+								4*dim1,4*dim1,operamatbig2(:,operaindex),bigcolindex2(:,operaindex),bigrowindex2(:,operaindex), &
+								subM,operamatsma2(:,operaindex),smacolindex2(:,operaindex),smarowindex2(:,operaindex),smadim2)
+					end do
+				end if
+			end if
+		end do
+		end do
+	end if
+
+	deallocate(rotatemat)
+	deallocate(rotcolindex)
+	deallocate(rotrowindex)
+	deallocate(packbuf)
+return
+
+end subroutine RotateBasis
+
+!===================================================
+!===================================================
+
+subroutine DirectCopy(domain)
+! direct copy the operamatbig to operamatsma
+! only in the infinit MPS process
+! operamatbig -> operamatsma 
+! Hbig -> Hsma
+! symmlinkbig -> symmlinksma
+	use blas95
+	use f95_precision
+	use exit_mod
+	implicit none
+
+	character(len=1) domain
+	
+	! local
+	integer :: i,j,k
+	integer :: operaindex
+	integer :: orbstart,orbend,Hindex,dim1
+	integer :: nelement
+
+	if(domain=='L') then
+		orbstart=1
+		orbend=nleft+1
+		Hindex=1
+		dim1=Lrealdim
+	else if(domain=='R') then
+		orbstart=norbs-nright
+		orbend=norbs
+		Hindex=2
+		dim1=Rrealdim
+	else
+		call exit_DMRG(sigAbort,"DirectCopy domain/=L/R")
+	end if
+
+	do i=orbstart,orbend,1
+		if(myid==orbid1(i,1)) then
+			do j=1,3,1
+				operaindex=orbid1(i,2)*3-3+j
+				smarowindex1(:,operaindex)=0
+				smarowindex1(1:4*dim1+1,operaindex)=bigrowindex1(1:4*dim1+1,operaindex)
+				nelement=smarowindex1(4*dim1+1,operaindex)-1
+				smacolindex1(1:nelement,operaindex)=bigcolindex1(1:nelement,operaindex)
+				call copy(operamatbig1(1:nelement,operaindex),operamatsma1(1:nelement,operaindex))
+			end do
+		end if
+	end do
+
+	! bond order matrix
+	if(logic_bondorder==1) then
+	do i=orbstart,orbend,1
+	do j=i,orbend,1
+		if(bondlink(i,j)/=0) then
+			if(myid==orbid2(i,j,1)) then
+				do k=1,2,1
+					operaindex=orbid2(i,j,2)*2-2+k
+					smarowindex2(:,operaindex)=0
+					smarowindex2(1:4*dim1+1,operaindex)=bigrowindex2(1:4*dim1+1,operaindex)
+					nelement=smarowindex2(4*dim1+1,operaindex)-1
+					smacolindex2(1:nelement,operaindex)=bigcolindex2(1:nelement,operaindex)
+					call copy(operamatbig2(1:nelement,operaindex),operamatsma2(1:nelement,operaindex))
+				end do
+			end if
+		end if
+	end do
+	end do
+	end if
+
+	if(myid==0) then
+		Hsmarowindex(:,Hindex)=0
+		Hsmarowindex(1:4*dim1+1,Hindex)=Hbigrowindex(1:4*dim1+1,Hindex)
+		nelement=Hsmarowindex(4*dim1+1,Hindex)-1
+		Hsmacolindex(1:nelement,Hindex)=Hbigcolindex(1:nelement,Hindex)
+		call copy(Hbig(1:nelement,Hindex),Hsma(1:nelement,Hindex))
+		if(logic_spinreversal/=0) then
+			symmlinksma(1:4*dim1,1,Hindex)=symmlinkbig(1:4*dim1,1,Hindex)
 		end if
 	end if
 
-end if
-
-if(4*Lrealdim>subM .or. 4*Rrealdim>subM .or. (mode=='d' .and. &
-modeindex==1)) then
-if(myid==0) then
-	deallocate(singularvalue)
-	deallocate(leftu)
-	deallocate(rightv)
-end if
-	if(direction=='i' .or. direction=='l') then
-	deallocate(leftubuffer)
+	if(domain=='L') then
+		quantasmaL(1:4*Lrealdim,:)=quantabigL(1:4*Lrealdim,:)
+	else
+		quantasmaR(1:4*Rrealdim,:)=quantabigR(1:4*Rrealdim,:)
 	end if
-	if(direction=='i' .or. direction=='r') then
-	deallocate(rightvbuffer)
-	end if
-	deallocate(dummymat)
-end if
 
 return
 
-end Subroutine Renormalization
+end subroutine DirectCopy
 
+!===================================================
+!===================================================
+
+subroutine splitsvd(domain,dim1,statebegin,stateend)
+! this subroutine is used to split the reduced density matrix
+! to different subspace according to good quantum number
+! and diagonalizaiton it to get the renormalized vector
+	
+	use variables
+	use mathlib
+	use module_sparse
+	USE blas95
+	use lapack95
+	use F95_PRECISION
+
+	implicit none
+	
+	character(len=1) :: domain
+	integer :: dim1,statebegin,stateend
+	! statebegin is the index of the begin state
+	! stateend is the index of the end state
+
+	! local
+	real(kind=r8),allocatable :: &
+		valuework(:)     , &     ! store eigenvalue
+		coeffwork(:,:)   , &     ! workarray
+		coeffbuf(:,:)    , &     ! store initial reduced density matrix
+		coeffresult(:,:) , &     ! store eigenvector
+		transform(:,:)   , &     ! Sz=0 basis transform matrix  ! only used in spin symmetry
+		coeffdummy(:,:)          ! intemediate array in Sz=0 ! only used in spin symmetry
+
+	integer,allocatable :: &
+		valueindex(:)     , &    ! store the eigenvalue descending basis index
+		szzeroindex(:)    , &    ! store the Sz=0 index
+		quantabigbuf(:,:) , &    ! store the new quantabigL/R
+		quantabiginit(:,:), &    ! store the old quantabigL/R
+		symmlinkbigbuf(:) , &    ! store the new symmlinkbig
+		subspacenum(:)           ! store the number of basis in every good quantum number subspace
+	integer :: szzero,szl0,nsuborbs,Hindex
+	! szl0 means the number of sz>0 basis
+	! szzero means the number of sz=0 basis
+	real(kind=r8) :: checktrace,discard
+	integer :: i,j,k,l,m,n,p,q,l1,himp1
+	logical :: done
+	integer :: error,info
+
+	call master_print_message("enter in subroutine splitsvd")
+	
+	! store old quantabigL/R 
+	allocate(quantabiginit(4*subM,2),stat=error)
+	if(error/=0) stop
+
+	if(domain=='L') then
+		if(dim1/=Lrealdim) then
+			call master_print_message(Lrealdim,"domain=L dim1/=Lrealdim")
+			stop
+		end if
+		quantabiginit=quantabigL
+		nsuborbs=nleft+1
+		Hindex=1
+	else if(domain=='R') then
+		if(dim1/=Rrealdim) then
+			call master_print_message(Rrealdim,"domain=R dim1/=Rrealdim")
+			stop
+		end if
+		quantabiginit=quantabigR
+		nsuborbs=nright+1
+		Hindex=2
+	end if
+
+	allocate(coeffbuf(4*dim1,4*dim1),stat=error)
+	if(error/=0) stop
+	allocate(coeffwork(4*dim1,4*dim1),stat=error)
+	if(error/=0) stop
+	allocate(coeffresult(4*dim1,4*dim1),stat=error)
+	if(error/=0) stop
+	coeffwork=0.0D0
+	coeffbuf=0.0D0
+	coeffresult=0.0D0
+
+	! construct L/R subspace reduced density matrix
+	do i=statebegin,stateend,1
+		if(domain=='L') then
+			call SpMMtoSptodens('N','T',4*Lrealdim,4*Rrealdim,4*Lrealdim,4*Rrealdim,4*dim1,4*dim1,&
+				coeffIF(:,i),coeffIFcolindex(:,i),coeffIFrowindex(:,i),&
+				coeffIF(:,i),coeffIFcolindex(:,i),coeffIFrowindex(:,i),&
+				coeffbuf)
+		!	call SpMMtoDens('N','T',4*Lrealdim,4*Rrealdim,4*Lrealdim,4*Rrealdim,4*dim1,4*dim1,&
+		!		coeffIF(:,i),coeffIFcolindex(:,i),coeffIFrowindex(:,i),&
+		!		coeffIF(:,i),coeffIFcolindex(:,i),coeffIFrowindex(:,i),&
+		!		coeffbuf,ldc)
+		else if(domain=='R') then
+			call SpMMtoSptodens('T','N',4*Lrealdim,4*Rrealdim,4*Lrealdim,4*Rrealdim,4*dim1,4*dim1,&
+				coeffIF(:,i),coeffIFcolindex(:,i),coeffIFrowindex(:,i),&
+				coeffIF(:,i),coeffIFcolindex(:,i),coeffIFrowindex(:,i),&
+				coeffbuf)
+		!	call SpMMtoDens('T','N',4*Lrealdim,4*Rrealdim,4*Lrealdim,4*Rrealdim,4*dim1,4*dim1,&
+		!		coeffIF(:,i),coeffIFcolindex(:,i),coeffIFrowindex(:,i),&
+		!		coeffIF(:,i),coeffIFcolindex(:,i),coeffIFrowindex(:,i),&
+		!		coeffbuf,4*dim1)
+		end if
+		
+		if(exscheme==1) then  ! state-average method
+			coeffwork=coeffwork+coeffbuf*nweight(i)
+		else  
+			coeffwork=coeffbuf
+		end if
+	end do
+	! coeffbuf store the initial coeffwork
+	coeffbuf=coeffwork
+
+!------------------------------------------------------------------------------
+	! check if the trace == 1
+	checktrace=0.0D0
+	do i=1,4*dim1,1
+		checktrace=checktrace+coeffwork(i,i)
+	end do
+	call master_print_message(checktrace,"reduced density matrix checktrace=")
+!------------------------------------------------------------------------------
+
+	allocate(valuework(4*dim1),stat=error)
+	if(error/=0) stop
+	valuework=0.0D0
+	allocate(valueindex(subM),stat=error)
+	if(error/=0) stop
+	allocate(quantabigbuf(4*subM,2),stat=error)
+	if(error/=0) stop
+	allocate(subspacenum((2*nsuborbs+1)*(2*nsuborbs+3)+1),stat=error)
+	if(error/=0) stop
+	subspacenum=0
+	
+	if(logic_spinreversal/=0) then
+		allocate(szzeroindex(4*dim1),stat=error)
+		if(error/=0) stop
+		allocate(symmlinkbigbuf(4*dim1),stat=error)
+		if(error/=0) stop
+		symmlinkbigbuf=0
+	end if
+	
+	! n is the total number of basis
+	n=0
+
+	! Sz loop
+	do j=nsuborbs,-nsuborbs,-1
+		
+		if(logic_spinreversal/=0 .and. j<0) then
+			! the Sz>0 rotate matrix is the same as Sz<0 rotatematrix; only need copy
+			exit
+		end if
+		
+		! partical number loop
+		do i=0,2*nsuborbs,1
+			
+			! m is the number of basis in each good quantum number subspace
+			m=0
+			
+			! every loop initiate the coeffwork
+			do k=1,4*dim1,1
+				call copy(coeffbuf(:,k),coeffwork(:,k))
+			end do
+			
+			! initiate the szzeroindex
+			if(logic_spinreversal/=0) then
+				szzeroindex=0
+			end if
+
+			do k=1,4*dim1,1
+				if(quantabiginit(k,1)==i .and. quantabiginit(k,2)==j) then
+					m=m+1
+					! swap the good quantum number subspace basis to
+					! the first few rows/cols
+					call swap(coeffwork(:,m),coeffwork(:,k))
+					call swap(coeffwork(m,:),coeffwork(k,:))
+
+					if(logic_spinreversal/=0 .and. j==0) then
+						szzeroindex(m)=k   ! store the index of Sz=0 basis
+					end if
+				end if
+			end do
+
+			if(m/=0) then
+				! Sz=0 condition
+				! when j==0 we first transform the basis to the new basis
+				! which the symmlink is him self
+				if(logic_spinreversal/=0 .and. j==0 ) then
+					allocate(transform(m,m),stat=error)
+					if(error/=0) stop
+					transform=0.0D0
+				
+					do l=1,m,1
+						if(abs(symmlinkbig(szzeroindex(l),1,Hindex))==szzeroindex(l)) then
+							transform(l,l)=1.0D0  ! the symmlink is himself
+						else
+							do q=l+1,m,1
+								if(symmlinkbig(szzeroindex(l),1,Hindex)==szzeroindex(q)) then
+								! the fisrt column the parity is 1
+								! the second column the parity is -1
+									transform(l,l)=sqrt(2.0D0)/2.0D0
+									transform(q,l)=sqrt(2.0D0)/2.0D0
+									transform(l,q)=sqrt(2.0D0)/2.0D0
+									transform(q,q)=-sqrt(2.0D0)/2.0D0
+								else if(symmlinkbig(szzeroindex(l),1,Hindex)==-szzeroindex(q)) then
+									transform(l,l)=sqrt(2.0D0)/2.0D0
+									transform(q,l)=-sqrt(2.0D0)/2.0D0
+									transform(l,q)=sqrt(2.0D0)/2.0D0
+									transform(q,q)=sqrt(2.0D0)/2.0D0
+								end if
+							end do
+						end if
+					end do
+					
+					allocate(coeffdummy(m,m),stat=error)
+					if(error/=0) stop
+					
+					! transfer to the new basis
+					call gemm(coeffwork(1:m,1:m),transform,coeffdummy(1:m,1:m),'N','N',1.0D0,0.0D0)
+					call gemm(transform,coeffdummy(1:m,1:m),coeffwork(1:m,1:m),'T','N',1.0D0,0.0D0)
+					
+					! swap the symmlink==1 to the first few columns 
+					! and the symmlink==-1 to the last few columns
+					himp1=0  ! himself plus +1
+					do l=1,m,1
+						if(symmlinkbig(szzeroindex(l),1,Hindex)==szzeroindex(l)) then
+							himp1=himp1+1
+							call swap(coeffwork(:,himp1),coeffwork(:,l))
+							call swap(coeffwork(himp1,:),coeffwork(l,:))
+							call swap(transform(:,l),transform(:,himp1))  ! the transform matrix need to swap too
+						else if(symmlinkbig(szzeroindex(l),1,Hindex)==-szzeroindex(l)) then
+							cycle
+						else
+							done=.true.
+							! check if have swaped
+							do l1=1,l-1,1
+								if(abs(symmlinkbig(szzeroindex(l),1,Hindex))==szzeroindex(l1)) then
+									done=.false.
+									exit
+								end if
+							end do
+							if(done==.true.) then
+								himp1=himp1+1
+								call swap(coeffwork(:,himp1),coeffwork(:,l))
+								call swap(coeffwork(himp1,:),coeffwork(l,:))
+								call swap(transform(:,l),transform(:,himp1))
+							end if
+						end if
+					end do
+					
+					! diagonalize this matrix
+					call syevd(coeffwork(1:himp1,1:himp1),valuework(n+1:n+himp1),'V','U',info)
+					if(info/=0) then
+						write(*,*) "Sz=0 diagnolization failed! himp1"
+						stop
+					end if
+					symmlinkbigbuf(n+1:n+himp1)=1
+					! symmlinkbigbuf==1 means the symmlink is himself
+					! symmlinkbigbuf==-1 means the symmlink is -himself
+					call syevd(coeffwork(himp1+1:m,himp1+1:m),valuework(n+himp1+1:n+m),'V','U',info)
+					if(info/=0) then
+						write(*,*) "Sz=0 diagnolization failed! himm1"
+						stop
+					end if
+					symmlinkbigbuf(n+himp1+1:n+m)=-1
+					
+					! transfer to its' inital basis representation
+					call gemm(transform,coeffwork(1:m,1:m),coeffdummy(1:m,1:m),'N','N',1.0D0,0.0D0)
+					coeffwork(1:m,1:m)=coeffdummy(1:m,1:m)
+					
+					deallocate(transform)
+					deallocate(coeffdummy)
+				else  
+					! Sz>0 condition
+					call syevd(coeffwork(1:m,1:m),valuework(n+1:n+m),'V','U',info)
+					if(info/=0) then
+						write(*,*) "Sz>0 diagnolization failed!"
+						stop
+					end if
+				end if
+				
+				! copy the U/V matrix to coeffresult/ it's inital location
+				p=0
+				do k=1,4*dim1,1
+					if(quantabiginit(k,1)==i .and. quantabiginit(k,2)==j) then
+						p=p+1
+						call copy(coeffwork(p,1:m),coeffresult(k,n+1:n+m))
+					end if
+				end do
+
+				if(p/=m) then
+					write(*,*) "p/=m failed!",p,m
+					stop
+				end if
+				
+				! update the quantabig
+				quantabigbuf(n+1:n+m,1)=i
+				quantabigbuf(n+1:n+m,2)=j
+				
+				! subspacenum(1) stores the number of good quantum number subspace
+				! subspacenum(x) stores the number of basis in each subspace
+				subspacenum(1)=subspacenum(1)+1
+				subspacenum(subspacenum(1)+1)=m
+			end if
+
+		! update the total basis
+		n=m+n
+
+		end do
+
+		if(j>0) then
+			szl0=n   ! store the Sz>0 basis
+		else if(j==0 .and. logic_spinreversal/=0) then
+			szzero=n-szl0   ! store the Sz=0 basis if needed
+		end if
+	end do
+	
+
+	if(logic_spinreversal/=0) then
+		write(*,*) "szl0=",szl0,"szzero=",szzero
+		if((szl0*2+szzero)/=4*dim1) then
+			write(*,*) "(szl0*2+szzero)/=4*dim1 failed!","szl0",szl0,"szzero",szzero
+			stop
+		end if
+		if(sum(subspacenum(2:subspacenum(1)+1))/=szl0+szzero) then
+			write(*,*) "------------------------"
+			write(*,*) "subspacenum=szl0+szzero,failed!",subspacenum
+			write(*,*) "------------------------"
+			stop
+		end if
+	else
+		if(n/=4*dim1) then
+			write(*,*) "------------------------"
+			write(*,*) "n/=4*dim1,failed!",n
+			write(*,*) "------------------------"
+			stop
+		end if
+		if(sum(subspacenum(2:subspacenum(1)+1))/=4*dim1) then
+			write(*,*) "------------------------"
+			write(*,*) "subspacenum=4*dim1,failed!",subspacenum
+			write(*,*) "------------------------"
+			stop
+		end if
+	end if
+	
+
+
+! copy the Sz>0 part and Sz=0(symmetry pair is not himself) to the symmetry pair
+
+	if(logic_spinreversal/=0) then
+		do i=1,4*dim1,1
+			if(quantabiginit(i,2)>0) then
+				! transfer every -1 link to 1 link
+				coeffresult(abs(symmlinkbig(i,1,Hindex)),szl0+szzero+1:4*dim1)=coeffresult(i,1:szl0)*DBLE(sign(1,symmlinkbig(i,1,Hindex)))
+			end if
+		end do
+		quantabigbuf(szl0+szzero+1:4*dim1,1)=quantabigbuf(1:szl0,1)
+		quantabigbuf(szl0+szzero+1:4*dim1,2)=-1*quantabigbuf(1:szl0,2)
+		valuework(szl0+szzero+1:4*dim1)=valuework(1:szl0)
+	end if
+	
+	! check if valuework<0
+	do i=1,4*dim1,1
+		if(valuework(i)<0.0D0) then
+			write(*,*) "-----------------------------"
+			write(*,*) "caution valuework<0.0D0",valuework(i)
+			write(*,*) "-----------------------------"
+			valuework(i)=0.0D0
+		end if
+	end do
+
+
+	if(domain=='R' .and. (nstate==1 .or. exscheme==4)) then
+		call RspaceCorrespond(valuework,subspacenum,quantabigbuf,szzero,szl0,valueindex)
+	else 
+		call selectstates(valuework,4*dim1,valueindex,singularvalue,subspacenum,nsuborbs,szzero,szl0)
+	end if
+
+!------------------------------------------------------------------------
+	! check if the valueindex is right
+	do i=1,subM,1
+		if(valueindex(i)==0) then
+			write(*,*) "----------------------------------"
+			write(*,*) "splitsvd valueindex(i)==0",i
+			write(*,*) "----------------------------------"
+			stop
+		end if
+	end do
+	do i=1,subM,1
+		do j=i+1,subM,1
+			if(valueindex(i)==valueindex(j)) then
+				write(*,*) "----------------------------------"
+				write(*,*) "splitsvd valueindex(i)=valueindex(j)",i,j,valueindex(i)
+				write(*,*) "----------------------------------"
+				stop
+			end if
+		end do
+	end do
+!------------------------------------------------------------------------
+	
+	! copy the coeffresult to the U/V according to the valueindex
+	do i=1,subM,1
+		if(domain=='L') then
+			call copy(coeffresult(:,valueindex(i)),leftu(:,i))
+			quantasmaL(i,:)=quantabigbuf(valueindex(i),:)
+		else if (domain=='R') then
+			call copy(coeffresult(:,valueindex(i)),rightv(i,:))
+			quantasmaR(i,:)=quantabigbuf(valueindex(i),:)
+		end if
+
+		if(logic_spinreversal/=0) then
+			if(valueindex(i)<=szl0) then
+				if((nstate==1 .or. exscheme==4) .and. domain=='R') then
+					symmlinksma(i,1,Hindex)=i-1
+				else
+					symmlinksma(i,1,Hindex)=i+1   ! Sz>0
+				end if
+			else if(valueindex(i)>szl0 .and. valueindex(i)<=szl0+szzero) then
+				if(symmlinkbigbuf(valueindex(i))==0) then
+					write(*,*) "----------------------------------------"
+					write(*,*) "symmlinkbigbuf(valueindex(i))==0 failed!"
+					write(*,*) "----------------------------------------"
+					stop
+				end if
+				symmlinksma(i,1,Hindex)=i*symmlinkbigbuf(valueindex(i))  ! Sz=0
+			else 
+				if((nstate==1 .or. exscheme==4) .and. domain=='R') then
+					symmlinksma(i,1,Hindex)=i+1
+				else 
+					symmlinksma(i,1,Hindex)=i-1  ! Sz<0
+				end if
+			end if
+		end if
+	end do
+
+	discard=1.0D0-sum(valuework(valueindex(1:subM)))
+	write(*,'(A20,A1,D12.5)') "totaldiscard=",domain,discard
+
+	deallocate(valuework)
+	deallocate(coeffwork)
+	deallocate(coeffbuf)
+	deallocate(coeffresult)
+
+	deallocate(valueindex)
+	deallocate(quantabigbuf)
+	deallocate(quantabiginit)
+	deallocate(subspacenum)
+	if(logic_spinreversal/=0) then
+		deallocate(szzeroindex)
+		deallocate(symmlinkbigbuf)
+	end if
+
+return
+end subroutine splitsvd
+
+!===================================================
+!===================================================
+
+subroutine RspaceCorrespond(valuework,subspacenum,quantabigbuf,&
+		szzero,szl0,valueindex)
+! this subroutine is to select R space basis
+! which is corresponding the selected L space basis
+! R space select states should be corresponse to the L space states
+! when nstate==1 we can find the corresponding state in the L and R state
+! with the same eigenvalue , but when nstate/=1 there is no such condition
+	
+	implicit none
+	
+	integer :: szzero,szl0
+	integer :: subspacenum((2*(nright+1)+1)**2+1),quantabigbuf(4*subM,2)
+	real(kind=r8) :: valuework(4*Rrealdim)
+	integer :: valueindex(subM)   ! output
+	
+	! local
+	integer,parameter :: scalebound=15
+	logical :: ifexist,iffind
+	real(kind=r8) :: diffzero,scale1
+	integer :: scalenum
+	integer :: i,j,k,p
+	
+	
+	valueindex=0
+	
+	do i=1,subM,1
+		
+		! scale the eigenvalue to be exponential format
+		scale1=1.0D0
+		scalenum=0
+		do while(.true.)
+			if(singularvalue(i)>scale1) exit
+			scale1=scale1*0.1D0
+			scalenum=scalenum+1
+			if(scalenum>=scalebound) then
+				write(*,*) "---------------------"
+				write(*,*) "caution! scalenum>15"
+				write(*,*) "---------------------"
+				exit
+			end if
+		end do
+		
+		if(logic_spinreversal==0) then
+			if(scalenum<scalebound) then
+				do j=1,subspacenum(1),1 
+					! find the right good quantum number subspace
+					if((quantasmaL(i,1)+quantabigbuf(sum(subspacenum(2:j+1)),1)==nelecs) .and. &
+						(quantasmaL(i,2)+quantabigbuf(sum(subspacenum(2:j+1)),2)==totalSz)) then
+						diffzero=1.0D-10*(0.1D0**scalenum)
+						! find the exact eigenvalue
+						do while(.true.)
+							do k=sum(subspacenum(2:j+1)),sum(subspacenum(2:j+1))-subspacenum(j+1)+1,-1
+								if(abs(valuework(k)-singularvalue(i))<diffzero) then
+									! check if have exist
+									Ifexist=.false.
+									do p=1,i-1,1
+										if(valueindex(p)==k) then
+											Ifexist=.true.
+											exit
+										end if
+									end do
+									if(Ifexist==.false.) then
+										valueindex(i)=k
+										exit
+									end if
+								end if
+							end do
+							if(valueindex(i)/=0) exit
+							diffzero=diffzero*10.0D0
+						end do
+						exit
+					end if
+				end do
+			else
+				! find a random basis 
+				! singularvalue from big to small
+				do j=1,4*Rrealdim,1
+					ifexist=.false.
+					do k=1,i-1,1
+						if(valueindex(k)==j) then
+							ifexist=.true.
+							exit
+						end if
+					end do
+					if(ifexist==.false.) then
+						valueindex(i)=j
+						exit
+					end if
+				end do
+			end if
+		else 
+			if(scalenum<scalebound) then
+				! only find the quantasmaL(i,2)<0 case
+				if(quantasmaL(i,2)<=0) then
+					do j=1,subspacenum(1),1
+						if((quantasmaL(i,1)+quantabigbuf(sum(subspacenum(2:j+1)),1)==nelecs) .and. &
+							(quantasmaL(i,2)+quantabigbuf(sum(subspacenum(2:j+1)),2)==totalSz)) then
+							diffzero=1.0D-10*(0.1D0**scalenum)
+							do while(.true.)
+								do k=sum(subspacenum(2:j+1)),sum(subspacenum(2:j+1))-subspacenum(j+1)+1,-1
+									if(abs(valuework(k)-singularvalue(i))<diffzero) then
+										Ifexist=.false.
+										do p=1,i-1,1
+											if(valueindex(p)==k) then
+												Ifexist=.true.
+												exit
+											end if
+										end do
+										if(Ifexist==.false.) then
+											if(quantasmaL(i,2)<0) then
+												valueindex(i)=k
+												valueindex(i-1)=k+szl0+szzero
+												exit
+											else if(quantasmaL(i,2)==0) then
+												valueindex(i)=k
+												exit
+											end if
+										end if
+									end if
+								end do
+								if(valueindex(i)/=0) exit
+								diffzero=diffzero*10.0D0
+							end do
+							exit
+						end if
+					end do
+				end if
+
+				if(quantasmaL(i,2)<=0 .and. valueindex(i)==0) then
+					write(*,*) "----------------------------"
+					write(*,*) "R space valueindex==0",i
+					write(*,*) "----------------------------"
+					stop
+				end if
+			else
+				! singularvalue small condition; random find
+				if(i<subM .and. valueindex(i)==0) then
+					do j=szl0+1,2*szl0+szzero,1
+						ifexist=.false.
+						do k=1,i-1,1
+							if(valueindex(k)==j) then
+								ifexist=.true.
+								exit
+							end if
+						end do
+						if(ifexist==.false.) then
+							valueindex(i)=j
+							if(j>szl0+szzero) then
+								valueindex(i+1)=j-(szzero+szl0)
+							end if
+							exit
+						end if
+					end do
+				else if(i==subM .and. valueindex(i)==0) then
+					! find sz=0 basis
+					iffind=.false.
+					do  j=szl0+1,szl0+szzero,1
+						ifexist=.false.
+						do k=1,i-1,1
+							if(valueindex(k)==j) then
+								ifexist=.true.
+								exit
+							end if
+						end do
+						if(ifexist==.false.) then
+							valueindex(i)=j
+							iffind=.true.
+							exit
+						end if
+					end do
+					if(iffind==.false.) then
+						write(*,*) "-----------------------------------"
+						write(*,*) "R correspond did not find the last index valueindex=0"
+						write(*,*) "-----------------------------------"
+						stop
+					end if
+				end if
+			end if
+		end if
+	end do
+
+return
+
+end subroutine RspaceCorrespond
+
+!===================================================
+!===================================================
+
+end Module Renormalization_mod

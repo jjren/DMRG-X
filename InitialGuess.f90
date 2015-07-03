@@ -1,6 +1,8 @@
 MODULE InitialGuess
 	use variables
 	use communicate
+	use kinds_mod
+	use module_sparse
 	implicit none
 ! this module contains the subroutine that generate the initial guess of the MPS
 ! procedure
@@ -22,14 +24,14 @@ subroutine InitialStarter(direction,lvector,nvector,initialcoeff)
 
 	character(len=1) :: direction
 	integer :: lvector,nvector
-	real(kind=8) :: initialcoeff(lvector*nvector),norm(nvector)
-	real(kind=8),allocatable :: nosymmguess(:)
+	real(kind=r8) :: initialcoeff(lvector*nvector),norm(nvector)
+	real(kind=r8),allocatable :: nosymmguess(:)
 	integer :: i,error,numRandomVector
 	
 	if(nvector/=nstate .and. exscheme/=4) then
 		call master_print_message(nvector,"nvector/=nstate")
 		stop
-    end if
+	end if
 
 	if(direction/='i' .and. logic_C2==0 .and. &
 	formernelecs==nelecs) then
@@ -38,34 +40,34 @@ subroutine InitialStarter(direction,lvector,nvector,initialcoeff)
 
 		if(nvector==1) then
 			call SingleInitialFinite(nosymmguess,ngoodstates,direction)
-        else if (exscheme==4 .and. startedStateSpecific) then
-            !write(*,*) "****************************"
-            !write(*,*) "using random initial"
-            !write(*,*) "****************************"
-            !call InitialRandom(nosymmguess,ngoodstates,nvector)
-            select case(targetStateFlag)
-            case('trysame')
-                call MoreInitialFinite(nosymmguess,ngoodstates,nvector,direction)
-            case('trylower')
-                write(*,*) "directely use last davidson results as initial guess"
-                write(*,*) "skip initial vector construction........."
-                deallocate(nosymmguess)
-                call GramSchmit(nvector,lvector,initialcoeff,norm)
-	            write(*,*) "the Initial guessvector norm",norm
-                return
-            case('tryhigher','reachedmax')
-                write(*,*) "using", targetStateIndex - 1, "states from last davidson as initial guess"
-                write(*,*) "add another random guess"
-                call InitialRandom(initialcoeff(lvector*(targetStateIndex-1)+1:lvector*targetStateIndex),lvector,1)
-                deallocate(nosymmguess)
-                call GramSchmit(nvector,lvector,initialcoeff,norm)
-	            write(*,*) "the Initial guessvector norm",norm
-                return
-            case default
-                write(*,*) "unexpected targerStateFlag in initialGuess module"
-                stop
-            end select
-        else
+		else if (exscheme==4 .and. startedStateSpecific) then
+			!write(*,*) "****************************"
+			!write(*,*) "using random initial"
+			!write(*,*) "****************************"
+			!call InitialRandom(nosymmguess,ngoodstates,nvector)
+			select case(targetStateFlag)
+			case('trysame')
+				call MoreInitialFinite(nosymmguess,ngoodstates,nvector,direction)
+			case('trylower')
+				write(*,*) "directely use last davidson results as initial guess"
+				write(*,*) "skip initial vector construction........."
+				deallocate(nosymmguess)
+				call GramSchmit(nvector,lvector,initialcoeff,norm)
+				write(*,*) "the Initial guessvector norm",norm
+				return
+			case('tryhigher','reachedmax')
+				write(*,*) "using", targetStateIndex - 1, "states from last davidson as initial guess"
+				write(*,*) "add another random guess"
+				call InitialRandom(initialcoeff(lvector*(targetStateIndex-1)+1:lvector*targetStateIndex),lvector,1)
+				deallocate(nosymmguess)
+				call GramSchmit(nvector,lvector,initialcoeff,norm)
+				write(*,*) "the Initial guessvector norm",norm
+				return
+			case default
+				write(*,*) "unexpected targerStateFlag in initialGuess module"
+				stop
+			end select
+		else
 			call MoreInitialFinite(nosymmguess,ngoodstates,nvector,direction)
 		end if
 
@@ -75,16 +77,19 @@ subroutine InitialStarter(direction,lvector,nvector,initialcoeff)
 				initialcoeff((i-1)*lvector+1:i*lvector),'s')
 			end do
 		else
-			initialcoeff=nosymmguess
+			call copy(nosymmguess,initialcoeff)
 		end if
 
 		deallocate(nosymmguess)
+		
+		call GramSchmit(nvector,lvector,initialcoeff,norm)
+		write(*,*) "the Initial guessvector norm",norm
 	else
-		call InitialRandom(initialcoeff,lvector,nvector)
+	!	call InitialRandom(initialcoeff,nvector,lvector)
+		call master_print_message("use the default univector as initialguess")
+		nvector=0  ! niv=0
 	end if
 	
-	call GramSchmit(nvector,lvector,initialcoeff,norm)
-	write(*,*) "the Initial guessvector norm",norm
 
 return
 
@@ -101,16 +106,18 @@ end subroutine InitialStarter
 	USE F95_PRECISION
 
 	implicit none
+	include "mkl_spblas.fi"
 	integer :: lvector,nvector
-	real(kind=8) :: guesscoeff(lvector*nvector)
-	real(kind=8),allocatable :: leftu(:,:),rightv(:,:)&
+	real(kind=r8) :: guesscoeff(lvector*nvector)
+	real(kind=r8),allocatable :: leftu(:,:),rightv(:,:)&
 	,LRcoeff(:,:,:),LRcoeff1(:,:,:)
 	logical :: alive
 	integer :: reclength
 	integer :: subMbefore
 	integer :: error,i,j,m,k
 	character(len=1) :: direction
-    real(kind=8)  :: norm
+	real(kind=8)  :: norm
+	integer :: job(8),info
 
 	write(*,*) "enter MoreInitialFinit subroutine"
 	! two site dmrg
@@ -118,6 +125,10 @@ end subroutine InitialStarter
 		write(*,*) "-----------------------------------"
 		write(*,*) "two site dmrg nright+nleft+2/=norbs"
 		write(*,*) "-----------------------------------"
+		stop
+	end if
+	if(nvector/=nstate) then
+		write(*,*) "MoreInitialGuess nvector/=nstate",nvector,nstate
 		stop
 	end if
 
@@ -171,8 +182,21 @@ end subroutine InitialStarter
 	if(error/=0) stop
 	allocate(LRcoeff1(4*subM,4*subM,nvector),stat=error)
 	if(error/=0) stop
-    LRcoeff = 0.0
-    LRcoeff1 = 0.0
+	
+	job(1)=1
+	job(2)=1
+	job(3)=1
+	job(4)=2
+	job(5)=0
+	job(6)=1
+	! transfer coeffIF to dense matrix
+	do i=1,nstate,1
+		call mkl_ddnscsr(job,4*subM,4*subM,LRcoeff1(:,:,i),4*subM,coeffIF(:,i),coeffIFcolindex(:,i),coeffIFrowindex(:,i),info)
+		if(info/=0) then
+			call master_print_message(info,"MoreInitFinite info/=")
+			stop
+		end if
+	end do
 
 	if(direction=='l' .and. nleft>exactsite) then
 		if(Lrealdim/=subM) then
@@ -183,7 +207,8 @@ end subroutine InitialStarter
 		end if
 
 		do i=1,nvector,1
-			call gemm(leftu(1:4*subMbefore,:),coeffIF(1:4*subMbefore,:,i),LRcoeff(1:subM,:,i),'T','N',1.0D0,0.0D0)   ! do U+*C
+			call gemm(leftu(1:4*subMbefore,:),LRcoeff1(1:4*subMbefore,:,i),LRcoeff(1:subM,:,i),'T','N',1.0D0,0.0D0)   ! do U+*C
+			LRcoeff1(:,:,i)=0.0D0
 			do j=1,subM,1
 				do k=1,4,1
 				LRcoeff1(subM*(k-1)+1:subM*k,j,i)=LRcoeff(1:subM,(j-1)*4+k,i)   ! tranfer U+C to new form
@@ -200,7 +225,7 @@ end subroutine InitialStarter
 			stop
 		end if
 		do i=1,nvector,1
-			call gemm(coeffIF(:,1:4*subMbefore,i),rightv(:,1:4*subMbefore),LRcoeff(:,1:subM,i),'N','T',1.0D0,0.0D0)
+			call gemm(LRcoeff1(:,1:4*subMbefore,i),rightv(:,1:4*subMbefore),LRcoeff(:,1:subM,i),'N','T',1.0D0,0.0D0)
 			do j=1,subM,1
 				do k=1,4,1
 					LRcoeff1(1:subM,(j-1)*4+k,i)=LRcoeff((k-1)*subM+1:k*subM,j,i)
@@ -210,7 +235,7 @@ end subroutine InitialStarter
 		end do
 
 	else if((direction=='l' .and. nleft==exactsite) .or. (direction=='r' .and. nright==exactsite)) then
-		LRcoeff=coeffIF  ! directly use the last step result
+		LRcoeff=LRcoeff1  ! directly use the last step result
 	end if
 
 	m=0
@@ -231,7 +256,7 @@ end subroutine InitialStarter
 		write(*,*) "guesscoeff good quantum states number wrong! failed!"
 		write(*,*) "----------------------------------------------"
 		stop
-    end if
+	end if
 
 	deallocate(leftu)
 	deallocate(rightv)
@@ -256,15 +281,17 @@ end subroutine InitialStarter
 	USE F95_PRECISION
 
 	implicit none
+	include "mkl_spblas.fi"
 	integer :: lvector
-	real(kind=8) :: nosymmguess(lvector)
+	real(kind=r8) :: nosymmguess(lvector)
 	character(len=1) :: direction
-	real(kind=8),allocatable :: leftu(:,:),rightv(:,:),singularvalue(:)&
+	real(kind=r8),allocatable :: leftu(:,:),rightv(:,:),singularvalue(:)&
 	,LRcoeff(:,:)
 	logical :: alive
 	integer :: reclength
 	integer :: error,i,j,m
-	real(kind=8) :: norm
+	real(kind=r8) :: norm
+	integer :: job(8),info
 	
     call master_print_message("enter SingleInitialFinite subroutine")
         
@@ -291,14 +318,14 @@ end subroutine InitialStarter
 	else
 		write(*,*) "wavefunction.tmp doesn't exist"
 		stop
-    end if
+	end if
 
 	do i=1,4,1
 		read(105,rec=4*nleft+i) leftu((i-1)*Lrealdim+1:i*Lrealdim,1:subM)
 	end do
 	do i=1,4,1
 		read(105,rec=4*(nleft+1)+i) rightv(1:subM,i:4*Rrealdim:4)
-    end do
+	end do
 
 	open(unit=106,file="singularvalue.tmp",status="old")
 	read(106,*) singularvalue(1:subM)
@@ -331,39 +358,50 @@ end subroutine InitialStarter
 		do i=1,subM,1
 			rightv(:,(i-1)*4+1:i*4)=rightv(:,(i-1)*4+1:i*4)*singularvalue(i)
 		end do
-    end if
+	end if
 		
 	allocate(LRcoeff(4*Lrealdim,4*Rrealdim),stat=error)
 	if(error/=0) stop
 	
 	if((direction=='l' .and. nleft==exactsite) .or. (direction=='r' .and. nright==exactsite)) then
 		! direct use the last step result
+		job(1)=1
+		job(2)=1
+		job(3)=1
+		job(4)=2
+		job(5)=0
+		job(6)=1
 		if(nstate==1) then
-			LRcoeff=coeffIF(1:4*Lrealdim,1:4*Rrealdim,1)
-        else if(exscheme==4 .and. startedStateSpecific) then        ! He Ma
-            write(*,*) "================================="
+		!	LRcoeff=coeffIF(1:4*Lrealdim,1:4*Rrealdim,1)
+			call mkl_ddnscsr(job,4*Lrealdim,4*Rrealdim,LRcoeff,4*Lrealdim,coeffIF(:,1),coeffIFcolindex(:,1),coeffIFrowindex(:,1),info)
+			if(info/=0) then
+				call master_print_message(info,"SingleInitFinit info/=0")
+				stop
+			end if
+		else if(exscheme==4 .and. startedStateSpecific) then        ! He Ma
+			write(*,*) "======================================"
 			write(*,*) "retrieving wavefunction from last step"
-			write(*,*) "================================="
-            LRcoeff=realCoeffIF(1:4*Lrealdim,1:4*Rrealdim,formerStateIndex)    
+			write(*,*) "======================================"
+			call mkl_ddnscsr(job,4*Lrealdim,4*Rrealdim,LRcoeff,4*Lrealdim,RealcoeffIF(:,formerStateIndex),&
+				RealcoeffIFcolindex(:,formerStateIndex),RealcoeffIFrowindex(:,formerStateIndex),info)
 		else
 			stop
 		end if
 	else
 		! recombine the two site sigmaL sigmaR coefficient
 		call gemm(leftu,rightv,LRcoeff,'N','N',1.0D0,0.0D0)
-    end if
-
-	m=1
+	end if
+	
+	m=0
 	do i=1,4*Rrealdim,1
-	    do j=1,4*Lrealdim,1
-		    if((quantabigL(j,1)+quantabigR(i,1)==nelecs) .and. &
-			    quantabigL(j,2)+quantabigR(i,2)==totalSz) then
-			    nosymmguess(m)=LRcoeff(j,i)
-			    m=m+1
-		    end if
-	    end do
+	do j=1,4*Lrealdim,1
+		if((quantabigL(j,1)+quantabigR(i,1)==nelecs) .and. &
+			quantabigL(j,2)+quantabigR(i,2)==totalSz) then
+			m=m+1
+			nosymmguess(m)=LRcoeff(j,i)
+		end if
 	end do
-	m=m-1
+	end do
 
 	if(m/=ngoodstates) then
 		write(*,*) "----------------------------------------------"
@@ -395,7 +433,7 @@ Subroutine InitialRandom(guessvector,lvector,num)
 	implicit none
 
 	integer :: num,lvector
-	real(kind=8) :: guessvector(num*lvector),randomx
+	real(kind=r8) :: guessvector(num*lvector),randomx
 	integer :: i
 	
 	call master_print_message("enter InitialRandom subroutine")
@@ -426,10 +464,10 @@ end subroutine InitialRandom
 	implicit none
 
 	integer :: num,lvector
-	real(kind=8) :: guessvector(num*lvector)
-	real(kind=8) :: HDIAG(lvector)
+	real(kind=r8) :: guessvector(num*lvector)
+	real(kind=r8) :: HDIAG(lvector)
 	integer :: i,j,k,l,minindex(num)
-	real(kind=8) :: mindiag(num)
+	real(kind=r8) :: mindiag(num)
 
 	
 	if(myid==0) then

@@ -1,28 +1,28 @@
-module selectstate
-    contains
-    subroutine selectstates(valuework,dim1,valueindex,singularvalue,&
+subroutine selectstates(valuework,dim1,valueindex,singularvalue,&
 		subspacenum,syssite,szzero,szl0)
-	USE mpi
-	USe variables
 	
+	use variables
+	use kinds_mod
+
 	implicit none
 	integer :: dim1
-	integer,optional :: szzero,szl0
-	real(kind=8) :: valuework(dim1),singularvalue(subM)
+	integer :: szzero,szl0
+	real(kind=r8) :: valuework(dim1),singularvalue(subM)
 	integer :: valueindex(subM)
-	real(kind=8) :: percent
+	real(kind=r8) :: percent
 	integer :: i,j,m,k
 	integer :: directly,syssite
-! directly is the num of states we have selected
-	integer :: subspacenum(((syssite+1)*2+1)**2+1)
+	! directly is the num of states we have selected
+	integer :: subspacenum((syssite*2+1)*(syssite*2+3)+1)
 	logical :: noequal,done,ifexist,iffind
 
 	write(*,*) "enter in selectstates subroutine!"
-	singularvalue=0.0D0
+	
+	singularvalue=-1.0D0
 	valueindex=0
-	write(*,*) "dim1=",dim1
-	!write(*,*) "valuework",valuework
+
 	if(logic_spinreversal==0) then
+		
 		do i=1,dim1,1
 			do j=1,subM,1
 				if(valuework(i)>singularvalue(j)) then
@@ -34,28 +34,17 @@ module selectstate
 				end if
 			end do
 		end do
+		
+		! check if every valueindex is not 0
 		do i=1,subM,1
 			if(valueindex(i)==0) then
-				do j=1,dim1,1
-					ifexist=.false.
-					do k=1,i-1,1
-						if(valueindex(k)==j) then
-							ifexist=.true.
-							exit
-						end if
-					end do
-					if(ifexist==.false.) then
-						valueindex(i)=j
-						singularvalue(i)=valuework(j)
-						exit
-					end if
-				end do
+				write(*,*) "valueindex(i)==0",i
+				stop
 			end if
 		end do
-!	write(*,*) valueindex
-! use the garnet chan proposed select states rule
+
+	! use the garnet chan proposed select states rule
 		percent=2.0+DBLE(isweep)*0.1
-	!	write(*,*) subspacenum
 		if(percent<1.0D0) then
 			directly=INT(DBLE(dim1)*percent)
 			do while(directly<subM)
@@ -81,7 +70,7 @@ module selectstate
 			end do
 			end do
 		end if
-!		write(*,*) "valueindex",valueindex
+	
 	else
 		do i=1,szzero+szl0,1
 			do j=1,subM,1
@@ -105,60 +94,40 @@ module selectstate
 			end do
 		end do
 		
+		! check if every valueindex is not 0
 		do i=1,subM-1,1
 			if(valueindex(i)==0) then
-				do j=1,szl0+szzero,1
-					ifexist=.false.
-					do k=1,i-1,1
-						if(valueindex(k)==j) then
-							ifexist=.true.
-							exit
-						end if
-					end do
-					if(ifexist==.false.) then
-						valueindex(i)=j
-						singularvalue(i)=valuework(j)
-						if(j<=szl0) then
-							valueindex(i+1)=szzero+szl0+j
-							singularvalue(i+1)=valuework(j)
-						end if
-						exit
-					end if
-				end do
+				write(*,*) "valueindex(i)==0",i
+				stop
 			end if
 		end do
-
+		
+		! check last index
 		if(valueindex(subM)<=szl0) then
 			iffind=.false.
 			do i=szl0+szzero,szl0+1,-1
-			
-			do j=1,subM-1,1
-				if(valueindex(j)==i) then !.or. &
-				!valuework(i)<valuework(valueindex(subM))/1.0D3) 
-					done=.false.
-					exit
-				else 
-					done=.true.
-				end if
-			end do
+				do j=1,subM-1,1
+					if(valueindex(j)==i) then
+						done=.false.
+						exit
+					else 
+						done=.true.
+					end if
+				end do
 				if(done==.true.) then
-				valueindex(subM)=i
-				singularvalue(subM)=valuework(i)
-				iffind=.true.
-				exit
+					valueindex(subM)=i
+					singularvalue(subM)=valuework(i)
+					iffind=.true.
+					exit
 				end if
 			end do
 			if(iffind==.false.) then
-				write(*,*) "-----------------------------------"
-				write(*,*) "did not find the last index valueindex=0"
-				write(*,*) "-----------------------------------"
+				write(*,*) "-----------------------------------------------------"
+				write(*,*) "selectstates did not find the last index valueindex=0"
+				write(*,*) "-----------------------------------------------------"
 				stop
 			end if
 		end if
 	end if
-		write(*,*) "valueindex",valueindex
 
-    return
-    end subroutine selectstates
-
-end module selectstate
+end subroutine selectstates

@@ -5,10 +5,10 @@ module stateOverlap
     use blas95
     use lapack95
     use kinds_mod
+    use communicate
     
     implicit none
     
-    integer         :: realTargetStateIndex           ! user specified index which to be traced
     integer(kind=4),allocatable &
                     :: storedStateIndex(:)            ! after every sweep is over the state index to be traced is stored
     real(kind=r8),allocatable &
@@ -16,8 +16,6 @@ module stateOverlap
     real(kind=r8)   :: formerStateEnergy
     integer(kind=4) :: maxStateSpecificSweeps = 100   ! maximum number of max overlap sweeps
     integer(kind=4) :: maxStateSpecificSteps
-    integer(kind=4) :: highestStateIndex              ! highest state considered when tracing excited state
-    real(kind=8)    :: overlapThresh                  ! If two states have a bigger overlap than this value,
                                                       ! they are considered equal
     real(kind=8)    :: singularvalueThresh = 1.0D-3   ! determine whether two singular values are equal
     logical         :: printCorrectR   = .false.      ! whether print detail of correctR subroutine
@@ -42,16 +40,16 @@ module stateOverlap
     !real(kind=8)    :: alpha2                      ! coeffIF = alpha*coeffIF of this step + (1-alpha)*coeffIF of last step
                                                    ! alpha1 used when "reachedmax", alpha2 used when "stoptrying"
     contains
+!==================================================================
+!==================================================================
+ 
     subroutine initStateSpecific
         ! initialize state-specific DMRG 
-        implicit none
+        use Renormalization_mod
+	  implicit none
         integer  :: error
         
-        if(myid==0) then
-            write(*,*) "**************************"
-		    write(*,*) "enter in max overlap sweep"
-            write(*,*) "**************************"
-        end if
+        call master_print_message("enter in max overlap sweep")
         
         formerStateIndex = realTargetStateIndex
         reachedEnergyThresh = .false.
@@ -81,13 +79,16 @@ module stateOverlap
             smallOverlapCounter = 0
         end if
         
-        call Renormalization(nleft+1,norbs-nright,'l')      !renormalize according to specific state
+        call Renormalization('l')      !renormalize according to specific state
         
     end subroutine initStateSpecific
 
-    subroutine getStateOverlap(nosymmout, ngoodstates, NUME, direction, ierror)
+!==================================================================
+!==================================================================
+
+    subroutine getStateOverlap(nosymmout, NUME, direction, ierror)
         implicit none
-        integer           ::   NUME, ngoodstates, ierror
+        integer           ::   NUME, ierror
         character(len=1)  ::   direction
         character(len=10) ::   tmpTargetStateFlag
         real(kind=r8)     ::   nosymmout(ngoodstates*NUME)
@@ -111,6 +112,7 @@ module stateOverlap
                 maxOverlapValue = stateOverlapValue(highestStateIndex)
                 maxOverlapIndex = highestStateIndex
             else
+                ! again find the biggest overlap state
                 maxOverlapValue = 0.0
                 maxOverlapIndex = 0  
                 do i=1,highestStateIndex,1
@@ -135,7 +137,7 @@ module stateOverlap
             end do
         end if
         
-        ! commen cases
+        ! common cases
         select case(targetStateFlag)
         case('trysame')
             stateOverlapValue(targetStateIndex) = dot(nosymmout((1+ngoodstates*(targetStateIndex-1)) : ngoodstates*targetStateIndex) &
@@ -147,6 +149,7 @@ module stateOverlap
                 maxOverlapIndex = targetStateIndex
             else
                 targetStateFlag = 'ngetsame'
+		    ! Ask
                 if(stateOverlapValue(targetStateIndex)/=stateOverlapValue(targetStateIndex)) then
                     write(*,*) "targetStateIndex =",targetStateIndex
                     write(*,*) "highestStateIndex =",highestStateIndex
@@ -186,7 +189,7 @@ module stateOverlap
             else
                 targetStateFlag = 'ngethigher'
             end if
-!        case default
+!       case default
 !            write(*,*) "unexpected targetStateFlag in subroutine getStateOverlap"
         end select
         
@@ -217,6 +220,8 @@ module stateOverlap
         integer         ::   oldIndexToNew(subM),newIndexToOld(subM)
         logical         ::   usedIndex(subM)
         logical         ::   isDiagPositive
+	  integer         ::   job(8),info
+	  real(kind=r8),allocatable   ::   coeffIFdummy(:,:)
 
         write(*,*) "Enter in subroutine correctR"
         write(*,*) "S matrix is defined as (U+)*psi*V"
@@ -227,8 +232,22 @@ module stateOverlap
         end do
         
         ! S stores the singular value matrix calculted by leftu^(T) * coeffIF * rightv
-        call gemm(leftu,coeffIF(1:4*Lrealdim,1:4*Rrealdim,formerStateIndex),matbuffer,'T','N',1.0D0,0.0D0)
+	  job(1)=1
+	  job(2)=1
+	  job(3)=1
+	  job(4)=2
+	  job(5)=0
+	  job(6)=1
+	  allocate(coeffIFdummy(4*subM,4*subM))
+        call mkl_ddnscsr(job,4*subM,4*subM,coeffIFdummy,4*subM,coeffIF(:,formerStateIndex),&
+	  	coeffIFcolindex(:,formerStateIndex),coeffIFrowindex(:,formerStateIndex),info)
+        if(info/=0) then
+	      call master_print_message(info,"correctR info/=")
+	      stop
+        end if
+        call gemm(leftu,coeffIFdummy(1:4*Lrealdim,1:4*Rrealdim),matbuffer,'T','N',1.0D0,0.0D0)
         call gemm(matbuffer,rightv,S,'N','T',1.0D0,0.0D0) 
+	  deallocate(coeffIFdummy)
         
         if(printCorrectR == .true.) then 
             write(*,*) "S matrix"
@@ -406,6 +425,7 @@ module stateOverlap
     
     subroutine checkStateSpecificResults
         ! check the results of state specific DMRG
+        implicit none
         integer :: i
         if(storedStateIndex(isweep)/=realTargetStateIndex) then
             write(*,*) "#############################################################"
@@ -427,6 +447,7 @@ module stateOverlap
     end subroutine checkStateSpecificResults
     
     subroutine cleanStateSpecificVariables
+        implicit none
         if(myid==0) then
             deallocate(stateSpecificSweepEnergy)
             deallocate(storedStateIndex)

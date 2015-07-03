@@ -1,27 +1,22 @@
 module Symmetry
-! this module constrain the symmetry of the wavefunction
 	
 	use variables
 	use Communicate
 	implicit none
 
 	real(kind=r8),allocatable :: symmat(:)
-	integer,allocatable :: columnindex(:),rowindex(:),symmlinkcol(:)
+	integer,allocatable :: columnindex(:),rowindex(:)
 	integer :: nsymmstate
 	! symmat(rowindex(nsymmstate+1)-1),columnindex(rowindex(nsymmstate+1)-1)
 	! rowindex(nsymmstate+1) :: the symmetry matrix in 3-array CSR sparse form
 	! nsymmstate :: the number of symmetry state
-	! symmlinkcol is the LRcoeff CSC format
-	integer :: guessngoodstates
-	! guess number of ngoodstates
+	real(kind=r8) :: starttime,endtime
 
 
 contains
 !===============================================================================
-!===============================================================================
 
 subroutine CreatSymmlinkbig(realdim,domain,Hindex)
-! this subroutine used in system_big
 	implicit none
 
 	integer :: realdim,Hindex
@@ -51,55 +46,42 @@ subroutine CreatSymmlinkbig(realdim,domain,Hindex)
 			realdim)*sign(1,symmlinksma(1:realdim,1,Hindex))*(-1)
 	end if
 return
-
 end subroutine CreatSymmlinkbig
 
 !===============================================================================
 !===============================================================================
 
 subroutine CreatSymmlinkgood(igoodstate,leftindex,rightindex)
-! get the symmlinkgood infomation
-
+	
+	use exit_mod
 	implicit none
 	
 	integer :: igoodstate,leftindex,rightindex
+	integer :: error
+	integer :: guessngoodstates
 	
-	! check 
+	! guess number of ngoodstates
+	guessngoodstates=16*subM*subM/5
+
 	if(igoodstate>guessngoodstates) then
 		call master_print_message(igoodstate,"igoodstate>guessgoodstates")
 		stop
 	end if
 
+	if(.not. allocated(symmlinkgood)) then
+		allocate(symmlinkgood(guessngoodstates,2),stat=error)
+		if(error/=0) stop
+	end if
 	! in the good quantum number states space
 	! get the symmetry link information
 	! symmlinkgood(m,1) means the left space index in 4M basis
 	! symmlinkgood(m,2) means the right space index in 4M basis
-	
-	! every process should know this
+
 	symmlinkgood(igoodstate,1)=leftindex
 	symmlinkgood(igoodstate,2)=rightindex
 return
 
 end subroutine CreatSymmlinkgood
-
-!===============================================================================
-!================================================================================
-
-subroutine SymmAllocateArray
-	implicit none
-
-	integer :: error
-	! guess number of ngoodstates
-	guessngoodstates=16*subM*subM/5
-	
-	allocate(symmlinkgood(guessngoodstates,2),stat=error)
-	if(error/=0) stop
-	allocate(symmlinkcol(4*Rrealdim+1),stat=error)
-	if(error/=0) stop
-	symmlinkcol(1)=1
-
-return
-end subroutine SymmAllocateArray
 
 !===============================================================================
 !================================================================================
@@ -115,33 +97,28 @@ subroutine SymmetryMat
 	integer,allocatable :: spinline(:,:),C2line(:,:)
 	integer :: fulline(4,2)
 	! 3-array CSR sparse form workarray(enough to store)
+	real(kind=r8),allocatable :: symmat1(:)
+	integer,allocatable :: columnindex1(:),rowindex1(:)
 	
 	integer,allocatable ::  havetouchindex(:)
-	! check every state have touched 1/0
-
 	real(kind=r8) :: norm
-	integer :: i,j,m,k
-	integer :: total,phase,exist,tmp,tmp2,symmlink(ngoodstates)
-	logical :: ifexist
-	integer :: error
-
-	! MPI flag
-	integer :: ierr,packsize,position1,nonzero 
-	character(len=1),allocatable :: packbuf(:)
+	integer :: i,j,m,total,havetouch,k,exist
+	logical :: done,iftouch,ifexist
 	
-
+	integer :: error
+	integer :: ierr ! MPI flag
+	
 	call master_print_message("enter symmetrymat subroutine")
 
-	! allocate the symmat work memory
-	allocate(symmat(ngoodstates),stat=error)
-	if(error/=0) stop
-	allocate(columnindex(ngoodstates),stat=error)
-	if(error/=0) stop
-	allocate(rowindex(ngoodstates+1),stat=error)
-	if(error/=0) stop
-	
-	
+! allocate the work memory
 	if(myid==0) then
+		allocate(symmat1(ngoodstates),stat=error)
+		if(error/=0) stop
+		allocate(columnindex1(ngoodstates),stat=error)
+		if(error/=0) stop
+		allocate(rowindex1(ngoodstates+1),stat=error)
+		if(error/=0) stop
+	
 		if(logic_spinreversal/=0) then
 			allocate(spinline(ngoodstates,2),stat=error)
 			if(error/=0) stop
@@ -155,69 +132,75 @@ subroutine SymmetryMat
 		
 		allocate(havetouchindex(ngoodstates),stat=error)
 		if(error/=0) stop
+		havetouchindex=0
 	
 	! when L space Sz>0 then we need to make the symmetry pair Sz<0 using same coefficient
 	! when L space Sz=0 then we need to make the L+R space basis to have the specfic spin parity. Then set others to zero
 
 		if(logic_spinreversal/=0) then
-			! symmlink is the whole space ngoodstates symmlink not subspace
-			symmlink=0 
-			do i=1,ngoodstates,1
-				if (symmlink(i)==0) then
-					if(abs(symmlinkbig(symmlinkgood(i,1),1,1))==symmlinkgood(i,1) .and. &
-						abs(symmlinkbig(symmlinkgood(i,2),1,2))==symmlinkgood(i,2)) then
-						symmlink(i)=i
-						spinline(i,1)=i
-					else
-						! use the symmlinkcol to accelerate the search process
-						tmp=symmlinkcol(abs(symmlinkbig(symmlinkgood(i,2),1,2)))
-						tmp2=symmlinkcol(abs(symmlinkbig(symmlinkgood(i,2),1,2))+1)-1
-						
-						if(i<=tmp2) then
-							do j=tmp,tmp2,1
-								if(symmlink(j)==0 .and. &
-									abs(symmlinkbig(symmlinkgood(i,1),1,1))==symmlinkgood(j,1) ) then
-									symmlink(i)=j
-									symmlink(j)=i
-									spinline(i,1)=j
-									spinline(j,1)=i
-									exit
-								end if
-							end do
-						end if
-					end if
-				end if
-			end do
-
-			! the symmetry phase
-			phase=logic_spinreversal*((-1)**(mod(nelecs/2,2)))
-
 			do i=1,ngoodstates,1
 				! the symmlink is himself
-				if(symmlink(i)==i) then
-					
+				if(abs(symmlinkbig(symmlinkgood(i,1),1,1))==symmlinkgood(i,1) .and. &
+					abs(symmlinkbig(symmlinkgood(i,2),1,2))==symmlinkgood(i,2)) then
 					if(sign(1,symmlinkbig(symmlinkgood(i,1),1,1))*sign(1,symmlinkbig(symmlinkgood(i,2),1,2))&
-						/=phase) then
+					/=logic_spinreversal*((-1)**(mod(nelecs/2,2)))) then
+						spinline(i,1)=i
 						spinline(i,2)=0   ! the coeff should be 0
 					else
+						spinline(i,1)=i
 						spinline(i,2)=1   ! can have a random coeff
 					end if
-
 				! either of the L or R space symmlink is not himself
-				else if(symmlink(i)>i) then
-					tmp=sign(1,symmlinkbig(symmlinkgood(i,1),1,1))*sign(1,symmlinkbig(symmlinkgood(symmlink(i),2),1,2))*phase
-					spinline(i,2)=tmp
-					spinline(symmlink(i),2)=tmp
+				else if((abs(symmlinkbig(symmlinkgood(i,1),1,1))/=symmlinkgood(i,1) .or. &
+						abs(symmlinkbig(symmlinkgood(i,2),1,2))/=symmlinkgood(i,2)) &
+						.and. spinline(i,1)==0) then
+						! spinline(i,1)==0 means it is not be touched
+					done=.false.
+					do j=1,ngoodstates,1
+						if(spinline(j,1)==0) then     ! find the link information
+							if(abs(symmlinkbig(symmlinkgood(i,1),1,1))==symmlinkgood(j,1) .and. &
+								abs(symmlinkbig(symmlinkgood(i,2),1,2))==symmlinkgood(j,2)) then
+								done=.true.
+								if(sign(1,symmlinkbig(symmlinkgood(i,1),1,1))*sign(1,symmlinkbig(symmlinkgood(i,2),1,2))&
+								*logic_spinreversal*((-1)**(mod(nelecs/2,2)))==-1) then
+									spinline(i,1)=j
+									spinline(j,1)=i
+									spinline(i,2)=-1
+									spinline(j,2)=-1
+								else if(sign(1,symmlinkbig(symmlinkgood(i,1),1,1))*sign(1,symmlinkbig(symmlinkgood(i,2),1,2))&
+								*logic_spinreversal*((-1)**(mod(nelecs/2,2)))==1) then
+									spinline(i,1)=j
+									spinline(j,1)=i
+									spinline(i,2)=1
+									spinline(j,2)=1
+								else
+									call master_print_message("failed! spinreversal symmetry problem!")
+									write(*,*) sign(1,symmlinkbig(symmlinkgood(i,1),1,1))*sign(1,symmlinkbig(symmlinkgood(i,2),1,2))&
+									*logic_spinreversal*((-1)**(mod(nelecs/2,2)))
+									stop
+								end if
+								exit
+							end if
+						end if
+					end do
+					if(done==.false.) then  ! not find the another link part
+						write(*,*) "-----------------------------------------------------------------------------"
+						write(*,*) "in symmetrymat subroutine did't find the correspond state",&
+							i,symmlinkgood(i,1),symmlinkgood(i,2),"corrsponds",&
+							symmlinkbig(symmlinkgood(i,1),1,1),symmlinkbig(symmlinkgood(i,2),1,2)
+						write(*,*) "-----------------------------------------------------------------------------"
+						stop
+					end if
 				end if
 			end do
 		end if
+		write(*,*) spinline(:,:)
 
 ! C2 symmetry part
 ! the rule is if L space fai1 fai2, corresponding R space fai3,fai4
 ! C2(fai1*fai4)=fai3*fai2=-1^(num3*num2)*fai2*fai3
 		if(logic_C2/=0 .and. nleft==nright) then
 			do i=1,ngoodstates,1
-			if(C2line(i,1)==0) then
 				if(symmlinkgood(i,1)==symmlinkgood(i,2)) then
 					if(logic_C2*(-1)**mod(quantabigL(symmlinkgood(i,1),1)*quantabigR(symmlinkgood(i,2),1),2)==-1) then
 						C2line(i,1)=i
@@ -226,43 +209,47 @@ subroutine SymmetryMat
 						C2line(i,1)=i
 						C2line(i,2)=1  ! the coeff can be random
 					end if
-				else 
-					! use the symmlinkcol to accelerate the search process
-					tmp=symmlinkcol(symmlinkgood(i,1))    ! i's left index equals j's right index
-					tmp2=symmlinkcol(symmlinkgood(i,1)+1)-1
-
-					if(i<=tmp2) then
-						do j=tmp,tmp2,1  ! find the link info
-							if(C2line(j,1)==0 .and. &
-								symmlinkgood(j,1)==symmlinkgood(i,2) .and. &
-								symmlinkgood(j,2)==symmlinkgood(i,1)) then
-								if(logic_C2*(-1)**mod(quantabigL(symmlinkgood(i,1),1)*quantabigR(symmlinkgood(i,2),1),2)==-1) then
-									C2line(i,1)=j
-									C2line(j,1)=i
-									C2line(i,2)=-1
-									C2line(j,2)=-1
-								else
-									C2line(i,1)=j
-									C2line(j,1)=i
-									C2line(i,2)=1
-									C2line(j,2)=1
-								end if
-								exit
+				else
+					done=.false.
+					do j=1,ngoodstates,1  ! find the link info
+						if(symmlinkgood(j,1)==symmlinkgood(i,2) .and. &
+							symmlinkgood(j,2)==symmlinkgood(i,1)) then
+							if(logic_C2*(-1)**mod(quantabigL(symmlinkgood(i,1),1)*quantabigR(symmlinkgood(i,2),1),2)==-1) then
+								C2line(i,1)=j
+								C2line(j,1)=i
+								C2line(i,2)=-1
+								C2line(j,2)=-1
+							else
+								C2line(i,1)=j
+								C2line(j,1)=i
+								C2line(i,2)=1
+								C2line(j,2)=1
 							end if
-						end do
+							done=.true.
+							exit
+						end if
+					end do
+					if(done==.false.) then
+						call master_print_message("in symmetrymat C2 symmetry fails!")
+						stop
 					end if
 				end if
-			end if
 			end do
 		end if
-		
+	
 		nsymmstate=0
-		rowindex(1)=1
-		havetouchindex=0  ! every state is not touched
-
+		rowindex1(1)=1
+		havetouch=0
 	! the core part! find the link diagram subgroup
 		do i=1,ngoodstates,1
-			if(havetouchindex(i)==0) then
+			iftouch=.false.
+			do k=1,havetouch,1
+				if(i==havetouchindex(k)) then
+					iftouch=.true.
+					exit
+				end if
+			end do
+			if(iftouch==.false.) then
 				m=1
 				total=1
 				fulline(1,1)=i   ! index   ! at most 4 state share the link info
@@ -314,22 +301,30 @@ subroutine SymmetryMat
 				end do
 
 				! update the havetouch index
-				do j=1,total,1
-					havetouchindex(fulline(j,1))=1
-				end do
-
+				havetouchindex(havetouch+1:havetouch+total)=fulline(1:total,1)
+				havetouch=havetouch+total
 				! update the symmmat
 				if(fulline(1,2)/=0) then
 					nsymmstate=nsymmstate+1
 					norm=sqrt(1.0D0/DBLE(total))
 					do k=1,total,1
-						symmat(rowindex(nsymmstate)-1+k)=norm*DBLE(fulline(k,2)/fulline(1,2))
-						columnindex(rowindex(nsymmstate)-1+k)=fulline(k,1)
-						rowindex(nsymmstate+1)=rowindex(nsymmstate)+total
+						symmat1(rowindex1(nsymmstate)-1+k)=norm*DBLE(fulline(k,2)/fulline(1,2))
+						columnindex1(rowindex1(nsymmstate)-1+k)=fulline(k,1)
+						rowindex1(nsymmstate+1)=rowindex1(nsymmstate)+total
 					end do
 				end if
 			end if
 		end do
+		! copy the bigger space to the correct space of the sparse matrix
+		allocate(symmat(rowindex1(nsymmstate+1)-1),stat=error)
+		if(error/=0) stop
+		allocate(columnindex(rowindex1(nsymmstate+1)-1),stat=error)
+		if(error/=0) stop
+		allocate(rowindex(nsymmstate+1),stat=error)
+		if(error/=0) stop
+		rowindex=rowindex1(1:nsymmstate+1)
+		columnindex=columnindex1(1:rowindex1(nsymmstate+1)-1)
+		symmat=symmat1(1:rowindex1(nsymmstate+1)-1)
 
 		!deallocate the memory space
 		if(logic_spinreversal/=0) then
@@ -338,40 +333,34 @@ subroutine SymmetryMat
 		if(logic_C2/=0 .and. (nleft==nright)) then
 			deallocate(C2line)
 		end if
+		deallocate(symmat1)
+		deallocate(columnindex1)
+		deallocate(rowindex1)
 		deallocate(havetouchindex)
-		
 	end if  ! 0 process end
 
-	! broadcast sparse matrix to other process
+! broadcast sparse matrix to other process
 	call MPI_BCAST(nsymmstate,1,MPI_integer,0,MPI_COMM_WORLD,ierr)
-	packsize=(ngoodstates*2+1)*4+ngoodstates*8
-	allocate(packbuf(packsize))
-	if(myid==0) then
-		position1=0
-		call MPI_PACK(rowindex,nsymmstate+1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
-		nonzero=rowindex(nsymmstate+1)-1
-		call MPI_PACK(columnindex,nonzero,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
-		call MPI_PACK(symmat,nonzero,MPI_real8,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
-	end if
-
-	call MPI_BCAST(position1,1,MPI_integer,0,MPI_COMM_WORLD,ierr)
-	call MPI_BCAST(packbuf,position1,MPI_PACKED,0,MPI_COMM_WORLD,ierr)
-
 	if(myid/=0) then
-		position1=0
-		call MPI_UNPACK(packbuf,packsize,position1,rowindex,nsymmstate+1,MPI_integer4,MPI_COMM_WORLD,ierr)
-		nonzero=rowindex(nsymmstate+1)-1
-		call MPI_UNPACK(packbuf,packsize,position1,columnindex,nonzero,MPI_integer4,MPI_COMM_WORLD,ierr)
-		call MPI_UNPACK(packbuf,packsize,position1,symmat,nonzero,MPI_real8,MPI_COMM_WORLD,ierr)
+		allocate(rowindex(nsymmstate+1),stat=error)
+		if(error/=0) stop
 	end if
+	call MPI_BCAST(rowindex,nsymmstate+1,MPI_integer,0,MPI_COMM_WORLD,ierr)
+	if(myid/=0) then
+		allocate(columnindex(rowindex(nsymmstate+1)-1),stat=error)
+		if(error/=0) stop
+		allocate(symmat(rowindex(nsymmstate+1)-1),stat=error)
+		if(error/=0) stop
+	end if
+	call MPI_BCAST(columnindex,rowindex(nsymmstate+1)-1,MPI_integer,0,MPI_COMM_WORLD,ierr)
+	call MPI_BCAST(symmat,rowindex(nsymmstate+1)-1,MPI_real8,0,MPI_COMM_WORLD,ierr)
 	
-	deallocate(packbuf)
-
+	if(myid==0) then
+		write(*,*) symmat(1:rowindex(nsymmstate+1)-1)
+	end if
 return
-
 end subroutine SymmetryMat
 
-!==========================================================================================
 !==========================================================================================
 
 subroutine SymmHDiag(HDIAG)
@@ -387,20 +376,21 @@ subroutine SymmHDiag(HDIAG)
 
 	real(kind=r8) :: HDIAG(nsymmstate)
 	! local
-	integer :: dim1,isymm,nlbasis,nrbasis,indexbuf(2),operanum,&
-		localnsymmstate,localnsymmstate0
+	integer :: operaindex,index1(4),dim1,havesend,&
+		sender,isymm,nlbasis,nrbasis,indexbuf(2),operanum
 
-	integer :: i,j,m,k,il,ir,l,ibasis
+	integer :: is,i,j,m,mr,mc,k,il,ir
 	integer :: error
-	integer :: ierr,status(MPI_STATUS_SIZE),recvrequest  ! MPI_flag
+	integer :: ierr,status(MPI_STATUS_SIZE)  ! MPI_flag
 
-	real(kind=r8),allocatable :: bufmat0(:,:,:,:,:),bufmat(:,:,:,:),bufmatlocal(:,:,:,:,:),&
+	real(kind=r8),allocatable :: bufmat0(:,:,:,:,:),bufmat(:,:,:,:),bufH(:,:,:,:),&
 	workarray(:,:),workdummy(:,:),Idummyr(:,:),Idummyl(:,:),bufmatdumm(:,:),&
 	bufmatdummyr(:,:),bufmatdummyl(:,:),&
-	vecdummy(:),nosymmat(:,:),localdiag(:)
+	vecdummy(:),nosymmat(:,:)
 
-	integer,allocatable :: indexall(:,:,:),indexsymm(:,:),displs(:),sendcount(:)
-	logical :: iffind
+	integer,allocatable :: indexall(:,:,:),indexsymm(:,:)
+	logical :: ifexist,iffind
+	real(kind=r8) :: output
 
 	call master_print_message("enter symmHDiag subroutine")
 	
@@ -415,6 +405,7 @@ subroutine SymmHDiag(HDIAG)
 	! every orbital operator in every nsymmstate block basis
 	allocate(bufmat(4,4,3*operanum,nsymmstate),stat=error)
 	if(error/=0) stop
+	bufmat=0.0D0
 
 	! store the index of every nsymmstate in ngoodstates basis
 	allocate(indexall(5,2,nsymmstate),stat=error)  
@@ -425,16 +416,105 @@ subroutine SymmHDiag(HDIAG)
 
 	if(myid==0) then
 		! 0 procee store every orbital operator in every nsymmstate block basis
-		allocate(bufmat0(4,4,3,norbs+1,nsymmstate),stat=error)
+		allocate(bufmat0(4,4,3,norbs,nsymmstate),stat=error)
 		if(error/=0) stop
-		! norbs+1 array  store HL and HR in every nsymmstate in process 0
-	end if
+		bufmat0=0.0D0
 
-	! get the subspace element index that contribute to the diagonal element
-	call subspaceSymmHDIAG('L',indexall,operanum,bufmat,bufmat0)
-	call subspaceSymmHDIAG('R',indexall,operanum,bufmat,bufmat0)
+		allocate(bufH(4,4,2,nsymmstate),stat=error)
+		if(error/=0) stop
+		bufH=0.0D0
+		! bufH store HL and HR in every nsymmstate in process 0
+	end if
+!===================================================================================
+	! get L space block matrix correspond to one single nsymmstate, at most 4*4
+	do is=1,nleft+1,1
+	if(myid==orbid1(is,1) .or. (myid==0 .and. is==1)) then
+		operaindex=orbid1(is,2)
+		do i=1,nsymmstate,1
+			index1=0
+			m=0
+			do j=rowindex(i),rowindex(i+1)-1,1   ! i state element index in sparse form
+				ifexist=.false.
+				do k=1,m,1
+					if(symmlinkgood(columnindex(j),1)==index1(k)) then
+						ifexist=.true.
+						exit
+					end if
+				end do
+				if(ifexist==.false.) then
+					m=m+1
+					index1(m)=symmlinkgood(columnindex(j),1)
+				end if
+			end do
+			
+			do j=1,m,1
+				indexall(j,1,i)=index1(j)
+			end do
+			indexall(5,1,i)=m
+			
+			do mc=1,m,1
+			do mr=1,m,1
+				! copy the operamatbig matrix to bufmat and bufH
+				if(myid/=0) then
+					do j=3*operaindex-2,3*operaindex,1
+						call SpMatIJ(4*Lrealdim,index1(mr),index1(mc),operamatbig1(:,j),bigcolindex1(:,j),bigrowindex1(:,j),&
+							bufmat(mr,mc,j,i))
+					end do
+				else
+					call SpMatIJ(4*Lrealdim,index1(mr),index1(mc),Hbig(:,1),Hbigcolindex(:,1),Hbigrowindex(:,1),&
+						bufH(mr,mc,1,i))
+				end if
+			end do
+			end do
+		end do
+	end if
+	end do
+
+	! R space the same as L space algrithom
+	do is=norbs,norbs-nright,-1
+	if(myid==orbid1(is,1) .or. (myid==0 .and. is==norbs)) then
+		operaindex=orbid1(is,2)
+		do i=1,nsymmstate,1
+			index1=0
+			m=0
+			do j=rowindex(i),rowindex(i+1)-1,1
+				ifexist=.false.
+				do k=1,m,1
+					if(symmlinkgood(columnindex(j),2)==index1(k)) then
+						ifexist=.true.
+						exit
+					end if
+				end do
+				if(ifexist==.false.) then
+					m=m+1
+					index1(m)=symmlinkgood(columnindex(j),2)
+				end if
+			end do
+
+			do j=1,m,1
+				indexall(j,2,i)=index1(j)
+			end do
+			indexall(5,2,i)=m
+
+			do mc=1,m,1
+			do mr=1,m,1
+				if(myid/=0) then
+					do j=3*operaindex-2,3*operaindex,1
+						call SpMatIJ(4*Rrealdim,index1(mr),index1(mc),operamatbig1(:,j),bigcolindex1(:,j),bigrowindex1(:,j),&
+							bufmat(mr,mc,j,i))
+					end do
+				else
+					call spMatIJ(4*Rrealdim,index1(mr),index1(mc),Hbig(:,2),Hbigcolindex(:,2),Hbigrowindex(:,2),&
+						bufH(mr,mc,2,i))
+				end if
+			end do
+			end do
+		end do
+	end if
+	end do
+!===============================================================================================
 	
-	! broadcast the indexall information from process 0
+! broadcast the indexall information from process 0
 	call MPI_BCAST(indexall,10*nsymmstate,MPI_Integer,0,MPI_COMM_WORLD,ierr)
 
 	if(myid/=0) then
@@ -444,61 +524,61 @@ subroutine SymmHDiag(HDIAG)
 	if(myid==0) then
 		do i=1,nprocs-1,1
 			call MPI_RECV(bufmat,48*operanum*nsymmstate,mpi_real8,MPI_ANY_SOURCE,1,MPI_COMM_WORLD,status,ierr)
+			m=0
 			do j=status(MPI_SOURCE),norbs,nprocs-1
-				m=(j-1)/(nprocs-1)+1
+				m=m+1
 				do k=1,nsymmstate,1
-				do l=1,3,1
-				do ir=1,4,1
-					call copy(bufmat(:,ir,3*m-3+l,k),bufmat0(:,ir,l,j,k))
-				end do
-				end do
+					bufmat0(:,:,:,j,k)=bufmat(:,:,3*m-2:3*m,k)
 				end do
 			end do
 		end do
 	end if
+
 	deallocate(bufmat)
-	
-!==================================================================
-! calculate the diagonal element
-! every process do part of the diagonal element
 
-	localnsymmstate0=nsymmstate/nprocs
-	if(myid==nprocs-1) then   ! nprocs-1 process do the left diagonal element
-		localnsymmstate=nsymmstate-localnsymmstate0*(nprocs-1)
-	else
-		localnsymmstate=localnsymmstate0
+	allocate(bufmat(4,4,3,norbs+1),stat=error)
+	if(error/=0) stop
+
+	if(myid/=0) then
+		allocate(bufmatdumm(4,4),stat=error)
+		if(error/=0) stop
 	end if
-	
-	allocate(bufmatlocal(4,4,3,norbs+1,localnsymmstate),stat=error)
-	if(error/=0) stop
-	allocate(localdiag(localnsymmstate),stat=error)
-	if(error/=0) stop
-	allocate(sendcount(nprocs),stat=error)
-	if(error/=0) stop
-	allocate(displs(nprocs),stat=error)
-	if(error/=0) stop
-	allocate(bufmatdumm(4,4),stat=error)
-	if(error/=0) stop
-	
-	do i=1,nprocs,1
-		sendcount(i)=localnsymmstate0*48*(norbs+1)
-		displs(i)=localnsymmstate0*48*(norbs+1)*(i-1)
-	end do
-	sendcount(nprocs)=(nsymmstate-localnsymmstate0*(nprocs-1))*48*(norbs+1)
 
-	call MPI_SCATTERV(bufmat0,sendcount,displs,MPI_REAL8,&
-		bufmatlocal,localnsymmstate*48*(norbs+1),MPI_REAL8,0,MPI_COMM_WORLD,ierr)
-	
+! master-slaver mode to calculate the diagnol element, from Huang Xiaomeng's PPT
+! 0 process send every symmstate calculation to slaver process
 	if(myid==0) then
-		deallocate(bufmat0)
+		HDIAG=0.0D0
+		do i=1,nprocs-1,1
+			bufmat(:,:,:,1:norbs)=bufmat0(:,:,:,:,i)
+			bufmat(:,:,1:2,norbs+1)=bufH(:,:,:,i)
+			call MPI_SEND(bufmat,48*(norbs+1),mpi_real8,i,i,MPI_COMM_WORLD,ierr)
+		end do
+
+		havesend=nprocs-1
+		do i=1,nsymmstate,1
+			call MPI_RECV(output,1,MPI_real8,MPI_ANY_SOURCE,MPI_ANY_TAG,MPI_COMM_WORLD,status,ierr)
+			sender=status(MPI_SOURCE)
+			HDIAG(status(MPI_TAG))=output+HDIAG(status(MPI_TAG))
+
+			if(havesend<nsymmstate) then
+				bufmat(:,:,:,1:norbs)=bufmat0(:,:,:,:,havesend+1)
+				bufmat(:,:,1:2,norbs+1)=bufH(:,:,:,havesend+1)
+				call MPI_SEND(bufmat,48*(norbs+1),mpi_real8,sender,havesend+1,MPI_COMM_WORLD,ierr)
+				havesend=havesend+1
+			else
+				call MPI_SEND(1.0,0,mpi_real8,sender,0,MPI_COMM_WORLD,ierr)
+			end if
+		end do
 	end if
+
 
 	! caculate Sij * Hjk *Ski
-	! every process do the local part
-	do ibasis=1,localnsymmstate,1
-		! the index of the global nsymmstate
-		isymm=myid*localnsymmstate0+ibasis
+	if(myid/=0) then
+   300	call MPI_RECV(bufmat,48*(norbs+1),mpi_real8,0,MPI_ANY_TAG,MPI_COMM_WORLD,status,ierr)
 		
+		isymm=status(MPI_TAG)
+	! if isymm==0 no work
+	if(isymm/=0) then
 		nlbasis=indexall(5,1,isymm)  
 		nrbasis=indexall(5,2,isymm)  
 		! nlbasis and nrbasis is the number of basis in L and R space in isymm block
@@ -511,10 +591,10 @@ subroutine SymmHDiag(HDIAG)
 
 		allocate(bufmatdummyl(nlbasis,nlbasis),stat=error)
 		if(error/=0) stop
-		bufmatdummyl=bufmatlocal(1:nlbasis,1:nlbasis,1,norbs+1,ibasis)  ! HL 
+		bufmatdummyl=bufmat(1:nlbasis,1:nlbasis,1,norbs+1)  ! HL 
 		allocate(bufmatdummyr(nrbasis,nrbasis),stat=error)
 		if(error/=0) stop
-		bufmatdummyr=bufmatlocal(1:nrbasis,1:nrbasis,2,norbs+1,ibasis)  ! HR
+		bufmatdummyr=bufmat(1:nrbasis,1:nrbasis,2,norbs+1)  ! HR
 
 		allocate(Idummyr(nrbasis,nrbasis),stat=error) ! identity matrix Ir
 		if(error/=0) stop
@@ -549,8 +629,8 @@ subroutine SymmHDiag(HDIAG)
 			do j=norbs,norbs-nright,-1
 				if(bondlink(i,j)==1) then
 					do k=1,2,1
-						bufmatdumm=transpose(bufmatlocal(:,:,k,j,ibasis))
-						call directproduct(bufmatlocal(1:nlbasis,1:nlbasis,k,i,ibasis),nlbasis,bufmatdumm(1:nrbasis,1:nrbasis),nrbasis,&
+						bufmatdumm=transpose(bufmat(:,:,k,j))
+						call directproduct(bufmat(1:nlbasis,1:nlbasis,k,i),nlbasis,bufmatdumm(1:nrbasis,1:nrbasis),nrbasis,&
 							workdummy)
 						! add phase
 						do ir=1,nrbasis,1
@@ -563,7 +643,7 @@ subroutine SymmHDiag(HDIAG)
 					end do
 				end if
 				! PPP term
-				call directproduct(bufmatlocal(1:nlbasis,1:nlbasis,3,i,ibasis),nlbasis,bufmatlocal(1:nrbasis,1:nrbasis,3,j,ibasis),nrbasis,&
+				call directproduct(bufmat(1:nlbasis,1:nlbasis,3,i),nlbasis,bufmat(1:nrbasis,1:nrbasis,3,j),nrbasis,&
 					workdummy)
 				workarray=workdummy*pppV(i,j)+workarray
 			end do
@@ -608,7 +688,7 @@ subroutine SymmHDiag(HDIAG)
 		deallocate(indexsymm)
 		nosymmat=workarray(1:dim1,1:dim1)  !Hjk
 		call gemv(nosymmat,symmat(rowindex(isymm):rowindex(isymm+1)-1),vecdummy,1.0D0,0.0D0,'N')  ! Hjk*Ski
-		localdiag(ibasis)=dot(symmat(rowindex(isymm):rowindex(isymm+1)-1),vecdummy) !Sij *Hjk *Ski
+		output=dot(symmat(rowindex(isymm):rowindex(isymm+1)-1),vecdummy) !Sij *Hjk *Ski
 		
 		deallocate(vecdummy)
 		deallocate(nosymmat)
@@ -618,106 +698,24 @@ subroutine SymmHDiag(HDIAG)
 		deallocate(bufmatdummyl)
 		deallocate(workarray)
 		deallocate(workdummy)
-	end do
-	
-	! gather the diagonal element to 0 process
-	do i=1,nprocs,1
-		sendcount(i)=localnsymmstate0
-		displs(i)=localnsymmstate0*(i-1)
-	end do
-	sendcount(nprocs)=nsymmstate-localnsymmstate0*(nprocs-1)
-
-	call MPI_GATHERV(localdiag,localnsymmstate,MPI_REAL8,&
-		Hdiag,sendcount,displs,MPI_REAL8,0,MPI_COMM_WORLD,ierr)
+		call MPI_SEND(output,1,MPI_real8,0,isymm,MPI_COMM_WORLD,ierr)
+		goto 300
+	end if
+	end if
 
 	deallocate(indexall)
-	deallocate(bufmatlocal,localdiag)
-	deallocate(displs,sendcount)
-	deallocate(bufmatdumm)
-	
+	deallocate(bufmat)
+	if(myid==0) then
+		deallocate(bufH)
+		deallocate(bufmat0)
+	else 
+		deallocate(bufmatdumm)
+	end if
 
 return
 end subroutine SymmHDiag
 
 !====================================================================
-!====================================================================
-
-subroutine subspaceSymmHDIAG(domain,indexall,operanum,bufmat,bufmat0)
-	
-	use mathlib
-	use module_sparse
-	implicit none
-
-	character(len=1) :: domain
-	integer :: indexall(5,2,nsymmstate),operanum
-	real(kind=r8) :: bufmat(4,4,3*operanum,nsymmstate),bufmat0(4,4,3,norbs+1,nsymmstate)
-	! local
-	integer :: orbstart,orbend,Hindex,dim1,operaindex
-	integer :: index1(4),m,k,is,i,j,mr,mc
-	logical :: ifexist
-
-
-	if(domain=='L') then
-		orbstart=1
-		orbend=nleft+1
-		Hindex=1
-		dim1=Lrealdim
-	else if(domain=='R') then
-		orbstart=norbs-nright
-		orbend=norbs
-		Hindex=2
-		dim1=Rrealdim
-	end if
-	
-	do is=orbstart,orbend,1
-	if(myid==orbid1(is,1) .or. (myid==0 .and. (is==1 .or.is==norbs))) then
-		operaindex=orbid1(is,2)
-		do i=1,nsymmstate,1
-			index1=0
-			m=0
-			do j=rowindex(i),rowindex(i+1)-1,1   ! i state element index in sparse form
-				ifexist=.false.
-				do k=1,m,1
-					if(symmlinkgood(columnindex(j),Hindex)==index1(k)) then
-						ifexist=.true.
-						exit
-					end if
-				end do
-				if(ifexist==.false.) then
-					m=m+1
-					index1(m)=symmlinkgood(columnindex(j),Hindex)
-				end if
-			end do
-			
-			do j=1,m,1
-				indexall(j,Hindex,i)=index1(j)
-			end do
-			indexall(5,Hindex,i)=m
-			
-			do mc=1,m,1
-			do mr=1,m,1
-				! copy the operamatbig matrix to bufmat and
-				! bufmat0(:,:,1:2,norbs+1,:)
-				if(myid/=0) then
-					do j=3*operaindex-2,3*operaindex,1
-						call SpMatIJ(4*dim1,index1(mr),index1(mc),operamatbig1(:,j),bigcolindex1(:,j),bigrowindex1(:,j),&
-							bufmat(mr,mc,j,i))
-					end do
-				else
-					call SpMatIJ(4*dim1,index1(mr),index1(mc),Hbig(:,Hindex),Hbigcolindex(:,Hindex),Hbigrowindex(:,Hindex),&
-						bufmat0(mr,mc,Hindex,norbs+1,i))
-				end if
-			end do
-			end do
-		end do
-	end if
-	end do
-return
-
-end subroutine subspaceSymmHdiag
-
-!==========================================================================================
-!==========================================================================================
 
 subroutine SymmetrizeState(nnosymmstate,bigvector,smallvector,operation)
 ! this subroutine is to symmetrize and unsymmetrize a vector
@@ -793,7 +791,6 @@ return
 end subroutine SymmetrizeMatrix
 
 !====================================================================
-
 subroutine destroysymm
 
 	implicit none
@@ -802,7 +799,6 @@ subroutine destroysymm
 	deallocate(rowindex)
 	deallocate(columnindex)
 	deallocate(symmlinkgood)
-	deallocate(symmlinkcol)
 return
 end subroutine destroysymm
 

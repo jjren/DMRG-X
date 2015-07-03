@@ -6,7 +6,7 @@ Subroutine ReadInput
 	USE PPP_term
 	USE MPI
 	use communicate
-    use stateOverlap
+	use stateOverlap
 	implicit none
 
 	integer :: i,j,error,ierr 
@@ -15,8 +15,8 @@ Subroutine ReadInput
 	character(len=2) :: symbol       ! the element symbol not used
 
 	character(len=1),allocatable :: packbuf(:)  
-	integer(kind=i4) :: position1
-	integer(kind=i4) :: packsize       
+	integer :: position1
+	integer :: packsize       
 	real(kind=r8) :: dummyt           ! transfer integral intermediate variable
 
 	if(myid==0) then
@@ -76,23 +76,26 @@ Subroutine ReadInput
 	nweight=1.0D0         !default value
 	
 	if(nstate/=1) then
-		read(10,*) exscheme ! =1 average method      =2 my new specifc method 
-                            ! =3 the dipole operator average method     =4 max overlap
-        if(exscheme==4) then
-            read(10,*) realTargetStateIndex
-            if(realTargetStateIndex>nstate) then
-                write(*,*) "realTargetStateIndex>nstate error"
-                stop
-            end if
-            read(10,*) highestStateIndex
-            if(highestStateIndex<=nstate) then
-                write(*,*) "highestStateIndex<nstate error"
-                stop
-            end if
-            read(10,*) overlapThresh
-            !read(10,*) alpha1
-            !read(10,*) alpha2
-        end if
+		read(10,*) exscheme 
+		! =1 average method      
+		! =2 my new specifc method
+		! =3 the dipole operator average method     
+		! =4 max overlap
+		 if(exscheme==4) then
+			read(10,*) realTargetStateIndex
+			if(realTargetStateIndex>nstate) then
+				call master_print_message("realTargetStateIndex>nstate error")
+				stop
+			end if
+			read(10,*) highestStateIndex
+			if(highestStateIndex<=nstate) then
+				call master_print_message( "highestStateIndex<nstate error")
+				stop
+			end if
+			read(10,*) overlapThresh
+			!read(10,*) alpha1
+			!read(10,*) alpha2
+		end if
 		if(exscheme==1 .or. exscheme==3 .or. exscheme==4) then    
 			read(10,*) nweight(1:nstate) ! nweight is the average DMRG excited state
 			nweight=nweight/sum(nweight)
@@ -201,9 +204,9 @@ Subroutine ReadInput
 		call MPI_PACK(modeindex,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
 		
 		if(mode=='r') then
-		call MPI_PACK(isweep,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
-		call MPI_PACK(nleft,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
-		call MPI_PACK(nright,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
+			call MPI_PACK(isweep,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
+			call MPI_PACK(nleft,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
+			call MPI_PACK(nright,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
 		end if
 		
 		call MPI_PACK(norbs,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
@@ -220,13 +223,13 @@ Subroutine ReadInput
 		call MPI_PACK(maxSweeps,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
 		call MPI_PACK(nstate,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
 		call MPI_PACK(exscheme,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
-        if(exscheme==4) then
-            call MPI_PACK(realTargetStateIndex,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
-            call MPI_PACK(highestStateIndex,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
-            call MPI_PACK(overlapThresh,1,MPI_real8,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
-            !call MPI_PACK(alpha1,1,MPI_real8,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
-            !call MPI_PACK(alpha2,1,MPI_real8,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
-        end if
+		if(exscheme==4) then
+			call MPI_PACK(realTargetStateIndex,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
+			call MPI_PACK(highestStateIndex,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
+			call MPI_PACK(overlapThresh,1,MPI_real8,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
+			!call MPI_PACK(alpha1,1,MPI_real8,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
+			!call MPI_PACK(alpha2,1,MPI_real8,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
+		end if
 		call MPI_PACK(nweight(1),nstate,MPI_real8,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
 		call MPI_PACK(blocks,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
 		call MPI_PACK(nbonds,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
@@ -238,7 +241,8 @@ Subroutine ReadInput
 		write(*,*) "packsizedefine=",packsize,"packbufsize=",position1
 	end if
 	
-	call MPI_bcast(packbuf,packsize,MPI_PACKED,0,MPI_COMM_WORLD,ierr)
+	call MPI_BCAST(position1,1,MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
+	call MPI_BCAST(packbuf,position1,MPI_PACKED,0,MPI_COMM_WORLD,ierr)
 
 	if(myid/=0) then
 		position1=0
@@ -263,13 +267,13 @@ Subroutine ReadInput
 		call MPI_UNPACK(packbuf,packsize,position1,maxSweeps,1,MPI_integer4,MPI_COMM_WORLD,ierr)
 		call MPI_UNPACK(packbuf,packsize,position1,nstate,1,MPI_integer4,MPI_COMM_WORLD,ierr)
 		call MPI_UNPACK(packbuf,packsize,position1,exscheme,1,MPI_integer4,MPI_COMM_WORLD,ierr)
-        if(exscheme==4) then
-            call MPI_UNPACK(packbuf,packsize,position1,realTargetStateIndex,1, MPI_integer4,MPI_COMM_WORLD,ierr)
-            call MPI_UNPACK(packbuf,packsize,position1,highestStateIndex,1, MPI_integer4,MPI_COMM_WORLD,ierr)
-            call MPI_UNPACK(packbuf,packsize,position1,overlapThresh,1, MPI_real8,MPI_COMM_WORLD,ierr)
-            !call MPI_UNPACK(packbuf,packsize,position1,alpha1,1, MPI_real8,MPI_COMM_WORLD,ierr)
-            !call MPI_UNPACK(packbuf,packsize,position1,alpha2,1, MPI_real8,MPI_COMM_WORLD,ierr)
-        end if
+		if(exscheme==4) then
+			call MPI_UNPACK(packbuf,packsize,position1,realTargetStateIndex,1, MPI_integer4,MPI_COMM_WORLD,ierr)
+			call MPI_UNPACK(packbuf,packsize,position1,highestStateIndex,1, MPI_integer4,MPI_COMM_WORLD,ierr)
+			call MPI_UNPACK(packbuf,packsize,position1,overlapThresh,1, MPI_real8,MPI_COMM_WORLD,ierr)
+			!call MPI_UNPACK(packbuf,packsize,position1,alpha1,1, MPI_real8,MPI_COMM_WORLD,ierr)
+			!call MPI_UNPACK(packbuf,packsize,position1,alpha2,1, MPI_real8,MPI_COMM_WORLD,ierr)
+		end if
 		allocate(nweight(nstate),stat=error)
 		if(error/=0) stop
 		call MPI_UNPACK(packbuf,packsize,position1,nweight,nstate,MPI_real8,MPI_COMM_WORLD,ierr)
@@ -322,22 +326,22 @@ Subroutine ReadInput
 		write(*,*) "maxSweeps=",maxSweeps
 		write(*,*) "nstates=",nstate
 		write(*,*) "exscheme=",exscheme
-        if(exscheme==4) then
-            write(*,*) "targetStateIndex=",realTargetStateIndex
-            write(*,*) "highestStateIndex=",highestStateIndex
-            write(*,*) "overlapThresh=",overlapThresh
-            !write(*,*) "alpha1=", alpha1
-            !write(*,*) "alpha2=", alpha2
-        end if
+		if(exscheme==4) then
+			write(*,*) "targetStateIndex=",realTargetStateIndex
+			write(*,*) "highestStateIndex=",highestStateIndex
+			write(*,*) "overlapThresh=",overlapThresh
+			!write(*,*) "alpha1=", alpha1
+			!write(*,*) "alpha2=", alpha2
+		end if
 		write(*,*) "nweight=",nweight
 		write(*,*) "energythresh",energythresh ! other process do not know this number
 		write(*,*) "nbonds=",nbonds,"bondlink="
 		do i=1,norbs,1
-		write(*,*) bondlink(:,i)
+			write(*,*) bondlink(:,i)
 		end do
 		write(*,*) "coord=","nuclearQ="
 		do i=1,natoms,1
-		write(*,*) coord(1:3,i),nuclQ(i)
+			write(*,*) coord(1:3,i),nuclQ(i)
 		end do
 		write(*,*) "hubbardU="
 		write(*,*) hubbardU

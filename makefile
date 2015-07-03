@@ -1,4 +1,4 @@
-MKLROOT=/export/home/mahe/intel/composer_xe_2013.2.146/mkl
+MKLROOT=/opt/intel/mkl
 MKLLIB=$(MKLROOT)/lib/intel64
 mklinc=$(MKLROOT)/include/intel64/lp64 
 mklinc1=$(MKLROOT)/include
@@ -6,9 +6,8 @@ mklinc1=$(MKLROOT)/include
 
 FCCFLAG= -lmkl_blas95_lp64 -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core -lmkl_lapack95_lp64 -liomp5 -lpthread -lm
 
-FC=mpiifort
-
-FCCOMPILEOPTS= -O2
+FC=mpif90
+FCCOMPILEOPTS= -g -debug
 
 .SUFFIXES: .f90 .f
 
@@ -17,26 +16,19 @@ FCCOMPILEOPTS= -O2
 %.o : %.f
 	$(FC) -c $(FCCOMPILEOPTS) -I/$(mklinc) -I/$(mklinc1) $<
 
-object = kinds_mod.o communicate.o exit_mod.o variables.o \
-	   ppp_term.o contructquanta.o mathlib.o davidson.o \
-	   symmetry.o InitialGuess.o  GetHDiag.o \
-	   infinit_MPS.o infinit_initmat.o \
-     stateOverlap.o\
-     hamiltonian.o\
-	   davidson_wrapper.o\
-	   meanfield.o\
-	   loadbalance.o\
-	   count.o\
-	   main.o\
-	   excitedbasis.o\
-	   onesitematrix.o op.o readinput.o Renormalization.o \
-	   store_operator.o system_big.o \
+object = kinds_mod.o communicate.o exit_mod.o variables.o checkinfo.o \
+	   ppp_term.o contructquanta.o mathlib.o module_sparse.o davidson.o \
+	   symmetry.o InitialGuess.o stateOverlap.o coefftosparse.o hamiltonian.o GetHDiag.o \
+	   excitedbasis.o \
+	   op.o onesitematrix.o Renormalization.o splitsvd_direct.o\
+	   hamiltonian.o infinit_MPS.o  \
+	   loadbalance.o  \
+	     system_big.o readinput.o  \
+	    store_operator.o   \
 	   enviro_big.o finit_MPS.o sweep.o \
 	   selectstates.o\
-	   splitsvdL.o splitsvdR.o\
-	   C2_copy.o\
-	   transmoment.o fullmat.o\
-	   
+	    meanfield.o C2_copy.o\
+	  transmoment.o bondord.o analysis.o infinit_initmat.o count.o main.o   \
 
 DMRG-X : $(object)
 	$(FC) -o $@ $^ -L$(MKLLIB) $(FCCFLAG)
