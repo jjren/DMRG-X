@@ -73,7 +73,7 @@ contains
     
 subroutine initDavidWORK
 	
-	lim = 20+nstate
+	lim = 20 + nstate
 	allocate(iselec(lim),stat=error)
 	if(error/=0) stop    
 	iselec = -1
@@ -127,7 +127,7 @@ subroutine initDavidWORK
 		if(error/=0) stop
 		DavidWORK = 0.0
 	end if
-  
+       
 ! Get the diagonal element of hamiltonian
 	if(logic_spinreversal/=0 .or. &
 		(logic_C2/=0 .and. nleft==nright)) then
@@ -487,9 +487,9 @@ subroutine getCrit
 	critc = 1.0D-9
 	critr = 1.0D-9
 	ortho = 1.0D-8
-	infiniteCrite = 1.0D-5
-	originCrite = 1.0D-7
-	finalCrite  = 1.0D-9
+	infiniteCrite = 1.0D-5  ! infinit
+	originCrite = 1.0D-7    ! finite initial
+	finalCrite  = 1.0D-9    ! finite last
 	
 	if(direction == 'i') then  ! infinite DMRG
 		crite = infiniteCrite

@@ -148,17 +148,16 @@ module stateOverlap
                 maxOverlapIndex = targetStateIndex
             else
                 targetStateFlag = 'ngetsame'
-		    ! Ask
-                if(stateOverlapValue(targetStateIndex)/=stateOverlapValue(targetStateIndex)) then
-                    write(*,*) "targetStateIndex =",targetStateIndex
-                    write(*,*) "highestStateIndex =",highestStateIndex
-                    write(*,*) "ngoodstates =", ngoodstates
-                    write(*,*) "nosymmout((1+ngoodstates*(targetStateIndex-1)) : ngoodstates*targetStateIndex)"
-                    write(*,*) nosymmout((1+ngoodstates*(targetStateIndex-1)) : ngoodstates*targetStateIndex)
-                    write(*,*) "initial_vector(1:ngoodstates)"
-                    write(*,*) initial_vector(1:ngoodstates)
-                    stop
-                end if
+!                if(stateOverlapValue(targetStateIndex)/=stateOverlapValue(targetStateIndex)) then
+!                    write(*,*) "targetStateIndex =",targetStateIndex
+!                    write(*,*) "highestStateIndex =",highestStateIndex
+!                    write(*,*) "ngoodstates =", ngoodstates
+!                    write(*,*) "nosymmout((1+ngoodstates*(targetStateIndex-1)) : ngoodstates*targetStateIndex)"
+!                    write(*,*) nosymmout((1+ngoodstates*(targetStateIndex-1)) : ngoodstates*targetStateIndex)
+!                    write(*,*) "initial_vector(1:ngoodstates)"
+!                    write(*,*) initial_vector(1:ngoodstates)
+!                    stop
+!                end if
             end if
         case('trylower')
             maxOverlapValue = 0.0
