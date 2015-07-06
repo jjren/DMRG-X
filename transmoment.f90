@@ -5,7 +5,7 @@ Module transmoment_mod
 
 	implicit none
 
-	real(kind=r8),allocatable :: moment(:,:)  ! store the last transition moment
+	real(kind=r8),allocatable :: moment(:,:,:)  ! store the last transition moment
 	
 	contains
 
@@ -13,7 +13,7 @@ Module transmoment_mod
 !=======================================================================
 
 subroutine transmoment
-! this subroutine is to calculate the transition moment between gs and ex
+! this subroutine is to calculate the transition moment between gs and ex(or ex and ex)
 ! only used in the state average method
 !=========================================================
 ! the transition operator is (sum(rii*ni))
@@ -24,7 +24,7 @@ subroutine transmoment
 
 	use exit_mod
 	implicit none
-	integer :: i
+	integer :: i,istate
 
 	call master_print_message("enter transmoment subroutine")
 	
@@ -36,7 +36,7 @@ subroutine transmoment
 	end if
 
 	if(myid==0) then
-		allocate(moment(4,nstate))
+		allocate(moment(4,nstate,nstate-1))
 		moment=0.0D0
 	end if
 
@@ -45,9 +45,12 @@ subroutine transmoment
 
 	if(myid==0) then
 		write(*,*) "transition moment"
-		do i=2,nstate,1
-			moment(4,i)=sqrt(moment(1,i)**2+moment(2,i)**2+moment(3,i)**2)
-			write(*,'(4F10.5)') moment(:,i)
+		do istate=1,nstate-1,1
+			write(*,*) "stateindex=",istate
+			do i=istate+1,nstate,1
+				moment(4,i,istate)=sqrt(moment(1,i,istate)**2+moment(2,i,istate)**2+moment(3,i,istate)**2)
+				write(*,'(4F10.5)') moment(:,i,istate)
+			end do
 		end do
 	end if
 
@@ -78,11 +81,12 @@ subroutine transmoment_subspace(domain)
 	integer :: nmid
 	real(kind=r8),allocatable :: midmat(:)
 	integer(kind=i4),allocatable :: midcolindex(:),midrowindex(:)
-	real(kind=r8),allocatable :: imoment(:)
+	real(kind=r8),allocatable :: imoment(:,:)
 	character(len=1) :: trans,transB
-	! imoment(1) is a mediate number
-	! imoment(2:nstate) is <faiex|ni|faigs>
-	integer :: i,j,k,error,ierr,info
+	! imoment(1,istate-1) is a mediate number
+	! imoment(2:nstate,istate-1) is <faiex|ni|faiistate>
+	integer :: i,j,k,istate
+	integer :: error,ierr,info
 	
 
 	! set the parameters
@@ -109,7 +113,7 @@ subroutine transmoment_subspace(domain)
 	end if
 
 	! store the intermediate transmoment
-	allocate(imoment(nstate),stat=error)
+	allocate(imoment(nstate,nstate-1),stat=error)
 	if(error/=0) stop
 	
 	! operator ni loop
@@ -125,33 +129,37 @@ subroutine transmoment_subspace(domain)
 				transB='N'
 			end if
 
-			call SpMMtoSp('N',transB,4*subM,4*subM,4*subM,4*subM,4*subM, &
-					operamatbig1(:,3*operaindex),bigcolindex1(:,3*operaindex),bigrowindex1(:,3*operaindex), &
-					coeffIF(:,1),coeffIFcolindex(:,1),coeffIFrowindex(:,1), &
-					midmat,midcolindex,midrowindex,nmid)
+			imoment=0.0D0
+			do istate=1,nstate-1,1
+				call SpMMtoSp('N',transB,4*subM,4*subM,4*subM,4*subM,4*subM, &
+						operamatbig1(:,3*operaindex),bigcolindex1(:,3*operaindex),bigrowindex1(:,3*operaindex), &
+						coeffIF(:,istate),coeffIFcolindex(:,istate),coeffIFrowindex(:,istate), &
+						midmat,midcolindex,midrowindex,nmid)
 			
 			! the trace of coeffIF*transpose(midmat)
-			imoment=0.0D0
-			do j=2,nstate,1
-				if(domain=='L') then
-					trans='T'
-				else if(domain=='R') then
-					trans='N'
-				end if
-				call SpMMtrace(trans,4*subM,coeffIF(:,j),coeffIFcolindex(:,j),coeffIFrowindex(:,j),&
-						midmat,midcolindex,midrowindex,imoment(j))
+				do j=istate+1,nstate,1
+					if(domain=='L') then
+						trans='T'
+					else if(domain=='R') then
+						trans='N'
+					end if
+					call SpMMtrace(trans,4*subM,coeffIF(:,j),coeffIFcolindex(:,j),coeffIFrowindex(:,j),&
+							midmat,midcolindex,midrowindex,imoment(j,istate))
+				end do
 			end do
 			
-			call MPI_SEND(imoment,nstate,mpi_real8,0,i,MPI_COMM_WORLD,ierr)
+			call MPI_SEND(imoment,nstate*(nstate-1),mpi_real8,0,i,MPI_COMM_WORLD,ierr)
 		
 		else if(myid==0) then
 
-			call MPI_RECV(imoment,nstate,mpi_real8,MPI_ANY_SOURCE,MPI_ANY_TAG,MPI_COMM_WORLD,status,ierr)
-			! Rix/y/z *<ex|ni|gs>
-			do j=2,nstate,1
+			call MPI_RECV(imoment,nstate*(nstate-1),mpi_real8,MPI_ANY_SOURCE,MPI_ANY_TAG,MPI_COMM_WORLD,status,ierr)
+			! Rix/y/z *<ex|ni|gs>/<ex|ni|ex>
+			do istate=1,nstate-1,1
+			do j=istate+1,nstate,1
 				do k=1,3,1
-					moment(k,j)=moment(k,j)+imoment(j)*coord(k,status(MPI_TAG))
+					moment(k,j,istate)=moment(k,j,istate)+imoment(j,istate)*coord(k,status(MPI_TAG))
 				end do
+			end do
 			end do
 		end if
 	end do
