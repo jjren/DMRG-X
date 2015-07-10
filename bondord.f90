@@ -47,7 +47,7 @@ subroutine BondOrder
 	integer :: error
 	integer :: i,j,k
 
-	call master_print_message("enter Calc_BOmat subroutine")
+	call master_print_message("enter BondOrder subroutine")
 	
 	if(myid==0) then
 		allocate(bondordmat(norbs,norbs,2,nstate),stat=error)
@@ -219,7 +219,7 @@ subroutine Calc_BOmat_link
 	integer :: hoptouched(nprocs-1),hopntouched
 	integer :: error,info
 	
-	integer :: status(MPI_STATUS_SIZE),hopsendrequest(nprocs-1),hoprecvrequest
+	integer :: status(MPI_STATUS_SIZE),hopsendrequest(nprocs-1)
 	integer :: ierr
 
 	hopnelement=CEILING(DBLE(16*subM*subM)/bigratio1)
@@ -278,6 +278,7 @@ subroutine Calc_BOmat_link
 				operaindex=orbid1(i,2)
 				
 				! copy operamatbig to hopmat
+				! send operamatbig, not R*C
 				do l=1,2,1
 					! integer can not call copy
 					hopmatrow(:,l)=bigrowindex1(:,operaindex*3-3+l)
@@ -351,7 +352,7 @@ subroutine Calc_BOmat_link
 				! construct hopmat
 				do j=1,nstate,1
 					do k=1,2,1
-						! firstly needed to transfer from a(+) to a, so 'T' and 'T' is 'N', (ni-1)^+=(ni-1)
+						! firstly needed to transfer from a(+) to a, so 'T' and 'T' is 'N'
 						! k=1 a up,k=2 a down
 						call mkl_dcsrmultcsr('N',0,8,4*subM,4*subM,4*subM, &
 								coeffIF(:,j),coeffIFcolindex(:,j),coeffIFrowindex(:,j), &

@@ -219,7 +219,7 @@ subroutine RotateBasis(domain)
 	integer :: job(8)
 	integer :: error,ierr,info
 	integer :: i,j,k
-	logical :: ifbondord
+	logical :: ifbondord,iflocalspin
 
 	character(len=1),allocatable :: packbuf(:)
 	integer :: packsize
@@ -233,8 +233,10 @@ subroutine RotateBasis(domain)
 		dim1=Lrealdim
 		if(nleft<=(norbs-1)/2) then
 			ifbondord=.true.
+			iflocalspin=.true.
 		else
 			ifbondord=.false.
+			iflocalspin=.false.
 		end if
 	else if(domain=='R') then
 		orbstart=norbs-nright
@@ -243,8 +245,10 @@ subroutine RotateBasis(domain)
 		dim1=Rrealdim
 		if(nright<=(norbs-2)/2) then
 			ifbondord=.true.
+			iflocalspin=.true.
 		else
 			ifbondord=.false.
+			iflocalspin=.false.
 		end if
 	else
 		call exit_DMRG(sigAbort,"RotateBasis domain/=L/R")
@@ -344,6 +348,21 @@ subroutine RotateBasis(domain)
 		end do
 		end do
 	end if
+	! rotate the localspin matrix
+	if(logic_localspin==1 .and. iflocalspin==.true.) then
+		do i=orbstart,orbend,1
+		do j=i,orbend,1
+			if(myid==orbid3(i,j,1)) then
+				do k=1,2,1
+					operaindex=orbid3(i,j,2)-2+k
+					call SpMatRotateBasis(subM,4*dim1,rotatemat,rotcolindex,rotrowindex, &
+							4*dim1,4*dim1,operamatbig3(:,operaindex),bigcolindex3(:,operaindex),bigrowindex3(:,operaindex), &
+							subM,operamatsma3(:,operaindex),smacolindex3(:,operaindex),smarowindex3(:,operaindex),smadim3)
+				end do
+			end if
+		end do
+		end do
+	end if
 
 	deallocate(rotatemat)
 	deallocate(rotcolindex)
@@ -404,22 +423,40 @@ subroutine DirectCopy(domain)
 
 	! bond order matrix
 	if(logic_bondorder==1) then
-	do i=orbstart,orbend,1
-	do j=i,orbend,1
-		if(bondlink(i,j)/=0) then
-			if(myid==orbid2(i,j,1)) then
+		do i=orbstart,orbend,1
+		do j=i,orbend,1
+			if(bondlink(i,j)/=0) then
+				if(myid==orbid2(i,j,1)) then
+					do k=1,2,1
+						operaindex=orbid2(i,j,2)*2-2+k
+						smarowindex2(:,operaindex)=0
+						smarowindex2(1:4*dim1+1,operaindex)=bigrowindex2(1:4*dim1+1,operaindex)
+						nelement=smarowindex2(4*dim1+1,operaindex)-1
+						smacolindex2(1:nelement,operaindex)=bigcolindex2(1:nelement,operaindex)
+						call copy(operamatbig2(1:nelement,operaindex),operamatsma2(1:nelement,operaindex))
+					end do
+				end if
+			end if
+		end do
+		end do
+	end if
+
+	! local spin matrix
+	if(logic_localspin==1) then
+		do i=orbstart,orbend,1
+		do j=i,orbend,1
+			if(myid==orbid3(i,j,1)) then
 				do k=1,2,1
-					operaindex=orbid2(i,j,2)*2-2+k
-					smarowindex2(:,operaindex)=0
-					smarowindex2(1:4*dim1+1,operaindex)=bigrowindex2(1:4*dim1+1,operaindex)
-					nelement=smarowindex2(4*dim1+1,operaindex)-1
-					smacolindex2(1:nelement,operaindex)=bigcolindex2(1:nelement,operaindex)
-					call copy(operamatbig2(1:nelement,operaindex),operamatsma2(1:nelement,operaindex))
+					operaindex=orbid3(i,j,2)-2+k
+					smarowindex3(:,operaindex)=0
+					smarowindex3(1:4*dim1+1,operaindex)=bigrowindex3(1:4*dim1+1,operaindex)
+					nelement=smarowindex3(4*dim1+1,operaindex)-1
+					smacolindex3(1:nelement,operaindex)=bigcolindex3(1:nelement,operaindex)
+					call copy(operamatbig3(1:nelement,operaindex),operamatsma3(1:nelement,operaindex))
 				end do
 			end if
-		end if
-	end do
-	end do
+		end do
+		end do
 	end if
 
 	if(myid==0) then

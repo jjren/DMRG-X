@@ -8,7 +8,7 @@ Module OnesiteMatrix
 
 	implicit none
 	
-	integer,parameter :: noperators=8
+	integer,parameter :: noperators=11
 
 	real(kind=r8) :: onesitemat(4,noperators)            ! one site matrix in 4*4 basis 
 	integer(kind=i4) :: osmrowindex(5,noperators),osmcolindex(4,noperators)
@@ -19,8 +19,11 @@ Module OnesiteMatrix
 	! x=4 means a up
 	! x=5 means a down
 	! x=6 means small Hamiltonian
-	! x=7 means niup operator  ; only used in bond order calculation
-	! x=8 means nidown operator  ; only used in bond order calculation
+	! x=7 means niup+nidown operator
+	! x=8 means niup-nidown operator 
+	! x=9 means ai^+up*aidown
+	! x=10 means ai^+down*aiup
+	! x=11 means (niup-nidown)^2
 
 	contains
 !====================================================
@@ -109,27 +112,59 @@ subroutine ConstructOnesiteMatrix(orbindex)
 	osmrowindex(4,6)=3
 	osmrowindex(5,6)=4
 
-	! x=7 means niup operator  ; only used in bond order calculation
+	! x=7 means niup+nidown operator  ; used in bond order calculation
 	onesitemat(1,7)=1.0D0
 	onesitemat(2,7)=1.0D0
+	onesitemat(3,7)=2.0D0
 	osmcolindex(1,7)=2
-	osmcolindex(2,7)=4
+	osmcolindex(2,7)=3
+	osmcolindex(3,7)=4
 	osmrowindex(1,7)=1
 	osmrowindex(2,7)=1
 	osmrowindex(3,7)=2
-	osmrowindex(4,7)=2
-	osmrowindex(5,7)=3
+	osmrowindex(4,7)=3
+	osmrowindex(5,7)=4
 
-	! x=8 means niup operator  ; only used in bond order calculation
+	! x=8 means niup-nidown operator  ; used in bond order calculation
 	onesitemat(1,8)=1.0D0
-	onesitemat(2,8)=1.0D0
-	osmcolindex(1,8)=3
-	osmcolindex(2,8)=4
+	onesitemat(2,8)=-1.0D0
+	osmcolindex(1,8)=2
+	osmcolindex(2,8)=3
 	osmrowindex(1,8)=1
 	osmrowindex(2,8)=1
-	osmrowindex(3,8)=1
-	osmrowindex(4,8)=2
+	osmrowindex(3,8)=2
+	osmrowindex(4,8)=3
 	osmrowindex(5,8)=3
+
+	! x=9 means ai^+up*aidown
+	onesitemat(1,9)=1.0D0
+	osmcolindex(1,9)=3
+	osmrowindex(1,9)=1
+	osmrowindex(2,9)=1
+	osmrowindex(3,9)=2
+	osmrowindex(4,9)=2
+	osmrowindex(5,9)=2
+
+	! x=10 means ai^+down*aiup
+	onesitemat(1,10)=1.0D0
+	osmcolindex(1,10)=2
+	osmrowindex(1,10)=1
+	osmrowindex(2,10)=1
+	osmrowindex(3,10)=1
+	osmrowindex(4,10)=2
+	osmrowindex(5,10)=2
+
+	! x=11 means (niup-nidown)^2
+	onesitemat(1,11)=1.0D0
+	onesitemat(2,11)=1.0D0
+	osmcolindex(1,11)=2
+	osmcolindex(2,11)=3
+	osmrowindex(1,11)=1
+	osmrowindex(2,11)=1
+	osmrowindex(3,11)=2
+	osmrowindex(4,11)=3
+	osmrowindex(5,11)=3
+
 return
 
 end subroutine ConstructOnesiteMatrix

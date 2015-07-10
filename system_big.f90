@@ -26,7 +26,7 @@ Subroutine System_Big(domain)
 	! orbend is nleft or norbs
 	! orbadd is nleft+1 or norbs-nright
 	! Hindex : HL/1 HR/2
-	integer :: operaindex,operaindex2
+	integer :: operaindex,operaindex2,operaindex3
 	real(kind=r8) :: II(4),IM(subM)
 	integer(kind=i4) :: IIrowindex(5),IIcolindex(4),IMrowindex(subM+1),IMcolindex(subM)
 
@@ -42,7 +42,8 @@ Subroutine System_Big(domain)
 	integer :: i,j,k
 	integer :: error
 
-	logical :: ifbondord
+	logical :: ifbondord,iflocalspin
+	integer :: onesitematindex,systemmatindex
 
 	integer :: status(MPI_STATUS_SIZE),sendrequest  ! MPI flag
 	character(len=1),allocatable :: packbuf(:)
@@ -60,8 +61,10 @@ Subroutine System_Big(domain)
 		Hindex=1
 		if(nleft<=(norbs-1)/2) then
 			ifbondord=.true.
+			iflocalspin=.true.
 		else
 			ifbondord=.false.
+			iflocalspin=.false.
 		end if
 	else if(domain=='R') then
 		orbstart=norbs-nright+1
@@ -71,8 +74,10 @@ Subroutine System_Big(domain)
 		Hindex=2
 		if(nright<=(norbs-2)/2) then
 			ifbondord=.true.
+			iflocalspin=.true.
 		else
 			ifbondord=.false.
+			iflocalspin=.false.
 		end if
 	else
 		call exit_DMRG(sigAbort,"domain/=L .and. domain/R failed!")
@@ -186,7 +191,8 @@ Subroutine System_Big(domain)
 					end do
 				end if
 				!======================================================================
-				! store the bondorder mat
+				! store the bondorder mat  ai^+aj ( i is near the boundary)
+				! hopping operator is the intermediate of PPP model
 				if(logic_bondorder==1 .and. ifbondord==.true.) then
 					if(myid/=orbid2(i,orbadd,1)) then
 						write(*,*) "=============================================="
@@ -425,6 +431,89 @@ Subroutine System_Big(domain)
 				end if
 			end do
 		end if
+	end if
+!===================================================================
+! local spin operator matrix contruct
+	if(logic_localspin==1 .and. iflocalspin==.true.) then
+		
+		! transfer the L/R space(without sigmaL/R) from M basis to 4M basis
+		do i=orbstart,orbend,1
+		do j=i,orbend,1
+			if(myid==orbid3(i,j,1)) then
+				operaindex3=orbid3(i,j,2)
+				do k=operaindex3-1,operaindex3,1
+					if(domain=='R' .and. logic_C2==0) then
+						call SparseDirectProduct(4,4,II,IIcolindex,IIrowindex,&
+							dim1,dim1,operamatsma3(:,k),smacolindex3(:,k),smarowindex3(:,k),&
+							operamatbig3(:,k),bigcolindex3(:,k),bigrowindex3(:,k),bigdim3)
+					else
+						call SparseDirectProduct(dim1,dim1,operamatsma3(:,k),smacolindex3(:,k),smarowindex3(:,k),&
+							4,4,II,IIcolindex,IIrowindex,&
+							operamatbig3(:,k),bigcolindex3(:,k),bigrowindex3(:,k),bigdim3)
+					end if
+				end do
+			end if
+		end do
+		end do
+
+		! construct the sigmaL/R subspace operator matrix in 4M basis
+		if(myid==orbid3(orbadd,orbadd,1)) then
+			do j=1,2,1
+				operaindex3=orbid3(orbadd,orbadd,2)-2+j
+				if(j==1) then
+					onesitematindex=10
+				else
+					onesitematindex=11
+				end if
+				if(domain=='R' .and. logic_C2==0) then
+					call SparseDirectProduct(4,4,onesitemat(:,onesitematindex),osmcolindex(:,onesitematindex),osmrowindex(:,onesitematindex),&
+							dim1,dim1,IM,IMcolindex,IMrowindex,&
+							operamatbig3(:,operaindex3),bigcolindex3(:,operaindex3),bigrowindex3(:,operaindex3),bigdim3)
+				else
+					call SparseDirectProduct(dim1,dim1,IM,IMcolindex,IMrowindex,&
+							4,4,onesitemat(:,onesitematindex),osmcolindex(:,onesitematindex),osmrowindex(:,onesitematindex),&
+							operamatbig3(:,operaindex3),bigcolindex3(:,operaindex3),bigrowindex3(:,operaindex3),bigdim3)
+				end if
+			end do
+		end if
+
+		! construct the L/R+sigmaL/sigmaR operator matrix
+		! like PPP term no phase
+		do i=orbstart,orbend,1
+			if(myid==orbid3(i,orbadd,1)) then
+				if(orbid3(i,orbadd,1)/=orbid2(i,i,1) .or. orbid3(i,orbadd,1)/=orbid3(i,i,1)) then
+					write(*,*) "========================================================"
+					write(*,*) "orbid3(i,orbadd,1)/=orbid2(i,i,1) orbid3(i,i,1) failed!",orbid3(i,orbadd,1),orbid2(i,i,1),orbid3(i,i,1)
+					write(*,*) "========================================================"
+					stop
+				end if
+
+				operaindex3=orbid3(i,orbadd,2)
+				operaindex2=orbid2(i,i,2)*2
+				systemmatindex=orbid3(i,i,2)-1
+				
+				if(domain=='R' .and. logic_C2==0) then
+					! ai^+down*aiup*aj^+up*aj^down
+					call SparseDirectProduct(4,4,onesitemat(:,9),osmcolindex(:,9),osmrowindex(:,9),&
+							dim1,dim1,operamatsma3(:,systemmatindex),smacolindex3(:,systemmatindex),smarowindex3(:,systemmatindex),&
+							operamatbig3(:,operaindex3-1),bigcolindex3(:,operaindex3-1),bigrowindex3(:,operaindex3-1),bigdim3)
+					! (niup-nidown)*(njup-njdown)
+					call SparseDirectProduct(4,4,onesitemat(:,8),osmcolindex(:,8),osmrowindex(:,8),&
+							dim1,dim1,operamatsma2(:,operaindex2),smacolindex2(:,operaindex2),smarowindex2(:,operaindex2),&
+							operamatbig3(:,operaindex3),bigcolindex3(:,operaindex3),bigrowindex3(:,operaindex3),bigdim3)
+				else
+					! ai^+down*aiup*aj^+up*aj^down
+					call SparseDirectProduct( dim1,dim1,operamatsma3(:,systemmatindex),smacolindex3(:,systemmatindex),smarowindex3(:,systemmatindex),&
+							4,4,onesitemat(:,9),osmcolindex(:,9),osmrowindex(:,9),&
+							operamatbig3(:,operaindex3-1),bigcolindex3(:,operaindex3-1),bigrowindex3(:,operaindex3-1),bigdim3)
+					! (niup-nidown)*(njup-njdown)
+					call SparseDirectProduct( dim1,dim1,operamatsma2(:,operaindex2),smacolindex2(:,operaindex2),smarowindex2(:,operaindex2),&
+							4,4,onesitemat(:,8),osmcolindex(:,8),osmrowindex(:,8),&
+							operamatbig3(:,operaindex3),bigcolindex3(:,operaindex3),bigrowindex3(:,operaindex3),bigdim3)
+				end if
+			end if
+		end do
+!
 	end if
 !===================================================================
 

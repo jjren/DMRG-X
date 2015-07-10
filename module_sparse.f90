@@ -18,6 +18,8 @@ module module_sparse
 	operamatsma1(:,:) , &         ! sparse form 1 electron operamatsma
 	operamatbig2(:,:) , &         ! sparse form 2 electron operamatbig
 	operamatsma2(:,:) , &         ! sparse form 2 electron operamatsma
+	operamatbig3(:,:) , &         ! sparse form local spin operamatbig
+	operamatsma3(:,:) , &         ! sparse form local spin operamatsma
 	Hbig(:,:)         , &         ! Hbig in sparse form
 	Hsma(:,:)         , &         ! Hsma in sparse form
 	coeffIF(:,:)                  ! coeffIF is the inital and final wavefunction coefficient 
@@ -31,6 +33,10 @@ module module_sparse
 	bigcolindex2(:,:) , &         ! 2 electron oepramatbig columnindex
 	smarowindex2(:,:) , &         ! 2 electron operamatsma rowindex
 	smacolindex2(:,:) , &         ! 2 electron operamatsma columnindex
+	bigrowindex3(:,:) , &         ! local spin operamatbig rowindex
+	bigcolindex3(:,:) , &         ! local spin oepramatbig columnindex
+	smarowindex3(:,:) , &         ! local spin operamatsma rowindex
+	smacolindex3(:,:) , &         ! local spin operamatsma columnindex
 	Hbigcolindex(:,:) , &         ! Hbig colindex
 	Hbigrowindex(:,:) , &         ! Hbig rowindex
 	Hsmacolindex(:,:) , &         ! Hsma colindex
@@ -38,24 +44,24 @@ module module_sparse
 	coeffIFcolindex(:,:) ,&       ! coeffIF colindex
 	coeffIFrowindex(:,:)          ! coeffIF rowindex
 
-	integer(kind=i4),public :: bigdim1,smadim1,bigdim2,smadim2,Hbigdim,Hsmadim,coeffIFdim  ! in sparse form operamatbig/operamatsma,Hbig/Hsma dim
+	integer(kind=i4),public :: bigdim1,smadim1,bigdim2,smadim2,Hbigdim,Hsmadim,coeffIFdim,bigdim3,smadim3  ! in sparse form operamatbig/operamatsma,Hbig/Hsma dim
 	
 	! sparse parameter
 	real(kind=r8),public :: pppmatratio,hopmatratio,LRoutratio,UVmatratio,coeffIFratio
-	real(kind=r8),public :: bigratio1,smaratio1,bigratio2,smaratio2,Hbigratio,Hsmaratio  ! sparse radio
+	real(kind=r8),public :: bigratio1,smaratio1,bigratio2,smaratio2,bigratio3,smaratio3,Hbigratio,Hsmaratio  ! sparse radio
 
 	contains
 
 !=========================================================================================================
 !=========================================================================================================
 
-subroutine AllocateArray(operanum1,operanum2)
+subroutine AllocateArray(operanum1,operanum2,operanum3)
 	
 	use communicate
 	implicit none
 	
 	! store the number of operators on every process
-	integer :: operanum1(nprocs-1),operanum2(nprocs-1)
+	integer :: operanum1(nprocs-1),operanum2(nprocs-1),operanum3(nprocs-1)
 	
 	! local
 	integer :: error
@@ -65,8 +71,10 @@ subroutine AllocateArray(operanum1,operanum2)
 ! set the sparse mat dim
 	bigdim1=CEILING(DBLE(16*subM*subM)/bigratio1)
 	bigdim2=CEILING(DBLE(16*subM*subM)/bigratio2)
+	bigdim3=CEILING(DBLE(16*subM*subM)/bigratio3)
 	smadim1=CEILING(DBLE(subM*subM)/smaratio1)
 	smadim2=CEILING(DBLE(subM*subM)/smaratio2)
+	smadim3=CEILING(DBLE(subM*subM)/smaratio3)
 	Hbigdim=CEILING(DBLE(16*subM*subM)/Hbigratio)
 	Hsmadim=CEILING(DBLE(subM*subM)/Hsmaratio)
 	coeffIFdim=CEILING(DBLE(16*subM*subM)/coeffIFratio)
@@ -105,6 +113,25 @@ subroutine AllocateArray(operanum1,operanum2)
 			if(error/=0) stop
 			bigrowindex2=1
 			smarowindex2=1
+		end if
+		
+		! local spin operator matrix
+		if(logic_localspin==1) then
+			allocate(operamatbig3(bigdim3,operanum3(myid)),stat=error)
+			if(error/=0) stop
+			allocate(bigcolindex3(bigdim3,operanum3(myid)),stat=error)
+			if(error/=0) stop
+			allocate(bigrowindex3(4*subM+1,operanum3(myid)),stat=error)
+			if(error/=0) stop
+
+			allocate(operamatsma3(smadim3,operanum3(myid)),stat=error)
+			if(error/=0) stop
+			allocate(smacolindex3(smadim3,operanum3(myid)),stat=error)
+			if(error/=0) stop
+			allocate(smarowindex3(subM+1,operanum3(myid)),stat=error)
+			if(error/=0) stop
+			bigrowindex3=1
+			smarowindex3=1
 		end if
 	else
 	! 2 means the R space ;1 means the L space
@@ -152,6 +179,8 @@ subroutine sparse_default
 		smaratio1=1.0
 		bigratio2=1.0
 		smaratio2=1.0
+		bigratio3=1.0
+		smaratio3=1.0
 		Hbigratio=1.0
 		Hsmaratio=1.0
 		pppmatratio=1.0
@@ -164,6 +193,8 @@ subroutine sparse_default
 		smaratio1=8.0
 		bigratio2=32.0
 		smaratio2=8.0
+		bigratio3=1.0
+		smaratio3=1.0
 		Hbigratio=12.0
 		Hsmaratio=8.0
 		pppmatratio=10.0
@@ -176,6 +207,8 @@ subroutine sparse_default
 		smaratio1=5.0
 		bigratio2=20.0
 		smaratio2=5.0
+		bigratio3=1.0
+		smaratio3=1.0
 		Hbigratio=10.0
 		Hsmaratio=5.0
 		pppmatratio=10.0
@@ -188,6 +221,8 @@ subroutine sparse_default
 		smaratio1=5.0
 		bigratio2=25.0
 		smaratio2=5.0
+		bigratio3=1.0
+		smaratio3=1.0
 		Hbigratio=10.0
 		Hsmaratio=5.0
 		pppmatratio=10.0
@@ -200,6 +235,8 @@ subroutine sparse_default
 		smaratio1=5.0
 		bigratio2=25.0
 		smaratio2=5.0
+		bigratio3=1.0
+		smaratio3=1.0
 		Hbigratio=10.0
 		Hsmaratio=5.0
 		pppmatratio=10.0
@@ -212,6 +249,8 @@ subroutine sparse_default
 		smaratio1=8.0
 		bigratio2=30.0
 		smaratio2=8.0
+		bigratio3=1.0
+		smaratio3=1.0
 		Hbigratio=12.0
 		Hsmaratio=8.0
 		pppmatratio=12.0
@@ -224,6 +263,8 @@ subroutine sparse_default
 		smaratio1=5.0
 		bigratio2=10.0
 		smaratio2=5.0
+		bigratio3=1.0
+		smaratio3=1.0
 		Hbigratio=10.0
 		Hsmaratio=2.0
 		pppmatratio=5.0
@@ -233,11 +274,27 @@ subroutine sparse_default
 		coeffIFratio=5.0
 	end if
 
+	bigratio1=1.0
+	smaratio1=1.0
+	bigratio2=1.0
+	smaratio2=1.0
+	bigratio3=1.0
+	smaratio3=1.0
+	Hbigratio=1.0
+	Hsmaratio=1.0
+	pppmatratio=1.0
+	hopmatratio=1.0
+	LRoutratio=1.0
+	UVmatratio=1.0
+	coeffIFratio=1.0
+
 	if(myid==0) then
 		write(*,*) "bigratio1=",    bigratio1
 		write(*,*) "smaratio1=",    smaratio1
 		write(*,*) "bigratio2=",    bigratio2
 		write(*,*) "smaratio2=",    smaratio2
+		write(*,*) "bigratio3=",    bigratio3
+		write(*,*) "smaratio3=",    smaratio3
 		write(*,*) "Hbigratio=",    Hbigratio
 		write(*,*) "Hsmaratio=",    Hsmaratio
 		write(*,*) "pppmatratio=",  pppmatratio

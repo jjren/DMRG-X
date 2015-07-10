@@ -198,7 +198,35 @@ Subroutine Enviro_Big(domain)
 		end if
 		call MPI_FILE_CLOSE(thefile,ierr)
 	end if
-
+!============================================================
+	! store local spin matrix(only store the exact site)
+	if(logic_localspin==1 .and. nsuborbs==exactsite+1) then
+		write(filename,'(a1,a13)') domain,'localspin.tmp'
+		call MPI_FILE_OPEN(MPI_COMM_WORLD,trim(filename),MPI_MODE_RDONLY,MPI_INFO_NULL,thefile,ierr)
+		if(myid/=0) then
+			count1=0
+			do i=orbstart,orbend,1
+			do j=i,orbend,1
+				count1=count1+2  ! at now, the number of operators
+				if(myid==orbid3(i,j,1)) then
+					offset=(count1-2)*(bigdim3*12+(4*subM+1)*4)
+					do k=1,2,1
+						operaindex=orbid3(i,j,2)-2+k
+						! read rowindex-> mat-> colindex in CSR format
+						call MPI_FILE_READ_AT(thefile,offset,bigrowindex3(1,operaindex),(4*subM+1),mpi_integer4,status,ierr)
+						nonzero=bigrowindex3(4*dim1+1,operaindex)-1
+						offset=offset+(4*subM+1)*4
+						call MPI_FILE_READ_AT(thefile,offset,operamatbig3(1,operaindex),nonzero,mpi_real8,status,ierr)
+						offset=offset+nonzero*8
+						call MPI_FILE_READ_AT(thefile,offset,bigcolindex3(1,operaindex),nonzero,mpi_integer4,status,ierr)
+						offset=offset+nonzero*4
+					end do
+				end if
+			end do
+			end do
+		end if
+		call MPI_FILE_CLOSE(thefile,ierr)
+	end if
 !=====================================================
 return
 

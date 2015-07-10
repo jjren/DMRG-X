@@ -10,13 +10,14 @@ Subroutine LoadBalance
 	USE variables
 	use communicate
 	use module_sparse
-
+	
 	implicit none
 	! local
 	integer :: i,j,error
 	integer ::  &
-	        operanum1(nprocs-1)    , &  !operanum1 is the max site operator every process have
-	        operanum2(nprocs-1)  
+	        operanum1(nprocs-1)    , &  ! operanum1 is the max site operator every process have
+	        operanum2(nprocs-1)    , &  !
+	        operanum3(nprocs-1)  
 	
 	call master_print_message("enter subroutine loadbalance")
 	
@@ -25,10 +26,13 @@ Subroutine LoadBalance
 	if(error/=0) stop
 	allocate(orbid2(norbs,norbs,2),stat=error)
 	if(error/=0) stop
+	allocate(orbid3(norbs,norbs,2),stat=error)
+	if(error/=0) stop
 	
 	! allocate the operators
 	! PPP operator
 	operanum1=0
+	orbid1=0
 	do i=1,norbs,nprocs-1
 		do j=1,nprocs-1,1
 			if((i-1+j)<=norbs) then
@@ -40,9 +44,15 @@ Subroutine LoadBalance
 			end if
 		end do
 	end do 
-	
+
+!====================================================================
 	! bond order operator
+	! (i,i) pair niup+nidown
+	!            niup-nidown
+	! (i,j) pair ai^+up*ajup
+	!            ai^+down*ajdown          
 	operanum2=0   ! number of operators on specific process
+	orbid2=0
 	! L space
 	do i=1,(norbs+1)/2,1
 	do j=i,(norbs+1)/2,1
@@ -67,19 +77,56 @@ Subroutine LoadBalance
 		end if
 	end do
 	end do
+!====================================================================
+	! local spin operator
+	operanum3=0
+	orbid3=0
+	! the operator order is
+	! (i,i) pair ai^+down*aiup
+	!            (niup-nidown)^2
+	! (i,j) pair  ai^+down*aiup*aj^+up*aj^down
+	!            (niup-nidown)*(njup-njdown)
+	! L space
+	do i=1,(norbs+1)/2,1
+	do j=i,(norbs+1)/2,1
+		orbid3(i,j,1)=orbid1(i,1)
+		orbid3(j,i,1)=orbid1(i,1)
 
+		operanum3(orbid1(i,1))=operanum3(orbid1(i,1))+2
+
+		orbid3(i,j,2)=operanum3(orbid1(i,1))
+		orbid3(j,i,2)=operanum3(orbid1(i,1))
+	end do
+	end do
+	! R space
+	do i=(norbs+1)/2+1,norbs,1
+	do j=i,norbs,1
+		orbid3(i,j,1)=orbid1(j,1)
+		orbid3(j,i,1)=orbid1(j,1)
+		
+		operanum3(orbid1(j,1))=operanum3(orbid1(j,1))+2
+		
+		orbid3(i,j,2)=operanum3(orbid1(j,1))    ! the orbid3(:,:,2) here is the last operator index of i,j pair
+		orbid3(j,i,2)=operanum3(orbid1(j,1))
+	end do
+	end do
+
+!====================================================================
+	
 	if(myid==0) then
 		write(*,*) "PPP operator distribute"
 		write(*,*) "orbid1=",orbid1(:,1)
 		write(*,*) "index on every process",orbid1(:,2)
 		write(*,*) "bond order operator distribute"
-		write(*,*) "orbid2=",orbid2(:,:,2)
+		write(*,*) "orbid2=",orbid2(:,:,1)
+		write(*,*) "local spin operator distribute"
+		write(*,*) "orbid3=",orbid3(:,:,1)
 	end if
 
 !============================================================================
 ! allocate the work space of every operator
 	
-	call AllocateArray(operanum1,operanum2)
+	call AllocateArray(operanum1,operanum2,operanum3)
 
 	if(myid==0) then
 		if(logic_spinreversal/=0) then

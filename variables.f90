@@ -41,13 +41,15 @@ module variables
 	integer(kind=i4),allocatable :: treelink(:,:)  ! treelink information
 
 	integer(kind=i4),parameter :: &
-	logic_bondorder= 0       ! if calculate bond order
+	logic_bondorder= 1   , &    ! if calculate bond order
+	logic_localspin= 1          ! if calculate local spin
 !=========================================================
 	
 	! loadbalance part
 	integer(kind=i4),allocatable ::  &
-	orbid1(:,:) , &        ! the orbid(norbs,2) is the process id every orbital; 
-	orbid2(:,:,:)         ! the orbid2(norbs,norbs,2) is the process id every 2 electron operator 
+	orbid1(:,:)    , &        ! the orbid(norbs,2) is the process id every orbital; 
+	orbid2(:,:,:)  , &        ! the orbid2(norbs,norbs,2) is the process id every 2 electron operator 
+	orbid3(:,:,:)             ! the orbid3(norbs,norbs,2) is the process contain local spin operator
 
 !=========================================================
 

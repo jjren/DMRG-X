@@ -57,7 +57,7 @@ subroutine Store_Operator(domain)
 		do i=orbstart,orbend,1
 			if(myid==orbid1(i,1)) then
 				operaindex=orbid1(i,2)
-				! store mat-> colindex->rowindex in CSR format
+				! store rowindex-> mat-> colindex in CSR format
 				offset=abs(i-orbref)*(bigdim1*12+(4*subM+1)*4)*3
 				do j=1,3,1
 					call MPI_FILE_WRITE_AT(thefile,offset,bigrowindex1(1,3*operaindex-3+j),(4*subM+1),mpi_integer4,status,ierr)
@@ -159,7 +159,7 @@ subroutine Store_Operator(domain)
 	call MPI_FILE_CLOSE(thefile,ierr)
 
 !============================================================
-	! store the bondorder matrix
+	! store the bondorder matrix (only store the exact site)
 	if(logic_bondorder==1 .and. nsuborbs==exactsite+1) then
 		write(filename,'(a1,a6)') domain,'bo.tmp'
 		call MPI_FILE_OPEN(MPI_COMM_WORLD,trim(filename),MPI_MODE_WRONLY+MPI_MODE_CREATE,MPI_INFO_NULL,thefile,ierr)
@@ -173,7 +173,7 @@ subroutine Store_Operator(domain)
 						operaindex=orbid2(i,j,2)
 						offset=(count1-1)*(bigdim2*12+(4*subM+1)*4)*2
 						do k=1,2,1
-							! store mat-> colindex->rowindex in CSR format
+							! store rowindex-> mat-> colindex in CSR format
 							call MPI_FILE_WRITE_AT(thefile,offset,bigrowindex2(1,2*operaindex-2+k),(4*subM+1),mpi_integer4,status,ierr)
 							nonzero=bigrowindex2(4*dim1+1,2*operaindex-2+k)-1
 							offset=offset+(4*subM+1)*4
@@ -189,8 +189,37 @@ subroutine Store_Operator(domain)
 		end if
 		call MPI_FILE_CLOSE(thefile,ierr)
 	end if
-
 !=====================================================
+	! store local spin matrix(only store the exact site)
+	if(logic_localspin==1 .and. nsuborbs==exactsite+1) then
+		write(filename,'(a1,a13)') domain,'localspin.tmp'
+		call MPI_FILE_OPEN(MPI_COMM_WORLD,trim(filename),MPI_MODE_WRONLY+MPI_MODE_CREATE,MPI_INFO_NULL,thefile,ierr)
+		if(myid/=0) then
+			count1=0
+			do i=orbstart,orbend,1
+			do j=i,orbend,1
+				count1=count1+2  ! at now, the number of operators
+				if(myid==orbid3(i,j,1)) then
+					offset=(count1-2)*(bigdim3*12+(4*subM+1)*4)
+					do k=1,2,1
+						operaindex=orbid3(i,j,2)-2+k
+						! store rowindex-> mat-> colindex in CSR format
+						call MPI_FILE_WRITE_AT(thefile,offset,bigrowindex3(1,operaindex),(4*subM+1),mpi_integer4,status,ierr)
+						nonzero=bigrowindex3(4*dim1+1,operaindex)-1
+						offset=offset+(4*subM+1)*4
+						call MPI_FILE_WRITE_AT(thefile,offset,operamatbig3(1,operaindex),nonzero,mpi_real8,status,ierr)
+						offset=offset+nonzero*8
+						call MPI_FILE_WRITE_AT(thefile,offset,bigcolindex3(1,operaindex),nonzero,mpi_integer4,status,ierr)
+						offset=offset+nonzero*4
+					end do
+				end if
+			end do
+			end do
+		end if
+		call MPI_FILE_CLOSE(thefile,ierr)
+	end if
+!=====================================================
+
 ! print operamatbig
 ! only used in test 
 !

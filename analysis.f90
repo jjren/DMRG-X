@@ -10,6 +10,7 @@ module analysis_mod
 subroutine Analysis
 	use transmoment_mod
 	use bondorder_mod
+	use localspin_mod
 
 	implicit none
 	
@@ -21,6 +22,10 @@ subroutine Analysis
 	
 	if(nstate/=1) then
 		call TransMoment
+	end if
+
+	if(logic_localspin==1) then
+		call LocalSpin
 	end if
 return
 end subroutine Analysis

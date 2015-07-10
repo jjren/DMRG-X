@@ -7,6 +7,7 @@ Subroutine Infinit_InitMat(domain)
 	use module_sparse
 	use onesitematrix
 	use BondOrder_mod
+	use LocalSpin_mod
 
 	implicit none
 	
@@ -85,6 +86,11 @@ Subroutine Infinit_InitMat(domain)
 	! bond order onsite matrix
 	if(logic_bondorder==1) then
 		call init_BOmat(orbindex)
+	end if
+
+	! local spin onsite matrix
+	if(logic_localspin==1) then
+		call init_localspinmat(orbindex)
 	end if
 
 return
