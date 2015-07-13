@@ -160,14 +160,14 @@ subroutine Store_Operator(domain)
 
 !============================================================
 	! store the bondorder matrix (only store the exact site)
-	if(logic_bondorder==1 .and. nsuborbs==exactsite+1) then
+	if(logic_bondorder/=0 .and. nsuborbs==exactsite+1) then
 		write(filename,'(a1,a6)') domain,'bo.tmp'
 		call MPI_FILE_OPEN(MPI_COMM_WORLD,trim(filename),MPI_MODE_WRONLY+MPI_MODE_CREATE,MPI_INFO_NULL,thefile,ierr)
 		if(myid/=0) then
 			count1=0
 			do i=orbstart,orbend,1
 			do j=i,orbend,1
-				if(bondlink(i,j)/=0) then
+				if(bondlink(i,j)/=0 .or. logic_bondorder==2) then
 					count1=count1+1
 					if(myid==orbid2(i,j,1)) then
 						operaindex=orbid2(i,j,2)

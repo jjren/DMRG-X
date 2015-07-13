@@ -57,13 +57,15 @@ subroutine InitialStarter(direction,lvector,nvector,initialcoeff)
 		
 		call GramSchmit(nvector,lvector,initialcoeff,norm)
 		write(*,*) "the Initial guessvector norm",norm
-	else if(direction=='i') then
+	else
 		call InitialRandom(initialcoeff,nvector,lvector)
 		call GramSchmit(nvector,lvector,initialcoeff,norm)
-		write(*,*) "the Initial guessvector norm",norm
-	else
-		call master_print_message("use the default univector as initialguess")
-		nvector=0  ! niv=0
+	!	write(*,*) "the Initial guessvector norm",norm
+
+	!	there are some problem(such as local minimun) when us univector
+	!	especically in non interacting system
+	!	call master_print_message("use the default univector as initialguess")
+	!	nvector=0  ! niv=0  
 	end if
 	
 

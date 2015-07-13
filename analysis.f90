@@ -16,7 +16,7 @@ subroutine Analysis
 	
 	call broadcastcoeffIF
 
-	if(logic_bondorder==1) then
+	if(logic_bondorder/=0) then
 		call BondOrder
 	end if
 	

@@ -97,7 +97,7 @@ subroutine AllocateArray(operanum1,operanum2,operanum3)
 		bigrowindex1=1   ! set the matrix to be 0
 		smarowindex1=1
 		
-		if(logic_bondorder==1) then
+		if(logic_bondorder/=0) then
 			allocate(operamatbig2(bigdim2,2*operanum2(myid)),stat=error)
 			if(error/=0) stop
 			allocate(bigcolindex2(bigdim2,2*operanum2(myid)),stat=error)

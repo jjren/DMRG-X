@@ -51,32 +51,57 @@ Subroutine LoadBalance
 	!            niup-nidown
 	! (i,j) pair ai^+up*ajup
 	!            ai^+down*ajdown          
+
 	operanum2=0   ! number of operators on specific process
 	orbid2=0
-	! L space
-	do i=1,(norbs+1)/2,1
-	do j=i,(norbs+1)/2,1
-		if(bondlink(i,j)/=0) then
+
+	if(logic_bondorder==1) then  ! only the bondorder term is calculated
+		! L space
+		do i=1,(norbs+1)/2,1
+		do j=i,(norbs+1)/2,1
+			if(bondlink(i,j)/=0) then
+				orbid2(i,j,1)=orbid1(i,1)  ! be careful it is i here
+				orbid2(j,i,1)=orbid1(i,1)
+				operanum2(orbid1(i,1))=operanum2(orbid1(i,1))+1
+				orbid2(i,j,2)=operanum2(orbid1(i,1))
+				orbid2(j,i,2)=operanum2(orbid1(i,1))
+			end if
+		end do
+		end do
+		! R space
+		do i=(norbs+1)/2+1,norbs,1
+		do j=i,norbs,1
+			if(bondlink(i,j)/=0) then
+				orbid2(i,j,1)=orbid1(j,1)   ! be careful it is j here
+				orbid2(j,i,1)=orbid1(j,1)
+				operanum2(orbid1(j,1))=operanum2(orbid1(j,1))+1
+				orbid2(i,j,2)=operanum2(orbid1(j,1))
+				orbid2(j,i,2)=operanum2(orbid1(j,1))
+			end if
+		end do
+		end do
+	else if(logic_bondorder==2) then ! calculate the one partical reduced density matrix
+		! L space
+		do i=1,(norbs+1)/2,1
+		do j=i,(norbs+1)/2,1
 			orbid2(i,j,1)=orbid1(i,1)  ! be careful it is i here
 			orbid2(j,i,1)=orbid1(i,1)
 			operanum2(orbid1(i,1))=operanum2(orbid1(i,1))+1
 			orbid2(i,j,2)=operanum2(orbid1(i,1))
 			orbid2(j,i,2)=operanum2(orbid1(i,1))
-		end if
-	end do
-	end do
-	! R space
-	do i=(norbs+1)/2+1,norbs,1
-	do j=i,norbs,1
-		if(bondlink(i,j)/=0) then
+		end do
+		end do
+		! R space
+		do i=(norbs+1)/2+1,norbs,1
+		do j=i,norbs,1
 			orbid2(i,j,1)=orbid1(j,1)   ! be careful it is j here
 			orbid2(j,i,1)=orbid1(j,1)
 			operanum2(orbid1(j,1))=operanum2(orbid1(j,1))+1
 			orbid2(i,j,2)=operanum2(orbid1(j,1))
 			orbid2(j,i,2)=operanum2(orbid1(j,1))
-		end if
-	end do
-	end do
+		end do
+		end do
+	end if
 !====================================================================
 	! local spin operator
 	operanum3=0

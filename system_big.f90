@@ -193,7 +193,7 @@ Subroutine System_Big(domain)
 				!======================================================================
 				! store the bondorder mat  ai^+aj ( i is near the boundary)
 				! hopping operator is the intermediate of PPP model
-				if(logic_bondorder==1 .and. ifbondord==.true.) then
+				if(logic_bondorder/=0 .and. ifbondord==.true.) then
 					if(myid/=orbid2(i,orbadd,1)) then
 						write(*,*) "=============================================="
 						write(*,*) "myid/=orbid2(i,orbadd,1)",myid,orbid2(i,orbadd,1)
@@ -390,11 +390,12 @@ Subroutine System_Big(domain)
 !===================================================================
 ! bond order matrix construct
 ! no phase in two operator matrix
-	if(logic_bondorder==1 .and. ifbondord==.true.) then
+	if(logic_bondorder/=0 .and. ifbondord==.true.) then
 		! transfer the L/R space(without sigmaL/R) from M basis to 4M basis
 		do i=orbstart,orbend,1
 		do j=i,orbend,1
-			if(bondlink(i,j)/=0) then
+			! two conditions bond order term and one partical density matrix
+			if(bondlink(i,j)/=0 .or. logic_bondorder==2) then
 				if(myid==orbid2(i,j,1)) then
 					do k=1,2,1
 						operaindex2=orbid2(i,j,2)*2-2+k
@@ -428,6 +429,42 @@ Subroutine System_Big(domain)
 					call SparseDirectProduct(dim1,dim1,IM,IMcolindex,IMrowindex,&
 							4,4,onesitemat(:,j+6),osmcolindex(:,j+6),osmrowindex(:,j+6),&
 							operamatbig2(:,operaindex2),bigcolindex2(:,operaindex2),bigrowindex2(:,operaindex2),bigdim2)
+				end if
+			end do
+		end if
+
+		! contruct the L/R+sigmaL/R one partical operator matrix
+		if(logic_bondorder==2) then
+			do i=orbstart,orbend,1
+				if(myid==orbid2(i,orbadd,1)) then
+					if(myid/=orbid1(i,1)) then
+						write(*,*) "=============================================="
+						write(*,*) "myid/=orbid1(i,1)",myid,orbid1(i,1)
+						write(*,*) "=============================================="
+						stop
+					end if
+					if(bondlink(i,orbadd)==0) then ! bondorder term has calculated 
+						do j=1,2,1
+							operaindex2=orbid2(i,orbadd,2)*2-2+j
+							operaindex=orbid1(i,2)*3-3+j
+							bigrowindex2(:,operaindex2)=0
+							if(domain=='R' .and. logic_C2==0) then
+								call SparseDirectProduct(4,4,onesitemat(:,j+3),osmcolindex(:,j+3),osmrowindex(:,j+3),&
+												dim1,dim1,operamatsma1(:,operaindex),smacolindex1(:,operaindex),smarowindex1(:,operaindex),&
+												operamatbig2(:,operaindex2),bigcolindex2(:,operaindex2),bigrowindex2(:,operaindex2),bigdim2)
+								do k=1,bigrowindex2(4*dim1+1,operaindex2)-1,1
+									operamatbig2(k,operaindex2)=operamatbig2(k,operaindex2)*DBLE(phase(bigcolindex2(k,operaindex2)))*(-1.0D0)
+								end do
+							else
+								call SparseDirectProduct(dim1,dim1,operamatsma1(:,operaindex),smacolindex1(:,operaindex),smarowindex1(:,operaindex),&
+												4,4,onesitemat(:,j+3),osmcolindex(:,j+3),osmrowindex(:,j+3),&
+												operamatbig2(:,operaindex2),bigcolindex2(:,operaindex2),bigrowindex2(:,operaindex2),bigdim2)
+								do k=1,bigrowindex2(4*dim1+1,operaindex2)-1,1
+									operamatbig2(k,operaindex2)=operamatbig2(k,operaindex2)*DBLE(phase(bigcolindex2(k,operaindex2)))
+								end do
+							end if
+						end do
+					end if
 				end if
 			end do
 		end if

@@ -8,7 +8,8 @@ module BondOrder_mod
 	
 	implicit none
 
-	real(kind=r8),allocatable ::  bondordmat(:,:,:,:)
+	real(kind=r8),allocatable ::  bondordmat(:,:,:,:),transDM0(:,:,:,:),&
+		transDMMO(:,:,:,:)
 	
 	contains
 !===========================================================================
@@ -46,6 +47,7 @@ subroutine BondOrder
 
 	integer :: error
 	integer :: i,j,k
+	real(kind=8) :: tmp
 
 	call master_print_message("enter BondOrder subroutine")
 	
@@ -53,6 +55,10 @@ subroutine BondOrder
 		allocate(bondordmat(norbs,norbs,2,nstate),stat=error)
 		if(error/=0) stop
 		bondordmat=0.0D0
+		
+		allocate(transDM0(norbs,norbs,2,nstate),stat=error)
+		if(error/=0) stop
+		transDM0=0.0D0
 	end if
 	
 	call Calc_BOmat_link
@@ -60,18 +66,134 @@ subroutine BondOrder
 	call Calc_BOmat_subspace('R')
 	
 	if(myid==0) then
+		! bondorder/one partical density matrix
+		call master_print_message("bondorder matrix")
 		do k=1,nstate,1
 		do i=1,norbs,1
 		do j=i,norbs,1
-			if(bondlink(i,j)/=0) then
+			if(bondlink(i,j)/=0 .or. logic_bondorder==2) then
+				if(i==j) then    ! recover niup+nidown,niup-nidown to niup,nidown
+					tmp=bondordmat(i,i,1,k)-bondordmat(i,i,2,k)
+					bondordmat(i,i,1,k)=(bondordmat(i,i,1,k)+bondordmat(i,i,2,k))/2.0D0
+					bondordmat(i,i,2,k)=tmp/2.0D0
+				end if
 				write(*,*) i,j,bondordmat(i,j,:,k)
 			end if
 		end do
 		end do
 		end do
+		!  transition density matrix
+		call master_print_message("transition density matrix")
+		do k=2,nstate,1
+			do i=1,norbs,1
+			do j=1,norbs,1
+				if(i==j) then    ! recover niup+nidown,niup-nidown to niup,nidown
+					tmp=transDM0(i,i,1,k)-transDM0(i,i,2,k)
+					transDM0(i,i,1,k)=(transDM0(i,i,1,k)+transDM0(i,i,2,k))/2.0D0
+					transDM0(i,i,2,k)=tmp/2.0D0
+				end if
+				write(*,*) i,j,transDM0(i,j,:,k)
+			end do
+			end do
+		end do
+		call transDMAO2MO
+		if(nstate>1) then
+			call NatTraOrb
+		end if
 	end if
 return
 end subroutine BondOrder
+
+!===========================================================================
+!===========================================================================
+
+subroutine transDMAO2MO
+! the transition density matrix or one partical density matrix from PPP-AO to MO
+! MOij=CDC^+   C is MO*AO column format
+	use MeanField
+	use MKL95_BLAS
+	use MKL95_PRECISION
+	implicit none
+	integer :: i,j,k,l
+	real(kind=r8),allocatable :: midmat(:,:)
+	real(kind=r8) tmp
+
+	allocate(transDMMO(norbs,norbs,2,nstate))
+	allocate(midmat(norbs,norbs))
+
+	! transition density matrix
+	open(unit=151,file="MO-Opdm.tmp",status="replace")
+	do i=2,nstate,1
+		do j=1,2,1   ! spin up down
+			call gemm(coeffC,transDM0(:,:,j,i),midmat,'T','N',1.0D0,0.0D0)
+			call gemm(midmat,coeffC,transDMMO(:,:,j,i),'N','N',1.0D0,0.0D0)
+			write(151,*) j,i
+			write(151,*) transDMMO(:,:,j,i)
+		end do
+		do k=1,norbs,1
+		do l=1,norbs,1
+			tmp=abs(transDMMO(k,l,1,i)+transDMMO(k,l,2,i))
+			if(tmp>0.44) then
+				write(151,*) k,"<<--",l,sqrt(2.0D0)/2.0D0*tmp
+			end if
+		end do
+		end do
+	end do
+	close(151)
+
+	deallocate(midmat)
+return
+end subroutine transDMAO2MO
+
+!===========================================================================
+!===========================================================================
+
+subroutine NatTraOrb
+! this subroutine do natural transition orbital(NTO) analysis if the ex is
+! single excitation
+! <ex|a^+a*ai|gs>
+	
+	use MKL95_LAPACK
+	USE MKL95_PRECISION
+	use meanfield
+	implicit none
+	real(kind=r8),allocatable :: Tai(:,:,:),svdvalue(:),&
+	rightv(:,:),leftu(:,:),ww(:)
+	integer :: info,tmp
+	integer :: i
+
+	allocate(Tai(norbs-nocc,nocc,nstate))
+	
+	! the operator is the singlet excitation operator 
+	! sqrt(2)/2*(apup^+*aqup+apdown^+*aqdown)
+	Tai(:,:,:)=sqrt(2.0D0)/2.0D0*(TransDMMO(nocc+1:norbs,1:nocc,1,:)+TransDMMO(nocc+1:norbs,1:nocc,2,:))
+	
+	tmp=min(nocc,norbs-nocc)
+	allocate(svdvalue(tmp))
+	allocate(leftu(norbs-nocc,tmp))
+	allocate(rightv(tmp,nocc))
+	allocate(ww(tmp-1))
+	
+	call master_print_message("NTO analysis result")
+	open(unit=150,file="NTO.tmp",status="replace")
+	do i=2,nstate,1
+		call gesvd(Tai(:,:,i),svdvalue,leftu,rightv,ww,'N',info)
+		if(info/=0) then
+			write(*,*) "NatTraOrb info/=0",info
+			stop
+		end if
+		write(*,*) "stateindex",i
+		write(*,*) "svdvalue",svdvalue
+		write(150,*) i
+		write(150,*) svdvalue
+		write(150,*) leftu
+		write(150,*) rightv
+	end do
+	
+	deallocate(Tai,leftu,rightv,ww,svdvalue)
+
+return
+end subroutine NatTraOrb
 
 !===========================================================================
 !===========================================================================
@@ -89,7 +211,7 @@ subroutine Calc_BOmat_subspace(domain)
 	! local
 	integer :: i,j,istate,k,l
 	integer :: operaindex2,orbstart,orbend
-	real(kind=r8) :: ibondord(2,nstate)
+	real(kind=r8) :: ibondord(2,nstate),itransDM(2,2,nstate)
 	! ibondord :: 2 means up and down ; nstate means the specific bondorder
 	integer :: error,ierr
 	integer :: nmid
@@ -139,7 +261,7 @@ subroutine Calc_BOmat_subspace(domain)
 
 	do i=orbstart,orbend,1
 	do j=i,orbend,1
-		if(bondlink(i,j)/=0) then
+		if(bondlink(i,j)/=0 .or. logic_bondorder==2) then
 			if(myid==orbid2(i,j,1)) then
 				do istate=1,nstate,1
 				do k=1,2,1
@@ -148,23 +270,87 @@ subroutine Calc_BOmat_subspace(domain)
 						operamatbig2(:,operaindex2),bigcolindex2(:,operaindex2),bigrowindex2(:,operaindex2), &
 						coeffIF(:,istate),coeffIFcolindex(:,istate),coeffIFrowindexdummy(:,istate),&
 						midmat,midcolindex,midrowindex,nmid)
-					! trace(CLR*QLR)
+					! trace(CLR*QLR) or trace(CRL*QRL)
 					call SpMMtrace('T',4*subM,&
 						coeffIF(:,istate),coeffIFcolindex(:,istate),coeffIFrowindexdummy(:,istate),&
 						midmat,midcolindex,midrowindex,ibondord(k,istate))
+					!=====================================================================================
+					! calculate the transition density matrix
+					! <psai1|ai^+*aj|psai2>/=<psai1|aj^+*ai|psai2>
+					! <ex|ai^+*aj|gs>=<gs|aj^+*ai|ex>
+					if(nstate>1) then
+						if(istate==1) then
+							do l=2,nstate,1
+								! trace(CLR*QLR) or trace(CRL*QRL)
+								call SpMMtrace('T',4*subM,&
+									coeffIF(:,l),coeffIFcolindex(:,l),coeffIFrowindexdummy(:,l),&
+									midmat,midcolindex,midrowindex,itransDM(1,k,l))
+							end do
+						else
+							call SpMMtrace('T',4*subM,&
+								coeffIF(:,1),coeffIFcolindex(:,1),coeffIFrowindexdummy(:,1),&
+								midmat,midcolindex,midrowindex,itransDM(2,k,istate))
+						end if
+					end if
+					!=====================================================================================
 				end do
 				end do
 				call MPI_SEND(ibondord,nstate*2,mpi_real8,0,orbid2(i,j,2),MPI_COMM_WORLD,ierr)
+				!=====================================================================================
+				! calculate the transition density matrix
+				! <psai1|ai^+*aj|psai2>/=<psai1|aj^+*ai|psai2>
+				! <ex|ai^+*aj|gs>=<gs|aj^+*ai|ex>
+				if(nstate>1) then
+			!		do l=1,2,1  ! ai^+*aj   aj^+*ai
+			!			if(l==1) then
+			!				trans='N'
+			!			else
+			!				trans='T'
+			!			end if
+			!			do k=1,2,1
+			!				operaindex2=orbid2(i,j,2)*2-2+k
+			!				call SpMMtoSp(trans,'N',4*subM,4*subM,4*subM,4*subM,4*subM,&
+			!					operamatbig2(:,operaindex2),bigcolindex2(:,operaindex2),bigrowindex2(:,operaindex2), &
+			!					coeffIF(:,1),coeffIFcolindex(:,1),coeffIFrowindexdummy(:,1),&
+			!					midmat,midcolindex,midrowindex,nmid)
+			!				do istate=2,nstate,1
+			!					! trace(CLR*QLR) or trace(CRL*QRL)
+			!					call SpMMtrace('T',4*subM,&
+			!						coeffIF(:,istate),coeffIFcolindex(:,istate),coeffIFrowindexdummy(:,istate),&
+			!						midmat,midcolindex,midrowindex,itransDM(l,k,istate))
+			!				end do
+			!			end do
+			!		end do
+					call MPI_SEND(itransDM,nstate*4,mpi_real8,0,orbid2(i,j,2),MPI_COMM_WORLD,ierr)
+				end if
+				!=====================================================================================
 			
 			else if(myid==0) then
 
 				call MPI_RECV(ibondord,nstate*2,mpi_real8,orbid2(i,j,1),orbid2(i,j,2),MPI_COMM_WORLD,status,ierr)
+
 				do istate=1,nstate,1
 				do k=1,2,1
 					bondordmat(i,j,k,istate)=ibondord(k,istate)
 					bondordmat(j,i,k,istate)=ibondord(k,istate)
 				end do
 				end do
+				
+				! transition density matrix 
+				if(nstate>1) then
+					call MPI_RECV(itransDM,nstate*4,mpi_real8,orbid2(i,j,1),orbid2(i,j,2),MPI_COMM_WORLD,status,ierr)
+					do istate=2,nstate,1
+					do k=1,2,1
+						if(domain=='L') then   ! in the L space l=1 means (i,j) pair
+							transDM0(i,j,k,istate)=itransDM(1,k,istate)
+							transDM0(j,i,k,istate)=itransDM(2,k,istate)
+						else if(domain=='R') then   ! in the R space l=1 means (j,i) pair
+							transDM0(i,j,k,istate)=itransDM(2,k,istate)
+							transDM0(j,i,k,istate)=itransDM(1,k,istate)
+						end if
+					end do
+					end do
+				end if
 			end if
 		end if
 	end do
@@ -213,7 +399,7 @@ subroutine Calc_BOmat_link
 	character(len=1),allocatable :: hoppackbuf(:)
 	integer :: position1,hoppacksize
 	integer :: operaindex,nnonzero
-	real(kind=r8) :: ibondord(2,nstate)
+	real(kind=r8) :: ibondord(2,nstate),itransDM(2,2,nstate)
 	integer :: i,j,k,l,m,istate,p
 	logical :: ifhop,ifhopsend
 	integer :: hoptouched(nprocs-1),hopntouched
@@ -227,7 +413,7 @@ subroutine Calc_BOmat_link
 	
 	do i=1,nleft+1,1
 	do j=norbs,norbs-nright,-1
-		if(bondlink(i,j)==1) then
+		if(bondlink(i,j)==1 .or. logic_bondorder==2) then
 			if(myid==orbid1(i,1) .or. myid==orbid1(j,1)) then
 				if(.not. allocated(hopmat)) then
 					allocate(hopmat(hopnelement,2),stat=error) ! store the hopping matrix
@@ -268,7 +454,7 @@ subroutine Calc_BOmat_link
 			! check if need hopping matrix
 			ifhop=.false.
 			do j=1,nleft+1,1
-				if(bondlink(i,j)==1) then
+				if(bondlink(i,j)==1 .or. logic_bondorder==2) then
 					ifhop=.true.
 					exit
 				end if
@@ -299,7 +485,7 @@ subroutine Calc_BOmat_link
 				hoptouched=0
 				hopntouched=0
 				do l=1,nleft+1,1
-					if(bondlink(i,l)==1 .and. orbid1(l,1)/=myid) then ! if orbid(l)==myid need not send hopmat
+					if((bondlink(i,l)==1 .or. logic_bondorder==2) .and. orbid1(l,1)/=myid) then ! if orbid(l)==myid need not send hopmat
 						ifhopsend=.false.
 						do m=1,hopntouched,1
 							if(orbid1(l,1)==hoptouched(m)) then
@@ -321,7 +507,7 @@ subroutine Calc_BOmat_link
 		! hopping term calculation
 		if(myid/=orbid1(i,1) .and. myid/=0) then
 			do l=1,nleft+1,1
-				if(bondlink(l,i)==1 .and. myid==orbid1(l,1)) then  
+				if((bondlink(l,i)==1 .or. logic_bondorder==2) .and. myid==orbid1(l,1)) then  
 					call MPI_RECV(hoppackbuf,hoppacksize,MPI_PACKED,orbid1(i,1),i,MPI_COMM_WORLD,status,ierr)
 					position1=0
 					do j=1,2,1
@@ -335,7 +521,7 @@ subroutine Calc_BOmat_link
 		end if
 		
 		do l=1,nleft+1,1
-			if(bondlink(i,l)==1) then
+			if(bondlink(i,l)==1 .or. logic_bondorder==2) then
 			if(myid==orbid1(l,1)) then
 				operaindex=orbid1(l,2)
 				
@@ -378,9 +564,34 @@ subroutine Calc_BOmat_link
 						call SpMMtrace('T',4*subM, & 
 								coeffIF(:,j),coeffIFcolindex(:,j),coeffIFrowindex(:,j), &
 								midmat2,midmatcol2,midmatrow2,ibondord(k,j))
+
+						!=========================================================================
+						! calculate transition density matrix
+						! <ex|aR^+*aL|gs>=<gs|aL^+*aR|ex>
+						if(nstate>1) then
+							if(j/=1) then
+								! trace(CLR*OLR)
+								call SpMMtrace('T',4*subM, & 
+										coeffIF(:,1),coeffIFcolindex(:,1),coeffIFrowindex(:,1), &
+										midmat2,midmatcol2,midmatrow2,itransDM(2,k,j))
+							else if(j==1) then
+								! trace(CLR*OLR)
+								do istate=2,nstate,1
+									call SpMMtrace('T',4*subM, & 
+											coeffIF(:,istate),coeffIFcolindex(:,istate),coeffIFrowindex(:,istate), &
+											midmat2,midmatcol2,midmatrow2,itransDM(1,k,istate))
+								end do
+							end if
+						end if
+						!=========================================================================
 					end do
 				end do
 				call MPI_SEND(ibondord,nstate*2,mpi_real8,0,1,MPI_COMM_WORLD,ierr)
+				if(nstate>1) then
+					call MPI_SEND(itransDM,nstate*4,mpi_real8,0,1,MPI_COMM_WORLD,ierr)
+				end if
+				!=========================================================================
+
 				deallocate(phase)
 			else if(myid==0) then
 				call MPI_RECV(ibondord,nstate*2,mpi_real8,orbid1(l,1),1,MPI_COMM_WORLD,status,ierr)
@@ -390,6 +601,15 @@ subroutine Calc_BOmat_link
 					bondordmat(l,i,k,istate)=ibondord(k,istate)
 				end do
 				end do
+				if(nstate>1) then
+					call MPI_RECV(itransDM,nstate*4,mpi_real8,orbid1(l,1),1,MPI_COMM_WORLD,status,ierr)
+					do istate=2,nstate,1
+					do k=1,2,1
+						transDM0(i,l,k,istate)=itransDM(2,k,istate)
+						transDM0(l,i,k,istate)=itransDM(1,k,istate)
+					end do
+					end do
+				end if
 			end if
 			end if
 		end do

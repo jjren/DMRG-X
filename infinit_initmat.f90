@@ -84,7 +84,7 @@ Subroutine Infinit_InitMat(domain)
 	end if
 	
 	! bond order onsite matrix
-	if(logic_bondorder==1) then
+	if(logic_bondorder/=0) then
 		call init_BOmat(orbindex)
 	end if
 

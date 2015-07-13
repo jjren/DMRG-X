@@ -332,10 +332,10 @@ subroutine RotateBasis(domain)
 	end if
 
 	! rotate the bond order matrix
-	if(logic_bondorder==1 .and. ifbondord==.true.) then
+	if(logic_bondorder/=0 .and. ifbondord==.true.) then
 		do i=orbstart,orbend,1
 		do j=i,orbend,1
-			if(bondlink(i,j)/=0) then
+			if(bondlink(i,j)/=0 .or. logic_bondorder==2) then
 				if(myid==orbid2(i,j,1)) then
 					do k=1,2,1
 						operaindex=orbid2(i,j,2)*2-2+k
@@ -422,10 +422,10 @@ subroutine DirectCopy(domain)
 	end do
 
 	! bond order matrix
-	if(logic_bondorder==1) then
+	if(logic_bondorder/=0) then
 		do i=orbstart,orbend,1
 		do j=i,orbend,1
-			if(bondlink(i,j)/=0) then
+			if(bondlink(i,j)/=0 .or. logic_bondorder==2) then
 				if(myid==orbid2(i,j,1)) then
 					do k=1,2,1
 						operaindex=orbid2(i,j,2)*2-2+k
