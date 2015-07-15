@@ -114,7 +114,7 @@ subroutine C2_copy(direction)
 		do j=i,orbend,1
 			if(bondlink(i,j)/=0 .or. logic_bondorder==2) then
 				! check the corresponds bond
-				if(bondlink(norbs-i+1,norbs-j+1)==0) then
+				if(logic_bondorder==1 .and. bondlink(norbs-i+1,norbs-j+1)==0) then
 					write(*,*) "=========================================="
 					write(*,*) "bondlink failed!",i,j,norbs-i+1,norbs-j+1
 					write(*,*) "=========================================="
