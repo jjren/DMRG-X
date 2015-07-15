@@ -48,13 +48,15 @@ subroutine  LocalSpin
 ! this subroutine calculate the Local spin in the last step
 ! <SA*SA>,<SA*SB>,SA^+=SA
 ! <SA*SB>=<SA*SB>^+=<SB^+SA^+>=<SB*SA>
-
+	
+	use mpi
 	implicit none
 	
-	integer :: error
+	integer :: error,ierr
 	integer :: i,j,k,tmp
-	real(kind=r8) :: totalspin(nstate),halfspin(2,nstate),pairspin(norbs,norbs,nstate)
+	real(kind=r8) :: totalspin(nstate),halfspin(2,nstate) !,pairspin(norbs,norbs,nstate)
 	
+	call MPI_BARRIER(MPI_COMM_WORLD,ierr)
 	call master_print_message("enter LocalSpin subroutine")
 	
 	if(myid==0) then
@@ -62,7 +64,7 @@ subroutine  LocalSpin
 		if(error/=0) stop
 		localspin0=0.0D0
 	end if
-
+	
 	call Calc_Localspin_link
 	call Calc_Localspin_subspace('L')
 	call Calc_Localspin_subspace('R')
@@ -85,18 +87,47 @@ subroutine  LocalSpin
 			write(*,*) "Total Spin of State",k,"equals",totalspin(k)
 			write(*,*) "Half Spin of State",k,"equals",halfspin(:,k)
 		end do
-
-		pairspin=0.0D0
-		do k=1,nstate,1
-			do i=1,norbs-1,1
-				pairspin(i,i+1,k)=localspin0(i,i,k)+localspin0(i+1,i+1,k)+localspin0(i,i+1,k)+localspin0(i+1,i,k)
-				write(*,*) i,i+1,k,pairspin(i,i+1,k)
-			end do
-		end do
+		
+		! pair spin
+!		pairspin=0.0D0
+!		do k=1,nstate,1
+!			do i=1,norbs-1,1
+!				pairspin(i,i+1,k)=localspin0(i,i,k)+localspin0(i+1,i+1,k)+localspin0(i,i+1,k)+localspin0(i+1,i,k)
+!				write(*,*) i,i+1,k,pairspin(i,i+1,k)
+!			end do
+!		end do
+		call  analysis_cutoffspin 
 	end if
 
 return
 end subroutine LocalSpin
+
+!===========================================================================
+!===========================================================================
+
+subroutine  analysis_cutoffspin 
+! this subroutine calculate the spin from 1 to j or j to norbs
+! used in polyene big hubbard U ,spin chain
+	implicit none
+	integer :: k,i,j,istate
+	real(kind=r8) :: cutoffspin
+	
+	open(unit=152,file="cutoffspin.tmp",status="replace")
+	do istate=1,nstate,1
+		do i=1,norbs,1
+			cutoffspin=0.0D0
+			do j=1,i,1
+			do k=1,i,1
+				cutoffspin=cutoffspin+localspin0(k,j,istate)
+			end do
+			end do
+			write(152,*) i,cutoffspin
+		end do
+	end do
+	close(152)
+
+return
+end subroutine analysis_cutoffspin
 
 !===========================================================================
 !===========================================================================
@@ -367,7 +398,8 @@ subroutine Calc_Localspin_link
 					if(ifsend==.false.) then
 						ntouched=ntouched+1
 						touched(ntouched)=orbid3(l,l,1)
-						call MPI_ISEND(packbuf,position1,MPI_PACKED,orbid3(l,l,1),i,MPI_COMM_WORLD,sendrequest(ntouched),ierr)
+						call MPI_SEND(packbuf,position1,MPI_PACKED,orbid3(l,l,1),i,MPI_COMM_WORLD,ierr)
+					!	call MPI_ISEND(packbuf,position1,MPI_PACKED,orbid3(l,l,1),i,MPI_COMM_WORLD,sendrequest(ntouched),ierr)
 					end if
 				end if
 			end do
@@ -447,11 +479,11 @@ subroutine Calc_Localspin_link
 		end do
 
 		! confirm that the packbuf can be used again without problem
-		if(myid==orbid3(i,i,1)) then
-			do j=1,ntouched,1
-				call MPI_WAIT(sendrequest(j),status,ierr)
-			end do
-		end if
+	!	if(myid==orbid3(i,i,1)) then
+	!		do j=1,ntouched,1
+	!			call MPI_WAIT(sendrequest(j),status,ierr)
+	!		end do
+	!	end if
 	end do
 
 	if(allocated(packbuf)) deallocate(packbuf)

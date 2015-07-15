@@ -109,10 +109,10 @@ subroutine C2_copy(direction)
 	
 	! bond order operator
 	! only be copied L to R in the last l direction sweep
-	if(logic_bondorder==1 .and. direction=='l') then
+	if(logic_bondorder/=0 .and. direction=='l') then
 		do i=orbstart,orbend,1
 		do j=i,orbend,1
-			if(bondlink(i,j)/=0) then
+			if(bondlink(i,j)/=0 .or. logic_bondorder==2) then
 				! check the corresponds bond
 				if(bondlink(norbs-i+1,norbs-j+1)==0) then
 					write(*,*) "=========================================="
@@ -157,6 +157,50 @@ subroutine C2_copy(direction)
 						call MPI_UNPACK(packbuf,packsize,position1,operamatbig2(1,operaindex2*2-2+k),nonzero,MPI_real8,MPI_COMM_WORLD,ierr)
 					end do
 				end if
+			end if
+		end do
+		end do
+	end if
+
+	! local spin operator
+	! only be copied L to R in the last l direction sweep
+	if(logic_localspin==1 .and. direction=='l') then
+		do i=orbstart,orbend,1
+		do j=i,orbend,1
+			if(myid==orbid3(i,j,1)) then
+				operaindex1=orbid3(i,j,2)
+
+				if(myid==orbid3(norbs-i+1,norbs-j+1,1)) then
+					operaindex2=orbid3(norbs-i+1,norbs-j+1,2)
+
+					do k=1,2,1
+						bigrowindex3(:,operaindex2-2+k)=bigrowindex3(:,operaindex1-2+k)
+						nonzero=bigrowindex3(4*Lrealdim+1,operaindex1-2+k)-1
+						bigcolindex3(1:nonzero,operaindex2-2+k)=bigcolindex3(1:nonzero,operaindex1-2+k)
+						call copy(operamatbig3(1:nonzero,operaindex1-2+k),operamatbig3(1:nonzero,operaindex2-2+k))
+					end do
+				else
+					! in different process
+					position1=0
+					do k=1,2,1
+						call MPI_PACK(bigrowindex3(1,operaindex1-2+k),(4*Lrealdim+1),MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
+						nonzero=bigrowindex3(4*Lrealdim+1,operaindex1-2+k)-1
+						call MPI_PACK(bigcolindex3(1,operaindex1-2+k),nonzero,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
+						call MPI_PACK(operamatbig3(1,operaindex1-2+k),nonzero,MPI_real8,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
+					end do
+					call MPI_SEND(packbuf,position1,MPI_PACKED,orbid3(norbs-i+1,norbs-j+1,1),i,MPI_COMM_WORLD,ierr)
+				end if
+			else if(myid==orbid3(norbs-i+1,norbs-j+1,1)) then
+				operaindex2=orbid3(norbs-i+1,norbs-j+1,2)
+				call MPI_RECV(packbuf,packsize,MPI_PACKED,orbid3(i,j,1),i,MPI_COMM_WORLD,status,ierr)
+				
+				position1=0
+				do k=1,2,1
+					call MPI_UNPACK(packbuf,packsize,position1,bigrowindex3(1,operaindex2-2+k),(4*Lrealdim+1),MPI_integer4,MPI_COMM_WORLD,ierr)
+					nonzero=bigrowindex3(4*Lrealdim+1,operaindex2-2+k)-1
+					call MPI_UNPACK(packbuf,packsize,position1,bigcolindex3(1,operaindex2-2+k),nonzero,MPI_integer4,MPI_COMM_WORLD,ierr)
+					call MPI_UNPACK(packbuf,packsize,position1,operamatbig3(1,operaindex2-2+k),nonzero,MPI_real8,MPI_COMM_WORLD,ierr)
+				end do
 			end if
 		end do
 		end do
