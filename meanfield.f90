@@ -116,7 +116,7 @@ subroutine SCFMain
 	end do
 
 	! write the MO information
-	open(unit=150,file="MO.tmp",status="replace")
+	open(unit=150,file="MO.out",status="replace")
 	do i=1,norbs,1
 		write(150,*) i,energyE(i)
 		write(150,*) coeffC(:,i)
@@ -448,7 +448,7 @@ subroutine Mean_BondOrd
 	real(kind=r8) :: mean_bomat(norbs,norbs)
 	integer :: i,j
 
-	open(unit=1002,file="mean_bomat.tmp",status="replace")
+	open(unit=1002,file="mean_bomat.out",status="replace")
 	do i=1,norbs,1
 	do j=i,norbs,1
 		if(bondlink(i,j)/=0) then

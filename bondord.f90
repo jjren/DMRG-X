@@ -122,7 +122,7 @@ subroutine transDMAO2MO
 	allocate(midmat(norbs,norbs))
 
 	! transition density matrix
-	open(unit=151,file="MO-Opdm.tmp",status="replace")
+	open(unit=151,file="MO-Opdm.out",status="replace")
 	do i=2,nstate,1
 		do j=1,2,1   ! spin up down
 			call gemm(coeffC,transDM0(:,:,j,i),midmat,'T','N',1.0D0,0.0D0)
@@ -175,7 +175,7 @@ subroutine NatTraOrb
 	allocate(ww(tmp-1))
 	
 	call master_print_message("NTO analysis result")
-	open(unit=150,file="NTO.tmp",status="replace")
+	open(unit=150,file="NTO.out",status="replace")
 	do i=2,nstate,1
 		call gesvd(Tai(:,:,i),svdvalue,leftu,rightv,ww,'N',info)
 		if(info/=0) then

@@ -112,7 +112,7 @@ subroutine  analysis_cutoffspin
 	integer :: k,i,j,istate
 	real(kind=r8) :: cutoffspin
 	
-	open(unit=152,file="cutoffspin.tmp",status="replace")
+	open(unit=152,file="cutoffspin.out",status="replace")
 	do istate=1,nstate,1
 		do i=1,norbs,1
 			cutoffspin=0.0D0
