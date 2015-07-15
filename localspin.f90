@@ -312,7 +312,7 @@ subroutine Calc_Localspin_link
 	integer :: status(MPI_STATUS_SIZE),sendrequest(nprocs-1)
 	integer :: ierr
 
-	midnelement=CEILING(DBLE(16*subM*subM)/bigratio2)
+	midnelement=CEILING(DBLE(16*subM*subM)/pppmatratio)
 
 	do i=1,nleft+1,1
 	do j=norbs,norbs-nright,-1
