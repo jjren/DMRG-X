@@ -188,8 +188,11 @@ Subroutine Davidson_Wrapper(direction,lim,ilow,ihigh,iselec,niv,mblock,&
 		write(*,*) "NMV=",nmv
 
 		if(ierror/=0) then
-			call master_print_message("failed! IERROR/=0")
-			stop
+			call master_print_message("caution! IERROR/=0")
+			if(ierror/=2048) then
+				call master_print_message("failed!")
+				stop
+			end if
 		end if
 
 !==================================================================================
