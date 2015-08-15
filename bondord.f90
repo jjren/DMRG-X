@@ -68,6 +68,7 @@ subroutine BondOrder
 	if(myid==0) then
 		! bondorder/one partical density matrix
 		call master_print_message("bondorder matrix")
+		open(unit=399,file="bondord.out",status="replace")
 		do k=1,nstate,1
 		do i=1,norbs,1
 		do j=i,norbs,1
@@ -78,10 +79,14 @@ subroutine BondOrder
 					bondordmat(i,i,2,k)=tmp/2.0D0
 				end if
 				write(*,*) i,j,bondordmat(i,j,:,k)
+				if(bondlink(i,j)/=0) then
+					write(399,*) i,j,bondordmat(i,j,:,k)
+				end if
 			end if
 		end do
 		end do
 		end do
+		close(399)
 		!  transition density matrix
 		call master_print_message("transition density matrix")
 		do k=2,nstate,1
