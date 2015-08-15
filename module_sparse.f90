@@ -200,7 +200,7 @@ subroutine sparse_default
 		pppmatratio=10.0
 		hopmatratio=12.0
 		LRoutratio=10.0
-		UVmatratio=10.0
+		UVmatratio=5.0
 		coeffIFratio=10.0
 	else if (abs(subM-256)<50) then
 		bigratio1=20.0
@@ -214,22 +214,22 @@ subroutine sparse_default
 		pppmatratio=10.0
 		hopmatratio=12.0
 		LRoutratio=10.0
-		UVmatratio=10.0
+		UVmatratio=5.0
 		coeffIFratio=10.0
 	else if (abs(subM-512)<50) then
-		bigratio1=25.0
-		smaratio1=5.0
-		bigratio2=25.0
-		smaratio2=5.0
-		bigratio3=1.0
-		smaratio3=1.0
+		bigratio1=15.0
+		smaratio1=4.0
+		bigratio2=15.0
+		smaratio2=4.0
+		bigratio3=15.0
+		smaratio3=4.0
 		Hbigratio=10.0
 		Hsmaratio=5.0
-		pppmatratio=10.0
-		hopmatratio=12.0
-		LRoutratio=10.0
-		UVmatratio=10.0
-		coeffIFratio=10.0
+		pppmatratio=8.0
+		hopmatratio=10.0
+		LRoutratio=5.0
+		UVmatratio=5.0
+		coeffIFratio=8.0
 	else if (abs(subM-1024)<100) then
 		bigratio1=25.0
 		smaratio1=5.0
@@ -242,7 +242,7 @@ subroutine sparse_default
 		pppmatratio=10.0
 		hopmatratio=12.0
 		LRoutratio=10.0
-		UVmatratio=10.0
+		UVmatratio=5.0
 		coeffIFratio=10.0
 	else if (abs(subM-2048)<200) then
 		bigratio1=30.0
@@ -256,7 +256,7 @@ subroutine sparse_default
 		pppmatratio=12.0
 		hopmatratio=12.0
 		LRoutratio=10.0
-		UVmatratio=10.0
+		UVmatratio=5.0
 		coeffIFratio=10.0
 	else
 		bigratio1=10.0
@@ -273,20 +273,6 @@ subroutine sparse_default
 		UVmatratio=5.0
 		coeffIFratio=5.0
 	end if
-
-	bigratio1=1.0
-	smaratio1=1.0
-	bigratio2=1.0
-	smaratio2=1.0
-	bigratio3=1.0
-	smaratio3=1.0
-	Hbigratio=1.0
-	Hsmaratio=1.0
-	pppmatratio=1.0
-	hopmatratio=1.0
-	LRoutratio=1.0
-	UVmatratio=1.0
-	coeffIFratio=1.0
 
 	if(myid==0) then
 		write(*,*) "bigratio1=",    bigratio1
