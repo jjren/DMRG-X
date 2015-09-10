@@ -79,7 +79,7 @@ subroutine BondOrder
 					bondordmat(i,i,2,k)=tmp/2.0D0
 				end if
 				write(*,*) i,j,bondordmat(i,j,:,k)
-				if(bondlink(i,j)/=0) then
+				if(bondlink(i,j)==1) then
 					write(399,*) i,j,bondordmat(i,j,:,k)
 				end if
 			end if

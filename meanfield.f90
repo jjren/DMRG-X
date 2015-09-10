@@ -92,13 +92,14 @@ subroutine SCFMain
 		! check if converged
 		ifconverged=.true.
 		do j=1,norbs,1
-		do k=j,norbs,1  ! densD is a symmetry matrix
-			norm=densDold(k,j)-densD(k,j)
-			if(abs(norm)>threshold) then
-				ifconverged=.false.
-				exit
-			end if
-		end do
+			do k=j,norbs,1  ! densD is a symmetry matrix
+				norm=densDold(k,j)-densD(k,j)
+				if(abs(norm)>threshold) then
+					ifconverged=.false.
+					exit
+				end if
+			end do
+			if(ifconverged==.false.) exit
 		end do
 		
 		write(*,*) "================================="
@@ -107,7 +108,6 @@ subroutine SCFMain
 		write(*,*) "================================="
 
 		if(ifconverged==.true.) then
-		!	write(*,*) densD
 			call master_print_message("The SCF procedure has converged!")
 			exit
 		else if(i==scfmaxiter) then
@@ -142,7 +142,8 @@ subroutine SCFMain
 	end do
 	call master_print_message(nuclrepulsion,"nuclrepulsion=")
 	call master_print_message(HFenergy,"HFenergy=")
-
+	
+!	call Motra
 	call Mean_BondOrd
 	
 	deallocate(workarray)
@@ -280,6 +281,7 @@ subroutine SCF_Allocate_Space
 	if(ifDIIS==.true.) then
 		allocate(fockFold(norbs,norbs,diis_subspace_size),stat=error)
 		if(error/=0) stop
+		fockFold=0.0D0
 		allocate(errvec(norbs,norbs,diis_subspace_size),stat=error)
 		if(error/=0) stop
 		allocate(doterrvec(diis_subspace_size+1,diis_subspace_size+1),stat=error)
@@ -416,24 +418,105 @@ end subroutine H2FCI
 !=============================================================
 !=============================================================
 
-! nouse now
 subroutine Motra
 ! this subroutine is to store the one electron MO integral 
 ! and two electron MO integral in PPP model
 	implicit none
 	
-	real(kind=r8),allocatable :: AOOneInt(:,:),MOOneInt(:,:),&
-	AOTwoInt(:,:,:,:),MOTwoInt(:,:,:,:)
-	integer :: reclength
+	! the last letter a indicate the active space
+	real(kind=r8),allocatable :: ea(:), xa(:)
+	integer(kind=i4) :: nocca,nvira,nblkocca,nblkvira,nblocka, nmoa, nmo2a, nxa
+	integer,allocatable :: nactmoa(:)
+	integer :: i,j,k,l
+	integer :: nstarta,nenda,ii,jj,kk,ll,ij,kl,ijkl
+	integer :: ierr
 
-	reclength=2
 	
-!	open(unit=151,file="AOOneInt.tmp",access="Direct",form="unformatted",recl=reclength,status="replace")
-!	open(unit=152,file="MOOneInt.tmp",access="Direct",form="unformatted",recl=reclength,status="replace")
+	! (ij|kl)
+	open(unit=56,file='active.inp',status="old")
+	read(56,*) nocca,nvira
+	nmoa=nocca+nvira
+	nmo2a=(nmoa+1)*nmoa/2  ! (ij| or |kl) pair number
+	nxa=(nmo2a+1)*nmo2a/2  ! (ij|kl) pair number
 
+	allocate(ea(nmoa), xa(nxa), nactmoa(nmoa), stat=ierr)
+	if(ierr/=0) stop
+
+	read(56,*) nblkocca,nblkvira
+	nblocka=nblkocca+nblkvira
+	
+	k=0
+	do i=1,nblocka,1
+		read(56,*) nstarta,nenda
+		do j=nstarta,nenda,1
+			k=k+1
+			nactmoa(k)=j
+		end do
+	end do
+	close(56)
+      
+	! orbital energy
+	do i=1,nmoa,1
+		ea(i)=energyE(nactmoa(i))
+	end do
+	
+	! two electron integral
+	do i=1,nmoa,1
+	do j=1,i,1
+		ij=(i-1)*i/2+j
+		do k=1,nmoa,1
+		do l=1,k,1
+			kl=(k-1)*k/2+l
+			if (ij>=kl) then
+				ijkl=(ij-1)*ij/2+kl
+				ii=nactmoa(i)
+				jj=nactmoa(j)
+				kk=nactmoa(k)
+				ll=nactmoa(l)
+				call IntAOtoMO(xa(ijkl),ii,jj,kk,ll)
+			end if
+		end do
+		end do
+	end do
+	end do
+
+	open(unit=55,file='moint2.out',form='unformatted',status="replace")
+	write(55) nmoa, nxa
+	write(*,*) "nmoa=",nmoa,"nxa",nxa
+	write(55) (ea(i), i=1,nmoa)
+	write(55) (xa(i), i=1,nxa)
+	write(*,*) ea
+	write(*,*) xa
+	close(55)
+
+	deallocate(ea, xa, nactmoa)
 return
 
 end subroutine Motra
+
+!=============================================================
+!=============================================================
+
+subroutine IntAOtoMO(integral,ii,jj,kk,ll)
+! this subroutine do PPP model AO to MO transformation on the fly
+	implicit none
+
+	real(kind=r8) :: integral
+	integer :: ii,jj,kk,ll
+	integer :: l,r
+	
+	integral=0.0D0
+	do l=1,norbs,1
+	do r=1,norbs,1
+		if(l==r) then
+			integral=integral+hubbardU(l)*coeffC(l,ii)*coeffC(l,jj)*coeffC(r,kk)*coeffC(r,ll)
+		else
+			integral=integral+pppV(l,r)*coeffC(l,ii)*coeffC(l,jj)*coeffC(r,kk)*coeffC(r,ll)
+		end if
+	end do
+	end do
+return
+end subroutine IntAOtoMO
 
 !=============================================================
 !=============================================================

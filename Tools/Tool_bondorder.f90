@@ -4,7 +4,7 @@ program Toolbondorder
 	
 	integer,parameter :: nbonds=10,norbs=10,nstates=6
 	integer :: bondlink(norbs,norbs),dummybondlink(2),index1
-	real(kind=8) :: bondord0(norbs,norbs,2),diffup,diffdown,dummybondord(2),bondordex(norbs,norbs,nstates*2)
+	real(kind=8) :: bondord0(norbs,norbs,2),diffup,diffdown,dummybondord(2),bondordex(norbs,norbs,nstates)
 	integer :: i,j,istate
 
 	open(unit=10,file="bondord.out",status="old")
@@ -38,7 +38,7 @@ program Toolbondorder
 !	end do
 !	end do
 	
-	do istate=1,nstates*2,1
+	do istate=1,nstates,1
 	do i=1,norbs,1
 	do j=i,norbs,1
 		read(10,*) dummybondlink(1:2),dummybondord(1:2)
@@ -53,7 +53,7 @@ program Toolbondorder
 	do j=i,norbs,1
 		if(bondlink(i,j)==1) then
 			index1=index1+1
-			write(12,'(3I5,<nstates*2>E15.6)') i,j,index1,bondordex(i,j,1:nstates*2)
+			write(12,'(3I5,<nstates>E15.6)') i,j,index1,bondordex(i,j,1:nstates)
 		end if
 	end do
 	end do
@@ -61,7 +61,7 @@ program Toolbondorder
 	! charge density
 	do i=1,norbs,1
 		index1=index1+1
-		write(12,'(3I5,<nstates*2>E15.6)') i,i,index1,bondordex(i,i,1:nstates*2)
+		write(12,'(3I5,<nstates>E15.6)') i,i,index1,bondordex(i,i,1:nstates)
 	end do
 
 	close(10)
