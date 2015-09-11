@@ -25,8 +25,11 @@ module variables
 	real(kind=r8),allocatable :: &    
 	nuclQ(:) , &                      ! nuclear Q :: chemical potential :: e.g carbon +1
 	coord(:,:) , &                    ! coordinate(natoms,1:3)
-	nweight(:)                        ! excited states average method nweight
-	integer(kind=i4),allocatable :: bondlink(:,:)  ! bondlink information
+	nweight(:) , &                    ! excited states average method nweight
+	atommass(:)                       ! atomic mass  
+	integer(kind=i4),allocatable :: bondlink(:,:) , & ! bondlink information
+                                      atomindex(:)      ! atomindex such as carbon 6
+	real(kind=r8) :: cntofmass(3)  ! center of mass used in transition dipole
 
 !========================================================
 	
@@ -92,8 +95,14 @@ module variables
 
 !============================================================
 
+	! output part
+	real(kind=r8),allocatable :: dmrgenergy(:)
+
+!============================================================
+
 	! constant
 	real(kind=r8),parameter :: relazero=1.0D-8   ! relative zero
+	real(kind=r8),parameter :: eAtodebye=4.8032038D0,AutoAngstrom=0.5217721092D0
 
 !============================================================
 

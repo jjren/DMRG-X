@@ -6,7 +6,7 @@ Module transmoment_mod
 	implicit none
 
 	real(kind=r8),allocatable :: moment(:,:,:)  ! store the last transition moment
-	
+
 	contains
 
 !=======================================================================
@@ -25,6 +25,8 @@ subroutine transmoment
 	use exit_mod
 	implicit none
 	integer :: i,istate
+	real(kind=r8),parameter :: eAtodebye=4.8032038D0
+	real(kind=r8) :: oscillator
 
 	call master_print_message("enter transmoment subroutine")
 	
@@ -39,7 +41,7 @@ subroutine transmoment
 		allocate(moment(4,nstate,nstate-1))
 		moment=0.0D0
 	end if
-
+	
 	call transmoment_subspace('L')
 	call transmoment_subspace('R')
 
@@ -48,8 +50,11 @@ subroutine transmoment
 		do istate=1,nstate-1,1
 			write(*,*) "stateindex=",istate
 			do i=istate+1,nstate,1
-				moment(4,i,istate)=sqrt(moment(1,i,istate)**2+moment(2,i,istate)**2+moment(3,i,istate)**2)
-				write(*,'(4F10.5)') moment(:,i,istate)
+				! 4 means the transition moment square in a.u
+				moment(4,i,istate)=(moment(1,i,istate)**2+moment(2,i,istate)**2+moment(3,i,istate)**2)/AutoAngstrom/AutoAngstrom
+				! oscillator strength in the a.u
+				oscillator=moment(4,i,istate)*2.0D0/3.0D0*(dmrgenergy(i)-dmrgenergy(istate))/27.211D0
+				write(*,'(4F10.5)') moment(1:3,i,istate)*eAtodebye,oscillator
 			end do
 		end do
 	end if
@@ -157,7 +162,7 @@ subroutine transmoment_subspace(domain)
 			do istate=1,nstate-1,1
 			do j=istate+1,nstate,1
 				do k=1,3,1
-					moment(k,j,istate)=moment(k,j,istate)+imoment(j,istate)*coord(k,status(MPI_TAG))
+					moment(k,j,istate)=moment(k,j,istate)+imoment(j,istate)*(coord(k,status(MPI_TAG))-cntofmass(k))
 				end do
 			end do
 			end do

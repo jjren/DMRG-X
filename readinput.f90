@@ -68,6 +68,7 @@ Subroutine ReadInput
 	allocate(sweepenergy(0:sweeps,nstate),stat=error)
 	if(error/=0) stop
 	sweepenergy=0.0D0
+	allocate(dmrgenergy(nstate))
 ! 
 	allocate(nweight(nstate),stat=error)
 	if(error/=0) stop
@@ -112,10 +113,18 @@ Subroutine ReadInput
   
 		allocate(coord(3,1:natoms),stat=error)
 		if(error/=0) stop
+		allocate(atomindex(natoms),stat=error)
+		if(error/=0) stop
+		allocate(atommass(natoms),stat=error)
+		if(error/=0) stop
+
 		read(12,*)
 		do i=1,natoms,1   
 			read(12,*) symbol,coord(1:3,i),nuclQ(i)
+			call symboltoatomindex(symbol,atomindex(i),atommass(i))
 		end do
+		! get the center of mass
+		call centerofmass
 		close(12)
 	end if
 
@@ -316,3 +325,52 @@ Subroutine ReadInput
 return
 	
 end Subroutine ReadInput
+
+subroutine symboltoatomindex(symbol,atomindex,atommass)
+	implicit none
+	character(len=2) :: symbol
+	integer :: atomindex
+	real(kind=8) :: atommass
+	
+	if(symbol=="C") then
+		atomindex=6
+		atommass=12.01D0
+	else if(symbol=="S") then
+		atomindex=16
+		atommass=32.07D0
+	else if(symbol=="O") then
+		atomindex=8
+		atommass=16.00D0
+	else if(symbol=="N") then
+		atomindex=7
+		atommass=14.01D0
+	else 
+		write(*,*) "No such atom symbol"
+		stop
+	end if
+return
+
+end subroutine Symboltoatomindex
+
+!=======================================================================
+!=======================================================================
+
+subroutine centerofmass
+	use variables
+	use kinds_mod
+	implicit none
+	
+	integer :: i
+	real(kind=r8) :: totalmass
+
+	do i=1,natoms,1
+		cntofmass=coord(:,i)*atommass(i)+cntofmass
+		totalmass=atommass(i)+totalmass
+	end do
+	cntofmass=cntofmass/totalmass
+return
+
+end subroutine centerofmass
+
+!=======================================================================
+!=======================================================================

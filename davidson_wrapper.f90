@@ -202,6 +202,7 @@ Subroutine Davidson_Wrapper(direction,lim,ilow,ihigh,iselec,niv,mblock,&
 		if(nleft==(norbs+1)/2-1) then
 			do i=1,ihigh,1
 				sweepenergy(isweep,i)=DavidWORK(ihigh*dimN+i)
+				dmrgenergy(i)=sweepenergy(isweep,i)
 			end do
 		end if
 		

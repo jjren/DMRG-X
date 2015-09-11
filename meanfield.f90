@@ -26,6 +26,10 @@ Module MeanField
 	integer :: ifDIIS=.true.
 	integer :: iscfiter ,&  ! at this step the scf steps index
 	           ioldestfock
+	
+	! MO integral input
+	integer,allocatable :: nactmoa(:)
+	integer ::  nmoa
 	contains
 
 !=============================================================
@@ -143,7 +147,7 @@ subroutine SCFMain
 	call master_print_message(nuclrepulsion,"nuclrepulsion=")
 	call master_print_message(HFenergy,"HFenergy=")
 	
-!	call Motra
+	call Motra
 	call Mean_BondOrd
 	
 	deallocate(workarray)
@@ -425,11 +429,11 @@ subroutine Motra
 	
 	! the last letter a indicate the active space
 	real(kind=r8),allocatable :: ea(:), xa(:)
-	integer(kind=i4) :: nocca,nvira,nblkocca,nblkvira,nblocka, nmoa, nmo2a, nxa
-	integer,allocatable :: nactmoa(:)
+	integer(kind=i4) :: nocca,nvira,nblkocca,nblkvira,nblocka, nmo2a, nxa
 	integer :: i,j,k,l
 	integer :: nstarta,nenda,ii,jj,kk,ll,ij,kl,ijkl
 	integer :: ierr
+	real(kind=r8),parameter :: autoeV=27.211D0
 
 	
 	! (ij|kl)
@@ -457,7 +461,7 @@ subroutine Motra
       
 	! orbital energy
 	do i=1,nmoa,1
-		ea(i)=energyE(nactmoa(i))
+		ea(i)=energyE(nactmoa(i))/autoeV
 	end do
 	
 	! two electron integral
@@ -474,6 +478,7 @@ subroutine Motra
 				kk=nactmoa(k)
 				ll=nactmoa(l)
 				call IntAOtoMO(xa(ijkl),ii,jj,kk,ll)
+				xa(ijkl)=xa(ijkl)/autoeV
 			end if
 		end do
 		end do
@@ -485,10 +490,10 @@ subroutine Motra
 	write(*,*) "nmoa=",nmoa,"nxa",nxa
 	write(55) (ea(i), i=1,nmoa)
 	write(55) (xa(i), i=1,nxa)
-	write(*,*) ea
-	write(*,*) xa
 	close(55)
 
+	! calculate the transition dipole
+	call transdipol
 	deallocate(ea, xa, nactmoa)
 return
 
@@ -544,6 +549,76 @@ subroutine Mean_BondOrd
 	close(1002)
 return
 end subroutine Mean_BondOrd
+
+!=============================================================
+!=============================================================
+
+subroutine transdipol
+! this subroutine calculate the transition dipole moment between 
+! different MO <MO1|r|MO2>, the reference point is the center of mass
+! and calculate the HF reference dipole moment <HF|r|HF> and
+! the nuclear dipole moment
+! in the PPP model only the ni operator contribute the atomic orbital dipole
+! moment
+
+	implicit none
+	real(kind=r8),allocatable :: trnsdipmo(:,:,:)
+	real(kind=r8) :: trnshf(3),trnsnuc(3)
+	integer :: i,j,k,l
+
+	! <MO1|r|MO2>
+	allocate(trnsdipmo(norbs,norbs,3))
+	trnsdipmo=0.0D0
+	! in the e*angstrom unit
+	do l=1,3,1
+	do i=1,norbs,1
+	do j=1,i,1
+		do k=1,norbs,1
+			trnsdipmo(j,i,l)=trnsdipmo(j,i,l)-coeffC(k,i)*coeffC(k,j)*(coord(l,k)-cntofmass(l))
+			! the negative sign here represents the negative electron charge
+		end do
+		trnsdipmo(i,j,l)=trnsdipmo(j,i,l)
+	end do
+	end do
+	end do
+
+	! HF dipole moment
+	trnshf=0.0D0
+	do l=1,3,1
+	do i=1,norbs,1
+		trnshf(l)=trnshf(l)+trnsdipmo(i,i,l)
+	end do
+	end do
+	trnshf=trnshf*2.0D0
+
+	! nuclear dipole moment
+	trnsnuc=0.0D0
+	do l=1,3,1
+	do i=1,natoms,1
+		trnsnuc(l)=trnsnuc(l)+(coord(l,i)-cntofmass(l))*nuclQ(i)
+	end do
+	end do
+
+	! MRDCI output
+	open(unit=60,file="ed.mo.out",form="unformatted",status="replace")
+	do l=1,3,1
+		write(60) (trnshf(l)+trnsnuc(l))*eAtoDebye,nmoa,l
+		write(60) ((trnsdipmo(nactmoa(i),nactmoa(j),l)*eAtoDebye,i=1,nmoa),j=1,nmoa)
+	end do
+	close(60)
+	
+	! EOM-CCSD output
+	open(unit=61,file="dip.mo.out",form="unformatted",status="replace")
+	do l=1,3,1
+		write(61) trnshf(l)/AutoAngstrom,trnsnuc(l)/AutoAngstrom
+		write(61) ((trnsdipmo(nactmoa(i),nactmoa(j),l)/AutoAngstrom,i=1,j),j=1,nmoa)
+	end do
+	close(61)
+
+	deallocate(trnsdipmo)
+return
+
+end subroutine transdipol
 
 !=============================================================
 !=============================================================
