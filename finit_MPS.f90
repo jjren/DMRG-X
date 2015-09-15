@@ -5,6 +5,7 @@ Subroutine Finit_MPS
 	USE variables
 	use communicate
 	use Renormalization_mod
+	use hamiltonian_mod
 
 	implicit none
 

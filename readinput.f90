@@ -63,6 +63,7 @@ Subroutine ReadInput
 	read(10,*) sweeps                ! DMRG how many sweeps
 	read(10,*) nstate                ! how many state wanted to get
 	read(10,*) energythresh          ! the threshold of the total energy you want to get
+	read(10,*) diagmethod            ! the diagonalization method
 
 ! sweepenergy is the total energy of every sweep(in the middle of the chain)
 	allocate(sweepenergy(0:sweeps,nstate),stat=error)
@@ -219,6 +220,7 @@ Subroutine ReadInput
 		call MPI_PACK(coord(1,1),3*natoms,MPI_real8,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
 		call MPI_PACK(t(1,1),norbs*norbs,MPI_real8,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
 		call MPI_PACK(hubbardU(1),norbs,MPI_real8,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
+		call MPI_PACK(diagmethod,20,MPI_CHARACTER,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
 		write(*,*) "packsizedefine=",packsize,"packbufsize=",position1
 	end if
 	
@@ -271,6 +273,7 @@ Subroutine ReadInput
 		call MPI_UNPACK(packbuf,packsize,position1,coord(1,1),3*natoms,MPI_real8,MPI_COMM_WORLD,ierr)
 		call MPI_UNPACK(packbuf,packsize,position1,t(1,1),norbs*norbs,MPI_real8,MPI_COMM_WORLD,ierr)
 		call MPI_UNPACK(packbuf,packsize,position1,hubbardU(1),norbs,MPI_real8,MPI_COMM_WORLD,ierr)
+		call MPI_UNPACK(packbuf,packsize,position1,diagmethod,20,MPI_CHARACTER,MPI_COMM_WORLD,ierr)
 		
 		write(*,*) myid,"getpacksize=",position1
 	end if
@@ -301,6 +304,7 @@ Subroutine ReadInput
 		write(*,*) "sweeps=",sweeps
 		write(*,*) "nstates=",nstate
 		write(*,*) "exscheme=",exscheme
+		write(*,*) "Diagonalization method=",diagmethod
 		write(*,*) "nweight=",nweight
 		write(*,*) "energythresh",energythresh ! other process do not know this number
 		write(*,*) "nbonds=",nbonds,"bondlink="

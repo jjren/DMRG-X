@@ -7,6 +7,7 @@ subroutine Sweep(direction)
 	use exit_mod
 	use Renormalization_mod
 	use OnesiteMatrix
+	use hamiltonian_mod
 
 	implicit none
 	

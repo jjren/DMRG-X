@@ -46,6 +46,7 @@ module variables
 	integer(kind=i4),parameter :: &
 	logic_bondorder= 2   , &    ! if calculate bond order
 	logic_localspin= 1          ! if calculate local spin
+	character(len=20) :: diagmethod  ! the diagonalization method
 !=========================================================
 	
 	! loadbalance part

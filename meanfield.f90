@@ -147,7 +147,7 @@ subroutine SCFMain
 	call master_print_message(nuclrepulsion,"nuclrepulsion=")
 	call master_print_message(HFenergy,"HFenergy=")
 	
-	call Motra
+!	call Motra
 	call Mean_BondOrd
 	
 	deallocate(workarray)
