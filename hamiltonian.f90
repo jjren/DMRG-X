@@ -68,7 +68,7 @@ subroutine JacobiDavidson_Wrapper(direction)
 	! initial value
 	NEIG=nstate
 	MADSPACE=20
-	iter=1000
+	iter=2000
 	mem=20.0
 	droptol=1.0D-3
 	ICNTL(1)=0
@@ -116,7 +116,11 @@ subroutine JacobiDavidson_Wrapper(direction)
 !	isweep==sweeps-2) then
 !		Tol=1.0D-4
 !	end if
-	Tol=1.0D-4
+	if(isweep==0) then
+		Tol=5.0D-3
+	else
+		Tol=1.0D-4
+	end if
 !--------------------------------------------------------------------
 
 	if(myid==0) then
@@ -149,8 +153,9 @@ subroutine JacobiDavidson_Wrapper(direction)
 		NDX1=1
 		NDX2=1
 	endif
-	
-	write(*,*) "site=",nleft+1,norbs-nright
+	if(myid==0) then
+		write(*,*) "site=",nleft+1,norbs-nright
+	end if
 	IJOB=0
 	do while(.true.)
 		if(myid==0) then
