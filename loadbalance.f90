@@ -10,6 +10,7 @@ Subroutine LoadBalance
 	USE variables
 	use communicate
 	use module_sparse
+	use MKL_SERVICE
 	
 	implicit none
 	! local
@@ -20,6 +21,14 @@ Subroutine LoadBalance
 	        operanum3(nprocs-1)  
 	
 	call master_print_message("enter subroutine loadbalance")
+! set every process threads
+	if(nthreads(1)/=0) then
+		if(myid==0) then
+			call MKL_SET_NUM_THREADS(nthreads(1))
+		else
+			call MKL_SET_NUM_THREADS(nthreads(2))
+		end if
+	end if
 	
 	! the 1 index is the process id; the second index is the operator index on the specific process
 	allocate(orbid1(norbs,2),stat=error)        

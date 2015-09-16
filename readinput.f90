@@ -38,6 +38,7 @@ Subroutine ReadInput
 
 	open(unit= 10,file="inp",status="old")
 	read(10,*) mode,modeindex ! which mode you want to use
+	read(10,*) nthreads(1:2)
 ! including standard/restart/debug/
 ! in the restart mode we need the isweep,nleft,nright
 ! modeindex=1 the fromleftsweep 
@@ -191,6 +192,7 @@ Subroutine ReadInput
 		position1=0
 		call MPI_PACK(mode,1,MPI_character,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
 		call MPI_PACK(modeindex,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
+		call MPI_PACK(nthreads,2,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
 		
 		if(mode=='r') then
 		call MPI_PACK(isweep,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
@@ -231,6 +233,7 @@ Subroutine ReadInput
 		position1=0
 		call MPI_UNPACK(packbuf,packsize,position1,mode,1,MPI_character,MPI_COMM_WORLD,ierr)
 		call MPI_UNPACK(packbuf,packsize,position1,modeindex,1,MPI_integer4,MPI_COMM_WORLD,ierr)
+		call MPI_UNPACK(packbuf,packsize,position1,nthreads,2,MPI_integer4,MPI_COMM_WORLD,ierr)
 		if(mode=='r') then
 			call MPI_UNPACK(packbuf,packsize,position1,isweep,1,MPI_integer4,MPI_COMM_WORLD,ierr)
 			call MPI_UNPACK(packbuf,packsize,position1,nleft,1,MPI_integer4,MPI_COMM_WORLD,ierr)
@@ -290,6 +293,7 @@ Subroutine ReadInput
 	if(myid==1) then
 		write(*,*) "----------the input information---------"
 		write(*,*) "mode,modeindex=",mode,modeindex
+		write(*,*) "nthreads=",nthreads
 		write(*,*) "norbs=",norbs
 		write(*,*) "natoms=",natoms
 		write(*,*) "nelectrons=",nelecs

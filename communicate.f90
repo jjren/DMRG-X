@@ -22,6 +22,8 @@ module communicate
 	! MPI part
 	integer(kind=int_kind),public :: &
 	  myid,nprocs,master_id
+	integer(kind=4),public :: nthreads(2)
+	! master/slaver process nthreads
 
 	contains
 !=============================================================
