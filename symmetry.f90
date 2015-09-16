@@ -14,6 +14,7 @@ module Symmetry
 	! symmlinkcol is the LRcoeff CSC format
 	integer :: guessngoodstates
 	! guess number of ngoodstates
+	integer :: maxdim
 
 
 contains
@@ -401,9 +402,15 @@ subroutine SymmHDiag(HDIAG)
 
 	integer,allocatable :: indexall(:,:,:),indexsymm(:,:),displs(:),sendcount(:)
 	logical :: iffind
-
+	
 	call master_print_message("enter symmHDiag subroutine")
 	
+	if(logic_spinreversal/=0 .and. logic_C2/=0 .and. nleft==nright) then
+		maxdim=4
+	else
+		maxdim=2
+	end if
+
 	! calculate the operator number at every process at most
 	if(mod(norbs,nprocs-1)==0) then
 		operanum=norbs/(nprocs-1)
@@ -413,19 +420,19 @@ subroutine SymmHDiag(HDIAG)
 	
 	! to store symmlink small group matrix of every process
 	! every orbital operator in every nsymmstate block basis
-	allocate(bufmat(4,4,3*operanum,nsymmstate),stat=error)
+	allocate(bufmat(maxdim,maxdim,3*operanum,nsymmstate),stat=error)
 	if(error/=0) stop
 
 	! store the index of every nsymmstate in ngoodstates basis
-	allocate(indexall(5,2,nsymmstate),stat=error)  
-	! first number 1:4 at most 4 state; 5 is the in fact number states
+	allocate(indexall(maxdim+1,2,nsymmstate),stat=error)  
+	! first number 1:maxdim at most maxdim state; maxdim+1 is the in fact number states
 	! second number 1 means L spae; 2 means R space
 	if(error/=0) stop
 	indexall=0
 
 	if(myid==0) then
 		! 0 procee store every orbital operator in every nsymmstate block basis
-		allocate(bufmat0(4,4,3,norbs+1,nsymmstate),stat=error)
+		allocate(bufmat0(maxdim,maxdim,3,norbs+1,nsymmstate),stat=error)
 		if(error/=0) stop
 		! norbs+1 array  store HL and HR in every nsymmstate in process 0
 	end if
@@ -435,20 +442,20 @@ subroutine SymmHDiag(HDIAG)
 	call subspaceSymmHDIAG('R',indexall,operanum,bufmat,bufmat0)
 	
 	! broadcast the indexall information from process 0
-	call MPI_BCAST(indexall,10*nsymmstate,MPI_Integer,0,MPI_COMM_WORLD,ierr)
+	call MPI_BCAST(indexall,2*(maxdim+1)*nsymmstate,MPI_Integer,0,MPI_COMM_WORLD,ierr)
 
 	if(myid/=0) then
-		call MPI_SEND(bufmat,48*operanum*nsymmstate,mpi_real8,0,1,MPI_COMM_WORLD,ierr)
+		call MPI_SEND(bufmat,3*maxdim*maxdim*operanum*nsymmstate,mpi_real8,0,1,MPI_COMM_WORLD,ierr)
 	end if
 
 	if(myid==0) then
 		do i=1,nprocs-1,1
-			call MPI_RECV(bufmat,48*operanum*nsymmstate,mpi_real8,MPI_ANY_SOURCE,1,MPI_COMM_WORLD,status,ierr)
+			call MPI_RECV(bufmat,3*maxdim*maxdim*operanum*nsymmstate,mpi_real8,MPI_ANY_SOURCE,1,MPI_COMM_WORLD,status,ierr)
 			do j=status(MPI_SOURCE),norbs,nprocs-1
 				m=(j-1)/(nprocs-1)+1
 				do k=1,nsymmstate,1
 				do l=1,3,1
-				do ir=1,4,1
+				do ir=1,maxdim,1
 					call copy(bufmat(:,ir,3*m-3+l,k),bufmat0(:,ir,l,j,k))
 				end do
 				end do
@@ -469,7 +476,7 @@ subroutine SymmHDiag(HDIAG)
 		localnsymmstate=localnsymmstate0
 	end if
 	
-	allocate(bufmatlocal(4,4,3,norbs+1,localnsymmstate),stat=error)
+	allocate(bufmatlocal(maxdim,maxdim,3,norbs+1,localnsymmstate),stat=error)
 	if(error/=0) stop
 	allocate(localdiag(localnsymmstate),stat=error)
 	if(error/=0) stop
@@ -477,17 +484,17 @@ subroutine SymmHDiag(HDIAG)
 	if(error/=0) stop
 	allocate(displs(nprocs),stat=error)
 	if(error/=0) stop
-	allocate(bufmatdumm(4,4),stat=error)
+	allocate(bufmatdumm(maxdim,maxdim),stat=error)
 	if(error/=0) stop
 	
 	do i=1,nprocs,1
-		sendcount(i)=localnsymmstate0*48*(norbs+1)
-		displs(i)=localnsymmstate0*48*(norbs+1)*(i-1)
+		sendcount(i)=localnsymmstate0*3*maxdim*maxdim*(norbs+1)
+		displs(i)=localnsymmstate0*3*maxdim*maxdim*(norbs+1)*(i-1)
 	end do
-	sendcount(nprocs)=(nsymmstate-localnsymmstate0*(nprocs-1))*48*(norbs+1)
+	sendcount(nprocs)=(nsymmstate-localnsymmstate0*(nprocs-1))*3*maxdim*maxdim*(norbs+1)
 
 	call MPI_SCATTERV(bufmat0,sendcount,displs,MPI_REAL8,&
-		bufmatlocal,localnsymmstate*48*(norbs+1),MPI_REAL8,0,MPI_COMM_WORLD,ierr)
+		bufmatlocal,localnsymmstate*3*maxdim*maxdim*(norbs+1),MPI_REAL8,0,MPI_COMM_WORLD,ierr)
 	
 	if(myid==0) then
 		deallocate(bufmat0)
@@ -499,8 +506,8 @@ subroutine SymmHDiag(HDIAG)
 		! the index of the global nsymmstate
 		isymm=myid*localnsymmstate0+ibasis
 		
-		nlbasis=indexall(5,1,isymm)  
-		nrbasis=indexall(5,2,isymm)  
+		nlbasis=indexall(maxdim+1,1,isymm)  
+		nrbasis=indexall(maxdim+1,2,isymm)  
 		! nlbasis and nrbasis is the number of basis in L and R space in isymm block
 		dim1=rowindex(isymm+1)-rowindex(isymm)
 
@@ -649,8 +656,8 @@ subroutine subspaceSymmHDIAG(domain,indexall,operanum,bufmat,bufmat0)
 	implicit none
 
 	character(len=1) :: domain
-	integer :: indexall(5,2,nsymmstate),operanum
-	real(kind=r8) :: bufmat(4,4,3*operanum,nsymmstate),bufmat0(4,4,3,norbs+1,nsymmstate)
+	integer :: indexall(maxdim+1,2,nsymmstate),operanum
+	real(kind=r8) :: bufmat(maxdim,maxdim,3*operanum,nsymmstate),bufmat0(maxdim,maxdim,3,norbs+1,nsymmstate)
 	! local
 	integer :: orbstart,orbend,Hindex,dim1,operaindex
 	integer :: index1(4),m,k,is,i,j,mr,mc
@@ -692,7 +699,7 @@ subroutine subspaceSymmHDIAG(domain,indexall,operanum,bufmat,bufmat0)
 			do j=1,m,1
 				indexall(j,Hindex,i)=index1(j)
 			end do
-			indexall(5,Hindex,i)=m
+			indexall(maxdim+1,Hindex,i)=m
 			
 			do mc=1,m,1
 			do mr=1,m,1
