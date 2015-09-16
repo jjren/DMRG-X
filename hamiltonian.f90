@@ -22,13 +22,17 @@ contains
 subroutine Hamiltonian(direction)
 	implicit none
 	character(len=1) :: direction  ! i,l,r direction l is L space to R space sweep
+	real(kind=r8) :: starttime,endtime
 	
+	starttime=MPI_WTIME()
 	call master_print_message("enter hamiltonian subroutine")
 	if(diagmethod=="Davidson" .or. diagmethod=="D") then
 		call Davidson_wrapper(direction)
 	else if(diagmethod=="JacobiDavidson" .or. diagmethod=="JD") then
 		call JacobiDavidson_wrapper(direction)
 	end if
+	endtime=MPI_WTIME()
+	call master_print_message(endtime-starttime,"DVDTIME:")
 return
 
 end subroutine Hamiltonian
