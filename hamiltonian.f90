@@ -68,6 +68,8 @@ subroutine JacobiDavidson_Wrapper(direction)
 				gap
 	integer :: error,ierr
 	integer :: i
+	real(kind=r8) :: starttime,endtime
+	
 
 !--------------------------------------------------------------------
 	! initial value
@@ -141,12 +143,15 @@ subroutine JacobiDavidson_Wrapper(direction)
 	end if
 
 	! Get the diagonal element of hamiltonian
+	starttime=MPI_WTIME()
 	if(logic_spinreversal/=0 .or. &
 		(logic_C2/=0 .and. nleft==nright)) then
 		call SymmHDiag(HDIAG)
 	else 
 		call GetHDiag(HDIAG)
 	end if
+	endtime=MPI_WTIME()
+	call master_print_message(endtime-starttime,"HDIAGTIME:")
 
 	! Get the Initialcoeff Guess
 	if(myid==0) then
