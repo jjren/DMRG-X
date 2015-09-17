@@ -594,6 +594,7 @@ C
 *       subroutines called:
 *       OP, DDOT, DSCAL
 *-----------------------------------------------------------------------
+        use variables,only : diagmethod
         IMPLICIT DOUBLE PRECISION(A-H,O-Z)
         DIMENSION BASIS(N*LIM),AB(N*LIM)
         DIMENSION S(LIM*(LIM+1)/2)
@@ -618,7 +619,10 @@ C
 * basis vector B(*,kpass+1) and the result is assigned to AB(idstart)
 C
         IDSTART=KPASS*N+1
-        call MPI_bcast(NNCV,1,MPI_integer,0,MPI_COMM_WORLD,ierr)
+c jjren add
+        if(diagmethod/="MD") then
+            call MPI_bcast(NNCV,1,MPI_integer,0,MPI_COMM_WORLD,ierr)
+        end if
         CALL OP(N,NNCV,BASIS(IDSTART),AB(IDSTART))
 *
 * If highest pairs are sought, use the negative of the matrix

@@ -15,12 +15,13 @@ Subroutine LoadBalance
 	implicit none
 	! local
 	integer :: i,j,error
-	integer ::  &
-	        operanum1(nprocs-1)    , &  ! operanum1 is the max site operator every process have
-	        operanum2(nprocs-1)    , &  !
-	        operanum3(nprocs-1)  
 	
 	call master_print_message("enter subroutine loadbalance")
+	
+	allocate(operanum1(nprocs-1))
+	allocate(operanum2(nprocs-1))
+	allocate(operanum3(nprocs-1))
+
 ! set every process threads
 	if(nthreads(1)/=0) then
 		if(myid==0) then
@@ -160,7 +161,7 @@ Subroutine LoadBalance
 !============================================================================
 ! allocate the work space of every operator
 	
-	call AllocateArray(operanum1,operanum2,operanum3)
+	call AllocateArray
 
 	if(myid==0) then
 		if(logic_spinreversal/=0) then

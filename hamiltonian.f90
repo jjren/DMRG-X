@@ -10,6 +10,7 @@ Module Hamiltonian_mod
 	USE InitialGuess
 	USE symmetry
 	use module_sparse
+	use masterdiag
 
 	implicit none
 	integer :: dimN
@@ -26,7 +27,7 @@ subroutine Hamiltonian(direction)
 	
 	starttime=MPI_WTIME()
 	call master_print_message("enter hamiltonian subroutine")
-	if(diagmethod=="Davidson" .or. diagmethod=="D") then
+	if(diagmethod=="Davidson" .or. diagmethod=="D" .or. diagmethod=="MD") then
 		call Davidson_wrapper(direction)
 	else if(diagmethod=="JacobiDavidson" .or. diagmethod=="JD") then
 		call JacobiDavidson_wrapper(direction)
@@ -292,29 +293,39 @@ Subroutine Davidson_Wrapper(direction)
 
 !--------------------------------------------------------------------
 ! The core part of davidson diagnolization
-	if(myid==0) then
-		call DVDSON(op,dimN,lim,HDIAG,ilow,ihigh,iselec &
-		    ,niv,mblock,crite,critc,critr,ortho,maxiter,DavidWORK,&
-		    IWRSZ,hiend,nloops,nmv,ierror)
-		    smadim=0
-		call MPI_BCAST(smadim,1,MPI_integer,0,MPI_COMM_WORLD,ierr)
-	end if
-
-	if(myid/=0) then
-		do while(.true.)
+	if(diagmethod=="D" .or. diagmethod=="Davidson") then
+		if(myid==0) then
+			call DVDSON(op,dimN,lim,HDIAG,ilow,ihigh,iselec &
+			    ,niv,mblock,crite,critc,critr,ortho,maxiter,DavidWORK,&
+			    IWRSZ,hiend,nloops,nmv,ierror)
+			    smadim=0
 			call MPI_BCAST(smadim,1,MPI_integer,0,MPI_COMM_WORLD,ierr)
-			if(smadim>0) then
-				allocate(dummycoeff(smadim),stat=error)
-				if(error/=0) stop
-				allocate(dummynewcoeff(smadim),stat=error)
-				if(error/=0) stop
-				call op(1,smadim,dummycoeff,dummynewcoeff)
-				deallocate(dummycoeff)
-				deallocate(dummynewcoeff)
-			else
-				exit
-			end if
-		end do
+		end if
+
+		if(myid/=0) then
+			do while(.true.)
+				call MPI_BCAST(smadim,1,MPI_integer,0,MPI_COMM_WORLD,ierr)
+				if(smadim>0) then
+					allocate(dummycoeff(smadim),stat=error)
+					if(error/=0) stop
+					allocate(dummynewcoeff(smadim),stat=error)
+					if(error/=0) stop
+					call op(1,smadim,dummycoeff,dummynewcoeff)
+					deallocate(dummycoeff)
+					deallocate(dummynewcoeff)
+				else
+					exit
+				end if
+			end do
+		end if
+	else if(diagmethod=="MD") then
+		call MasterGather
+		if(myid==0) then
+			call DVDSON(masterop,dimN,lim,HDIAG,ilow,ihigh,iselec &
+				,niv,mblock,crite,critc,critr,ortho,maxiter,DavidWORK,&
+				IWRSZ,hiend,nloops,nmv,ierror)
+		end if
+		call MPI_BARRIER(MPI_COMM_WORLD,ierr)
 	end if
 
 !-----------------------------------------------------------------------------

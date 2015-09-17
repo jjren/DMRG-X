@@ -49,19 +49,23 @@ module module_sparse
 	! sparse parameter
 	real(kind=r8),public :: pppmatratio,hopmatratio,LRoutratio,UVmatratio,coeffIFratio
 	real(kind=r8),public :: bigratio1,smaratio1,bigratio2,smaratio2,bigratio3,smaratio3,Hbigratio,Hsmaratio  ! sparse radio
-
+	
+	integer,allocatable,public :: operanum1(:),operanum2(:),operanum3(:)
+	! store the number of operators on every process
+	! operanum1 is the max site operator every process have
+	
+	real(kind=r8),allocatable,public:: moperamatbig1(:,:)
+	integer(kind=i4),allocatable,public :: mbigrowindex1(:,:),mbigcolindex1(:,:)
 	contains
 
 !=========================================================================================================
 !=========================================================================================================
 
-subroutine AllocateArray(operanum1,operanum2,operanum3)
+subroutine AllocateArray
 	
 	use communicate
 	implicit none
 	
-	! store the number of operators on every process
-	integer :: operanum1(nprocs-1),operanum2(nprocs-1),operanum3(nprocs-1)
 	
 	! local
 	integer :: error
@@ -160,6 +164,11 @@ subroutine AllocateArray(operanum1,operanum2,operanum3)
 		Hbigrowindex=1
 		Hsmarowindex=1
 		coeffIFrowindex=1
+		if(diagmethod=="MD") then
+			allocate(moperamatbig1(bigdim1,3*norbs))
+			allocate(mbigcolindex1(bigdim1,3*norbs))
+			allocate(mbigrowindex1(4*subM+1,3*norbs))
+		end if
 	end if
 
 return
@@ -174,7 +183,7 @@ subroutine sparse_default
 	use communicate
 	implicit none
 
-	if(subM<=100) then
+	if(subM<=128) then
 		bigratio1=1.0
 		smaratio1=1.0
 		bigratio2=1.0

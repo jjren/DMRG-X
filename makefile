@@ -19,7 +19,7 @@ FCCOMPILEOPTS= -g -debug
 object = kinds_mod.o communicate.o exit_mod.o variables.o checkinfo.o \
 	   ppp_term.o contructquanta.o mathlib.o module_sparse.o davidson.o \
 	   symmetry.o InitialGuess.o coefftosparse.o GetHDiag.o \
-	   op.o onesitematrix.o Renormalization.o splitsvd_direct.o\
+	   op.o masterdiag.o onesitematrix.o Renormalization.o splitsvd_direct.o\
 	   hamiltonian.o infinit_MPS.o  \
 	   loadbalance.o  \
 	     system_big.o readinput.o  \
