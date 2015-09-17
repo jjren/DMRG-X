@@ -211,6 +211,7 @@ Subroutine Davidson_Wrapper(direction)
 ! this is the davidson wrapper to call DVDSON written by Andreas
 ! aim to allocate memory and set variables in the global array
 ! mainly allocate memory on 0 process
+	use MKL_SERVICE
 	implicit none
 
 	character(len=1) :: direction  ! i,l,r direction l is L space to R space sweep
@@ -237,6 +238,9 @@ Subroutine Davidson_Wrapper(direction)
 	integer :: error,i,j,k,m
 
 	integer :: ierr ! MPI flag
+	real(kind=r8) :: starttime,endtime
+	
+	starttime=MPI_WTIME()
 
 	call master_print_message("enter in davidson diagonalization subroutine")
 	
@@ -284,12 +288,15 @@ Subroutine Davidson_Wrapper(direction)
 	end if
 	
 ! Get the diagonal element of hamiltonian
+	starttime=MPI_WTIME()
 	if(logic_spinreversal/=0 .or. &
 		(logic_C2/=0 .and. nleft==nright)) then
 		call SymmHDiag(HDIAG)
 	else 
 		call GetHDiag(HDIAG)
 	end if
+	endtime=MPI_WTIME()
+	call master_print_message(endtime-starttime,"HDIAGTIME:")
 
 ! Get the Initialcoeff Guess
 	if(myid==0) then
@@ -324,6 +331,12 @@ Subroutine Davidson_Wrapper(direction)
 			end do
 		end if
 	else if(diagmethod=="MD") then
+		if(myid==0) then
+			call MKL_SET_NUM_THREADS(nthreads(3))
+		else
+			call MKL_SET_NUM_THREADS(nthreads(4))
+		end if
+
 		call MasterGather
 		if(myid==0) then
 			call DVDSON(masterop,dimN,lim,HDIAG,ilow,ihigh,iselec &
@@ -331,6 +344,11 @@ Subroutine Davidson_Wrapper(direction)
 				IWRSZ,hiend,nloops,nmv,ierror)
 		end if
 		call MPI_BARRIER(MPI_COMM_WORLD,ierr)
+		if(myid==0) then
+			call MKL_SET_NUM_THREADS(nthreads(1))
+		else
+			call MKL_SET_NUM_THREADS(nthreads(2))
+		end if
 	end if
 
 !-----------------------------------------------------------------------------

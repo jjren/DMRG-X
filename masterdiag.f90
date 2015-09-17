@@ -19,7 +19,6 @@ contains
 
 subroutine masterop(bigdim,smadim,coeff,newcoeff)
 	use mathlib
-	use MKL_SERVICE
 	implicit none
 	include "mkl_spblas.fi"
 	integer :: bigdim,smadim
@@ -41,7 +40,6 @@ subroutine masterop(bigdim,smadim,coeff,newcoeff)
 	integer :: info
 	logical :: ifhop
 	
-	call MKL_SET_NUM_THREADS(nthreads(3))
 ! allocate workspace
 	! store nosymmetry coeff
 	allocate(coeffnosymm(ngoodstates*smadim))
@@ -255,7 +253,6 @@ subroutine masterop(bigdim,smadim,coeff,newcoeff)
 	deallocate(hopmat,hopmatrow,hopmatcol)
 	deallocate(coeffnosymm)
 	
-	call MKL_SET_NUM_THREADS(nthreads(1))
 return
 end subroutine masterop
 
