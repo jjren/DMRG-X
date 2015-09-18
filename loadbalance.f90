@@ -23,7 +23,7 @@ Subroutine LoadBalance
 	allocate(operanum3(nprocs-1))
 
 ! set every process threads
-	if(nthreads(1)/=0) then
+	if(nthreads(1)/=0) then ! if nthreads(1)==0 then using the enviroment variables
 		if(myid==0) then
 			call MKL_SET_NUM_THREADS(nthreads(1))
 		else
