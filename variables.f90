@@ -64,7 +64,8 @@ module variables
 	sweeps , &                           ! finite DMRG sweeps
 	exactsite , &                        ! the number of exact discrible sites
 	isweep                               ! the at present isweep
-	real(kind=r8) :: energythresh        ! energy convegence threshold in the middle of every sweep
+	real(kind=r8) :: energythresh,&        ! energy convegence threshold in the middle of every sweep
+	                 hopthresh
 	real(kind=r8),allocatable :: sweepenergy(:,:)  ! store every sweep energy in the middle
 	integer(kind=i4) :: Lrealdim,Rrealdim   ! L/R space real dimension
 	integer(kind=i4) :: nleft,nright        ! L/R space site number L+sigmaL+sigmaR+R

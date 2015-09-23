@@ -116,8 +116,8 @@ subroutine transDMAO2MO
 ! the transition density matrix or one partical density matrix from PPP-AO to MO
 ! MOij=CDC^+   C is MO*AO column format
 	use MeanField
-	use MKL95_BLAS
-	use MKL95_PRECISION
+	use BLAS95
+	use F95_PRECISION
 	implicit none
 	integer :: i,j,k,l
 	real(kind=r8),allocatable :: midmat(:,:)
@@ -158,8 +158,8 @@ subroutine NatTraOrb
 ! single excitation
 ! <ex|a^+a*ai|gs>
 	
-	use MKL95_LAPACK
-	USE MKL95_PRECISION
+	use LAPACK95
+	USE F95_PRECISION
 	use meanfield
 	implicit none
 	real(kind=r8),allocatable :: Tai(:,:,:),svdvalue(:),&

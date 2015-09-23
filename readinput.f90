@@ -64,6 +64,7 @@ Subroutine ReadInput
 	read(10,*) sweeps                ! DMRG how many sweeps
 	read(10,*) nstate                ! how many state wanted to get
 	read(10,*) energythresh          ! the threshold of the total energy you want to get
+	read(10,*) hopthresh             ! the threshold of the hopping term < hopthresh ignore it
 	read(10,*) diagmethod            ! the diagonalization method
 
 ! sweepenergy is the total energy of every sweep(in the middle of the chain)
@@ -146,10 +147,12 @@ Subroutine ReadInput
 		bondlink=0
 		do i=1,nbonds,1
 			read(14,*) link1,link2,dummyt
-			bondlink(link1,link2)=1  ! if linked , bondlink=1
-			bondlink(link2,link1)=1
-			t(link1,link2)=dummyt
-			t(link2,link1)=dummyt
+			if(abs(dummyt)>hopthresh) then
+				bondlink(link1,link2)=1  ! if linked , bondlink=1
+				bondlink(link2,link1)=1
+				t(link1,link2)=dummyt
+				t(link2,link1)=dummyt
+			end if
 		end do
 
 		do i=1,norbs,1
