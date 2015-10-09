@@ -228,8 +228,6 @@ subroutine NatOrbAnalysis
 	open(unit=153,file="NO.out",status="replace")
 	do i=1,nstate,1
 		call  syevr(AOonepdm(:,:,i),NOeigenvalue(:,i),'U',NOcoeff)
-		write(152) NOeigenvalue
-		write(152) NOcoeff
 		write(*,*) "istate=",i
 		do j=1,norbs,1
 			write(*,*) NOeigenvalue(j,i)
@@ -241,7 +239,6 @@ subroutine NatOrbAnalysis
 			write(153,*) NOcoeff(:,j)
 		end do
 	end do
-	close(152)
 	close(153)
 
 	call master_print_message("odd electron numbers")
