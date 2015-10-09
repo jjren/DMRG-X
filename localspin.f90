@@ -323,7 +323,7 @@ subroutine Calc_Localspin_link
 		
 		if(myid==orbid3(i,i,1) .or. myid==orbid3(j,j,1)) then
 			if(.not. allocated(packbuf)) then
-				packsize=(bigdim2*12+4*(4*subM+1))*2
+				packsize=(bigdim2*12+4*(4*subM+1))+(bigdim3*12+4*(4*subM+1))
 				allocate(packbuf(packsize),stat=error) ! packbuf to send
 				if(error/=0) stop
 			end if

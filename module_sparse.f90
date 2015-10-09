@@ -244,8 +244,8 @@ subroutine sparse_default
 		smaratio1=5.0
 		bigratio2=25.0
 		smaratio2=5.0
-		bigratio3=1.0
-		smaratio3=1.0
+		bigratio3=15.0
+		smaratio3=4.0
 		Hbigratio=10.0
 		Hsmaratio=5.0
 		pppmatratio=10.0
