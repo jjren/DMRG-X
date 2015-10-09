@@ -276,6 +276,11 @@ Subroutine Davidson_Wrapper(direction)
 		critr=1.0D-10
 		ortho=1.0D-9
 	end if
+	
+	if(myid==0) then
+		write(*,*) "criteria"
+		write(*,*)  crite,critc,critr
+	end if
 
 	call GetDimSym
 ! allocate the davidson workarray needed by DVDSON
@@ -396,8 +401,8 @@ subroutine DavidOutput(eigenvalue,eigenvector)
 
 	real(kind=r8) :: eigenvalue(nstate),eigenvector(nstate*dimN)
 	real(kind=r8),allocatable :: nosymmout(:)
-	integer :: reclength
 	integer :: i,k,error
+	integer :: nonzero
 
 	if(myid==0) then
 		! transfer the symmetry state to the non-symmetry state S*fai
@@ -425,18 +430,14 @@ subroutine DavidOutput(eigenvalue,eigenvector)
 		end do
 	!	write the coeffIF in two partical density matrix calculation
 
-	!	reclength=nstate*coeffIFdim*2
-	!	open(unit=109,file="coeffIF.tmp",access="Direct",form="unformatted",recl=reclength,status="replace")
-	!	write(109,rec=1) coeffIF
-	!	close(109)
-	!	reclength=nstate*coeffIFdim
-	!	open(unit=109,file="coeffIFcol.tmp",access="Direct",form="unformatted",recl=reclength,status="replace")
-	!	write(109,rec=1) coeffIFcolindex
-	!	close(109)
-	!	reclength=(4*subM+1)*nstate
-	!	open(unit=109,file="coeffIFrow.tmp",access="Direct",form="unformatted",recl=reclength,status="replace")
-	!	write(109,rec=1) coeffIFrowindex
-	!	close(109)
+		open(unit=109,file="coeffIF.tmp",form="unformatted",status="replace")
+		do i=1,nstate,1
+			write(109) coeffIFrowindex(:,i)
+			nonzero=coeffIFrowindex(4*subM+1,i)-1
+			write(109) coeffIF(1:nonzero,i)
+			write(109) coeffIFcolindex(1:nonzero,i)
+		end do
+		close(109)
 		
 	! update the sweepenergy
 	! use the middle site as the sweepenergy

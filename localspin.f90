@@ -75,7 +75,6 @@ subroutine  LocalSpin
 		do k=1,nstate,1
 			do i=1,norbs,1
 			do j=1,norbs,1
-				write(*,*) i,j,localspin0(i,j,k)
 				totalspin(k)=totalspin(k)+localspin0(i,j,k)
 				if(i<=(norbs+1)/2 .and. j<=(norbs+1)/2) then
 					halfspin(1,k)=halfspin(1,k)+localspin0(i,j,k)
@@ -87,6 +86,11 @@ subroutine  LocalSpin
 			write(*,*) "Total Spin of State",k,"equals",totalspin(k)
 			write(*,*) "Half Spin of State",k,"equals",halfspin(:,k)
 		end do
+
+		open(unit=170,file="localspin.out",form="unformatted",status="replace")
+		write(170) norbs,nstate
+		write(170) localspin0
+		close(170)
 		
 		! pair spin
 !		pairspin=0.0D0
