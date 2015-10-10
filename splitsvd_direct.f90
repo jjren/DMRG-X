@@ -73,7 +73,7 @@ subroutine SplitSVD_direct(istate,leftu,rightv,singularvalue)
 	allocate(valueindex(subM),stat=error)
 	if(error/=0) stop
 	valueindex=0
-	allocate(subspacenum((2*nleft+1)*(2*nleft+3)+1),stat=error)
+	allocate(subspacenum((2*nleft+3)*(2*nleft+3)+1),stat=error)
 	if(error/=0) stop
 	subspacenum=0
 
