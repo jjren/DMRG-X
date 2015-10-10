@@ -268,19 +268,19 @@ subroutine sparse_default
 		UVmatratio=5.0
 		coeffIFratio=10.0
 	else
-		bigratio1=10.0
-		smaratio1=5.0
-		bigratio2=10.0
-		smaratio2=5.0
-		bigratio3=1.0
-		smaratio3=1.0
+		bigratio1=15.0
+		smaratio1=4.0
+		bigratio2=15.0
+		smaratio2=4.0
+		bigratio3=15.0
+		smaratio3=4.0
 		Hbigratio=10.0
-		Hsmaratio=2.0
-		pppmatratio=5.0
-		hopmatratio=5.0
+		Hsmaratio=5.0
+		pppmatratio=8.0
+		hopmatratio=10.0
 		LRoutratio=5.0
 		UVmatratio=5.0
-		coeffIFratio=5.0
+		coeffIFratio=8.0
 	end if
 
 	if(myid==0) then
