@@ -47,9 +47,17 @@ Subroutine Finit_MPS
 		sweepbegin=1
 	end if
 
+	formernelecs=nelecs
 	do isweep=sweepbegin,sweeps,1
 		
 		do isystem=ibegin,norbs-exactsite-2,1
+			! add 2,0,2,0 if nelecs does not reach realnelecs
+		!	if(nelecs==formernelecs .and. nelecs<realnelecs) then
+		!		nelecs=nelecs+2
+		!	else
+		!		formernelecs=nelecs
+		!	end if
+
 			! add nelecs 2 by 2 if the nelecs does not reach realnelecs
 			formernelecs=nelecs
 			if(nelecs<realnelecs) then
@@ -80,6 +88,12 @@ Subroutine Finit_MPS
 ! we assume the nelecs have reach realnelecs now
 
 		do isystem=exactsite,norbs-exactsite-2,1
+			if(nelecs/=realnelecs) then
+				call master_print_message("nelecs/=realnelecs stop!")
+				call MPI_BARRIER(MPI_COMM_WORLD,ierr)
+				stop
+			end if
+
 			nleft=norbs-isystem-2
 			nright=isystem
 			if(nleft<=exactsite) then

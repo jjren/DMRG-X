@@ -43,6 +43,9 @@ subroutine SplitSVD_direct(istate,leftu,rightv,singularvalue)
 	integer :: mv,nv,ml,nl,mr,nr,phase,szl0,szzero
 	real(kind=r8) :: discard
 
+	integer :: ibegin,iend
+	real(kind=8) :: scale1,sum1
+
 	call master_print_message("enter in subroutine SplitSVD_direct")
 
 	allocate(LRcoeff(4*Lrealdim,4*Rrealdim),stat=error)
@@ -190,7 +193,7 @@ subroutine SplitSVD_direct(istate,leftu,rightv,singularvalue)
 						mv=mv+smadim
 					else
 						write(*,*) "========================================================"
-						write(*,*) "lhimp1/=nl-1 .or. rhimp1/=nr-1",lhimp1,nl-1,rhimp1,nr-1
+						write(*,*) "lhimp1==nl-1 .or. rhimp1==nr-1",lhimp1,nl-1,rhimp1,nr-1
 						write(*,*) "========================================================"
 					end if
 
@@ -206,7 +209,7 @@ subroutine SplitSVD_direct(istate,leftu,rightv,singularvalue)
 						mv=mv+smadim
 					else
 						write(*,*) "=============================================="
-						write(*,*) "lhimp1/=ml .or. rhimp1/=mr",lhimp1,ml,rhimp1,mr
+						write(*,*) "lhimp1==ml .or. rhimp1==mr",lhimp1,ml,rhimp1,mr
 						write(*,*) "=============================================="
 					end if
 					
@@ -237,6 +240,13 @@ subroutine SplitSVD_direct(istate,leftu,rightv,singularvalue)
 				end if
 
 				if(nv-1/=mv) then
+					! shift the singular value if realnelecs/=norbs
+					! get more large electron basis
+				!	if((lp>=nleft+1 .and. lp<=nleft+2) .and. nelecs<realnelecs) then
+				!		svaluefull(nv:mv)=svaluefull(nv:mv)+sqrt(1.0D0/DBLE(subM))
+				!		write(*,*) "shift=",sqrt(1.0D0/4.0D0/DBLE(subM))
+				!		write(*,*) svaluefull(nv:mv)
+				!	end if
 					! set quanta number
 					quantabigLbuf(nv:mv,1)=lp
 					quantabigLbuf(nv:mv,2)=ls
@@ -303,6 +313,22 @@ subroutine SplitSVD_direct(istate,leftu,rightv,singularvalue)
 		svaluefull(szl0+szzero+1:2*szl0+szzero)=svaluefull(1:szl0)
 	end if
 	
+	! in the nelecs<realnelecs case all the subspace is equal split the total
+	! 1 diagonal element; the relative is not changed in on subspace
+	if(nelecs<realnelecs) then
+		do i=2,subspacenum(1)+1,1
+			sum1=0.0D0
+			ibegin=sum(subspacenum(2:i-1))+1
+			iend=sum(subspacenum(2:i))
+			do j=ibegin,iend,1
+				sum1=svaluefull(j)+sum1
+			end do
+			scale1=1.0D0/sum1
+			svaluefull(ibegin:iend)=svaluefull(ibegin:iend)*scale1  
+			! did not scale the spin reversal part Sz<0 part 
+			! no problem in the select states
+		end do
+	end if
 
 	if(logic_spinreversal/=0) then
 		call selectstates(svaluefull,szl0*2+szzero,valueindex,singularvalue,subspacenum,nleft,szzero,szl0)
@@ -336,13 +362,17 @@ subroutine SplitSVD_direct(istate,leftu,rightv,singularvalue)
 !------------------------------------------------------------------------
 
 	! copy the leftufull and rightvfull to the U/V according to the valueindex
+	! write(*,*) "L space nelecs"
 	do i=1,subM,1
 		call copy(leftufull(:,valueindex(i)),leftu(:,i))
 		quantasmaL(i,:)=quantabigLbuf(valueindex(i),:)
+	!	write(*,*) quantasmaL(i,1)
 	end do
+	! write(*,*) "R space nelecs"
 	do i=1,subM,1
 		call copy(rightvfull(valueindex(i),:),rightv(i,:))
 		quantasmaR(i,:)=quantabigRbuf(valueindex(i),:)
+	!	write(*,*) quantasmaR(i,1)
 	end do
 
 	if(logic_spinreversal/=0) then

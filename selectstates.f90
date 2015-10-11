@@ -35,21 +35,24 @@ subroutine selectstates(valuework,dim1,valueindex,singularvalue,&
 			end do
 		end do
 		
-		! check if every valueindex is not 0
-		do i=1,subM,1
-			if(valueindex(i)==0) then
-				write(*,*) "valueindex(i)==0",i
-				stop
-			end if
-		end do
-
 	! use the garnet chan proposed select states rule
+	!	if(isweep==0 .and. nelecs/=realnelecs) then
+	!		percent=0.5
+	!	else if(isweep==0) then
+	!		percent=0.7
+	!	else if(isweep==1) then
+	!		percent=0.9
+	!	else
+	!		percent=1.1
+	!	end if
 		percent=2.0+DBLE(isweep)*0.1
+		
 		if(percent<1.0D0) then
-			directly=INT(DBLE(dim1)*percent)
+			directly=INT(DBLE(subM)*percent)
+			write(*,*) "Garnet Chan's select rule,directly=",directly
 			do while(directly<subM)
-			do i=1,subspacenum(1),1
-				do j=sum(subspacenum(1:i+1)),sum(subspacenum(1:i))+1,-1
+			do i=2,subspacenum(1)+1,1
+				do j=sum(subspacenum(2:i)),sum(subspacenum(2:i-1))+1,-1
 					do m=1,directly,1
 						noequal=.true.
 						if(j==valueindex(m)) then
@@ -71,6 +74,13 @@ subroutine selectstates(valuework,dim1,valueindex,singularvalue,&
 			end do
 		end if
 	
+		! check if every valueindex is not 0
+		do i=1,subM,1
+			if(valueindex(i)==0) then
+				write(*,*) "valueindex(i)==0",i
+				stop
+			end if
+		end do
 	else
 		do i=1,szzero+szl0,1
 			do j=1,subM,1
