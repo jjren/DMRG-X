@@ -841,7 +841,7 @@ subroutine splitsvd(domain,dim1,statebegin,stateend)
 	! check if valuework<0
 	do i=1,4*dim1,1
 		if(valuework(i)<0.0D0) then
-			if(abs(valuework(i)>1.0D-10) then
+			if(abs(valuework(i))>1.0D-10) then
 				write(*,*) "-----------------------------"
 				write(*,*) "caution valuework<0.0D0",valuework(i)
 				write(*,*) "-----------------------------"
