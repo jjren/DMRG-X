@@ -315,20 +315,21 @@ subroutine SplitSVD_direct(istate,leftu,rightv,singularvalue)
 	
 	! in the nelecs<realnelecs case all the subspace is equal split the total
 	! 1 diagonal element; the relative is not changed in on subspace
-	if(nelecs<realnelecs) then
-		do i=2,subspacenum(1)+1,1
-			sum1=0.0D0
-			ibegin=sum(subspacenum(2:i-1))+1
-			iend=sum(subspacenum(2:i))
-			do j=ibegin,iend,1
-				sum1=svaluefull(j)+sum1
-			end do
-			scale1=1.0D0/sum1
-			svaluefull(ibegin:iend)=svaluefull(ibegin:iend)*scale1  
-			! did not scale the spin reversal part Sz<0 part 
-			! no problem in the select states
-		end do
-	end if
+!	if(nelecs<realnelecs) then
+!	!if(isweep==0) then
+!		do i=2,subspacenum(1)+1,1
+!			sum1=0.0D0
+!			ibegin=sum(subspacenum(2:i-1))+1
+!			iend=sum(subspacenum(2:i))
+!			do j=ibegin,iend,1
+!				sum1=svaluefull(j)+sum1
+!			end do
+!			scale1=1.0D0/sum1
+!			svaluefull(ibegin:iend)=svaluefull(ibegin:iend)*scale1  
+!			! did not scale the spin reversal part Sz<0 part 
+!			! no problem in the select states
+!		end do
+!	end if
 
 	if(logic_spinreversal/=0) then
 		call selectstates(svaluefull,szl0*2+szzero,valueindex,singularvalue,subspacenum,nleft,szzero,szl0)
