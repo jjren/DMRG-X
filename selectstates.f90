@@ -29,10 +29,12 @@ subroutine selectstates(valuework,dim1,valueindex,singularvalue,&
 
 	! use the garnet chan proposed select states rule
 	if(isweep==0 .and. nelecs/=realnelecs) then
-		percent=0.5
+		percent=0.4
 	else if(isweep==0) then
-		percent=0.7
+		percent=0.6
 	else if(isweep==1) then
+		percent=0.7
+	else if(isweep==2) then
 		percent=0.9
 	else
 		percent=1.1
