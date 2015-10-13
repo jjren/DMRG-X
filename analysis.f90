@@ -11,12 +11,31 @@ subroutine Analysis
 	use transmoment_mod
 	use bondorder_mod
 	use localspin_mod
+	use module_sparse
+	use blas95
+	use f95_precision
 
 	implicit none
-	
+	integer(kind=i4),allocatable :: midrowmat(:),midcolmat(:)
+	integer :: i
+
 	! in C2 mode we can calculate the two subspace together
 	! without loss of accuracy
 	if(logic_C2/=0) then
+		if(logic_C2==-1 .and. myid==0) then
+			allocate(midrowmat(4*subM+1))
+			allocate(midcolmat(coeffIFdim))
+			do i=1,nstate,1
+				midrowmat=coeffIFrowindex(:,i)
+				coeffIFrowindex(:,i)=coeffIFrowindex(:,i+nstate)
+				coeffIFrowindex(:,i+nstate)=midrowmat
+				midcolmat=coeffIFcolindex(:,i)
+				coeffIFcolindex(:,i)=coeffIFcolindex(:,i+nstate)
+				coeffIFcolindex(:,i+nstate)=midcolmat
+				call swap(coeffIF(:,i),coeffIF(:,i+nstate))
+			end do
+			deallocate(midrowmat,midcolmat)
+		end if
 		nstate=nstate*2
 	end if
 
