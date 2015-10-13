@@ -192,9 +192,9 @@ subroutine accelerate_DIIS(diis_weight)
 !  the new fock matrix is constructed using the diis coefficient c
 !   F(new) = \sum_i c(i) F(i)
 !   c=g^{-1} b, where b=(0,0,...,-1)
-	USE MKL95_PRECISION
-	USE MKL95_LAPACK
-	USE MKL95_BLAS
+	USE F95_PRECISION
+	USE LAPACK95
+	USE BLAS95
 	implicit none
 	
 	real(kind=r8) :: diis_weight(diis_subspace_size)
