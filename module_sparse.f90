@@ -261,16 +261,16 @@ subroutine sparse_default
 		LRoutratio=10.0
 		UVmatratio=5.0
 		coeffIFratio=10.0
-	else if (abs(subM-2048)<200) then
-		bigratio1=30.0
-		smaratio1=8.0
-		bigratio2=30.0
-		smaratio2=8.0
-		bigratio3=1.0
-		smaratio3=1.0
-		Hbigratio=12.0
-		Hsmaratio=8.0
-		pppmatratio=12.0
+	else if (abs(subM-2048)<500) then
+		bigratio1=27.0
+		smaratio1=5.0
+		bigratio2=27.0
+		smaratio2=5.0
+		bigratio3=27.0
+		smaratio3=5.0
+		Hbigratio=10.0
+		Hsmaratio=5.0
+		pppmatratio=10.0
 		hopmatratio=12.0
 		LRoutratio=10.0
 		UVmatratio=5.0
