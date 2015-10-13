@@ -69,6 +69,7 @@ subroutine AllocateArray
 	
 	! local
 	integer :: error
+	integer :: C2state
 	
 	call sparse_default
 
@@ -153,12 +154,19 @@ subroutine AllocateArray
 		if(error/=0) stop
 		allocate(Hsmarowindex(subM+1,2),stat=error)
 		if(error/=0) stop
-
-		allocate(coeffIF(coeffIFdim,nstate),stat=error)
+		
+		! in C2 mode we can calculate the two subspace together
+		! without loss of accuracy
+		if(logic_C2==0) then
+			C2state=nstate
+		else
+			C2state=2*nstate
+		end if
+		allocate(coeffIF(coeffIFdim,C2state),stat=error)
 		if(error/=0) stop
-		allocate(coeffIFcolindex(coeffIFdim,nstate),stat=error)
+		allocate(coeffIFcolindex(coeffIFdim,C2state),stat=error)
 		if(error/=0) stop
-		allocate(coeffIFrowindex(4*subM+1,nstate),stat=error)
+		allocate(coeffIFrowindex(4*subM+1,C2state),stat=error)
 		if(error/=0) stop
 		
 		Hbigrowindex=1

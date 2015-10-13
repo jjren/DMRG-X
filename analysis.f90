@@ -14,6 +14,12 @@ subroutine Analysis
 
 	implicit none
 	
+	! in C2 mode we can calculate the two subspace together
+	! without loss of accuracy
+	if(logic_C2/=0) then
+		nstate=nstate*2
+	end if
+
 	call broadcastcoeffIF
 
 	if(logic_bondorder/=0) then
