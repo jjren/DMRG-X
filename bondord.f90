@@ -94,6 +94,10 @@ subroutine BondOrder
 				end if
 			end do
 			end do
+			! electron density
+			do i=1,norbs,1
+				write(399,*) i,i,transDM0(i,i,:,k,k)
+			end do
 		end do
 		close(399)
 
