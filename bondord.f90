@@ -642,10 +642,8 @@ subroutine Calc_BOmat_link
 				call MPI_RECV(itransDM,2*nstate**2,mpi_real8,orbid1(l,1),1,MPI_COMM_WORLD,status,ierr)
 				do istate=1,nstate,1
 				do istate2=istate,nstate,1
-				do k=1,2,1
-					transDM0(i,l,k,istate2,istate)=itransDM(k,istate,istate2)
-					transDM0(l,i,k,istate2,istate)=itransDM(k,istate2,istate)
-				end do
+					transDM0(i,l,1:2,istate2,istate)=itransDM(1:2,istate,istate2)
+					transDM0(l,i,1:2,istate2,istate)=itransDM(1:2,istate2,istate)
 				end do
 				end do
 			end if
