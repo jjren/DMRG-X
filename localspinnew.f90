@@ -109,7 +109,9 @@ subroutine  LocalSpin
 		call  analysis_cutoffspin 
 	end if
 
-	deallocate(localspin0,spinspincorrelation0)
+	if(myid==0) then
+		deallocate(localspin0,spinspincorrelation0)
+	end if
 
 return
 end subroutine LocalSpin
