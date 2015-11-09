@@ -16,7 +16,7 @@ Subroutine Enviro_Big(domain)
 	integer :: orbnow,orbstart,orbend,orbref,nsuborbs
 	integer :: reclength,operaindex,recindex,Hindex
 	character(len=50) :: filename,Hfilename,Hcolfilename,Hrowfilename,symmfilename,quantafilename
-	logical :: alive
+	logical :: alive,ifmiddle
 	integer :: count1,dim1,nonzero
 
 	integer :: thefile,status(MPI_STATUS_SIZE)  ! MPI flag
@@ -27,6 +27,7 @@ Subroutine Enviro_Big(domain)
 	! ifort use 4 byte as 1 by default
 	call master_print_message("enter in subroutine Enviro_Big")
 	
+	ifmiddle=.false.
 	if(domain=='L') then
 		orbnow=nleft+1
 		write(filename,'(i5.5,a8)') orbnow,'left.tmp'
@@ -35,6 +36,9 @@ Subroutine Enviro_Big(domain)
 		orbref=1
 		nsuborbs=nleft+1
 		dim1=Lrealdim
+		if(nleft==(norbs+1)/2-1) then
+			ifmiddle=.true.
+		end if
 	else if (domain=='R') then
 		orbnow=norbs-nright
 		write(filename,'(i5.5,a9)') orbnow,'right.tmp'
@@ -43,6 +47,9 @@ Subroutine Enviro_Big(domain)
 		orbref=norbs
 		nsuborbs=nright+1
 		dim1=Rrealdim
+		if(nright==norbs/2-1) then
+			ifmiddle=.true.
+		end if
 	else
 		call exit_DMRG(sigAbort,"domain/=L .and. domain/='R' failed!")
 	end if
@@ -169,8 +176,12 @@ Subroutine Enviro_Big(domain)
 
 !============================================================
 	! read the bondorder matrix
-	if(logic_bondorder/=0 .and. nsuborbs==exactsite+1) then
-		write(filename,'(a1,a6)') domain,'bo.tmp'
+	if(logic_bondorder/=0 .and. (nsuborbs==exactsite+1 .or. ifmiddle==.true.)) then
+		if(ifmiddle==.true.) then
+			write(filename,'(a1,a9)') domain,'bomid.tmp'
+		else
+			write(filename,'(a1,a6)') domain,'bo.tmp'
+		end if
 		call MPI_FILE_OPEN(MPI_COMM_WORLD,trim(filename),MPI_MODE_RDONLY,MPI_INFO_NULL,thefile,ierr)
 		if(myid/=0) then
 			count1=0
@@ -200,8 +211,12 @@ Subroutine Enviro_Big(domain)
 	end if
 !============================================================
 	! store local spin matrix(only store the exact site)
-	if(logic_localspin==1 .and. nsuborbs==exactsite+1) then
-		write(filename,'(a1,a13)') domain,'localspin.tmp'
+	if(logic_localspin==1 .and. (nsuborbs==exactsite+1 .or. ifmiddle==.true.)) then
+		if(ifmiddle==.true.) then
+			write(filename,'(a1,a16)') domain,'localspinmid.tmp'
+		else
+			write(filename,'(a1,a13)') domain,'localspin.tmp'
+		end if
 		call MPI_FILE_OPEN(MPI_COMM_WORLD,trim(filename),MPI_MODE_RDONLY,MPI_INFO_NULL,thefile,ierr)
 		if(myid/=0) then
 			count1=0

@@ -40,13 +40,18 @@ Subroutine Finit_MPS
 		Rrealdim=subM
 		sweepenergy(0:isweep-1,:)=0.0D0
 		call Enviro_Big('L')
-		call Enviro_Big('R')
+		if(nleft==nright .and. logic_C2/=0) then
+			call C2_Copy('l')
+		else
+			call Enviro_Big('R')
+		end if
 		call Hamiltonian('i')
 		call Renormalization('i')
 	else
 		sweepbegin=1
 	end if
-
+	
+	converged=.false.
 	formernelecs=nelecs
 	do isweep=sweepbegin,sweeps,1
 		

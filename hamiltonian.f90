@@ -164,7 +164,7 @@ subroutine JacobiDavidson_Wrapper(direction)
 		NDX2=1
 	endif
 	if(myid==0) then
-		write(*,*) "site=",nleft+1,norbs-nright
+		write(*,*) "isweep=",isweep,"site=",nleft+1,norbs-nright
 	end if
 	IJOB=0
 	do while(.true.)

@@ -39,6 +39,8 @@ subroutine Infinit_MPS
 	! if mode==r and isweep/=0 means the infinit DMRG is finished
 	! isweep means the initial finit-MPS stage
 	if(mode=='r' .and. isweep/=0) then
+		nleft=(norbs+1)/2-1
+		nright=norbs-nleft
 		return
 	else
 		isweep=0
@@ -59,6 +61,9 @@ subroutine Infinit_MPS
 	! when doing infinit MPS we use half filled system until arrive the realnelecs
 	do isystem=1,norbs/2-1,1
 		if(mode=='r') then
+			! in the infinite processs if restart the bondorder matrix and
+			! local spin matrix will not recover
+			! only in the finite process
 			if(isystem<nleft) then
 				cycle
 			else if(isystem==nleft) then
