@@ -178,6 +178,9 @@ Subroutine Enviro_Big(domain)
 
 !============================================================
 	! read the bondorder matrix
+	! in the standard mode need not read the bomid.tmp
+	! only in the old restart mode
+	! this can be optimized after
 	if(logic_bondorder/=0 .and. (nsuborbs==exactsite+1 .or. ifmiddle==.true.)) then
 		if(ifmiddle==.true.) then
 			write(filename,'(a1,a9)') domain,'bomid.tmp'
