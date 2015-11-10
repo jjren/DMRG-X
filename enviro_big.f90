@@ -36,6 +36,7 @@ Subroutine Enviro_Big(domain)
 		orbref=1
 		nsuborbs=nleft+1
 		dim1=Lrealdim
+	!	if(nleft==(norbs+1)/2-1 .and. mode/='r') then
 		if(nleft==(norbs+1)/2-1) then
 			ifmiddle=.true.
 		end if
@@ -47,6 +48,7 @@ Subroutine Enviro_Big(domain)
 		orbref=norbs
 		nsuborbs=nright+1
 		dim1=Rrealdim
+	!	if(nright==norbs/2-1 .and. mode/='r') then
 		if(nright==norbs/2-1) then
 			ifmiddle=.true.
 		end if

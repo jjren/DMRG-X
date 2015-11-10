@@ -47,6 +47,7 @@ Subroutine Finit_MPS
 		end if
 		call Hamiltonian('i')
 		call Renormalization('i')
+		mode='s'
 	else
 		sweepbegin=1
 	end if

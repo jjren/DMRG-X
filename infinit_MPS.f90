@@ -40,7 +40,7 @@ subroutine Infinit_MPS
 	! isweep means the initial finit-MPS stage
 	if(mode=='r' .and. isweep/=0) then
 		nleft=(norbs+1)/2-1
-		nright=norbs-nleft
+		nright=norbs-nleft-2
 		return
 	else
 		isweep=0
