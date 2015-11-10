@@ -93,9 +93,9 @@ subroutine  LocalSpin
 		write(170) norbs,nstate
 		write(170) localspin0
 		close(170)
-		open(unit=171,file="spinspincorrelation.out",form="formatted",status="replace")
-		write(171,*) norbs,nstate
-		write(171,*) spinspincorrelation0 
+		open(unit=171,file="spinspincorrelation.out",form="unformatted",status="replace")
+		write(171) norbs,nstate
+		write(171) spinspincorrelation0 
 		close(171)
 
 		
