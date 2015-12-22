@@ -8,6 +8,7 @@ subroutine Infinit_MPS
 	use Renormalization_mod
 	use OnesiteMatrix
 	use hamiltonian_mod
+	use construct_system_big
 	
 	implicit none
 	! local
@@ -23,6 +24,9 @@ subroutine Infinit_MPS
 	! in the infinite procedure didnot constrain the logic_C2
 	! only in the diagonalization process
 	logic_C2real=logic_C2
+	
+	! in the infinite process; do not do perturbation
+	ifopenperturbation=.false.
 
 	! the exactsite refer to the space that L space or R space that can be accurately discribe
 	! (without sigmaL and sigmaR)
@@ -121,9 +125,18 @@ subroutine Infinit_MPS
 			call Infinit_InitMat('L')
 		end if
 	! construct the L+sigmaL subspace operator matrix
-		call System_Big('L')
+		call System_Big('L',operamatsma1,smacolindex1,smarowindex1,&
+			operamatbig1,bigcolindex1,bigrowindex1,&
+			Hsma,Hsmacolindex,Hsmarowindex,&
+			Hbig,Hbigcolindex,Hbigrowindex,&
+			quantasmaL,quantasmaR,&
+			Lrealdim,subM,.false.)
 	! construct the good quantum number Sz and occpuation
-		call System_Constructquanta('L')
+		call System_Constructquanta('L',Lrealdim,quantabigL(1:4*Lrealdim,1:2),quantasmaL(1:Lrealdim,1:2))
+	! copy the subM space to subMp space ; only big matrix
+		if(logic_perturbation/=0) then
+			call pre_perturbation('L','big')
+		end if
 	! store the operator matrix and the good quantum number
 		call Store_Operator('L')
 !============================================================
@@ -137,11 +150,22 @@ subroutine Infinit_MPS
 			! sigmaR subspace operator matrix
 			call ConstructOnesiteMatrix(norbs-nright)
 			! construct the R+sigmaR subspace operator matrix
-			call System_Big('R')
-			call System_Constructquanta('R')
+			call System_Big('R',operamatsma1,smacolindex1,smarowindex1,&
+			operamatbig1,bigcolindex1,bigrowindex1,&
+			Hsma,Hsmacolindex,Hsmarowindex,&
+			Hbig,Hbigcolindex,Hbigrowindex,&
+			quantasmaL,quantasmaR,&
+			Rrealdim,subM,.false.)
+			call System_Constructquanta('R',Rrealdim,quantabigR(1:4*Rrealdim,1:2),quantasmaR(1:Rrealdim,1:2))
 		else
 			call C2_copy('i')
 		end if
+		
+		! copy the subM space to subMp space ; only big matrix
+		if(logic_perturbation/=0) then
+			call pre_perturbation('R','big')
+		end if
+
 		call Store_Operator('R')
 !============================================================
 
@@ -181,8 +205,19 @@ subroutine Infinit_MPS
 	! caution here may be some problem ? because the right space using the
 	! last step operamatbig quantabigR and so on HbigR
 		call ConstructOnesiteMatrix(nleft+1)
-		call System_Big('L')
-		call System_Constructquanta('L')
+		
+		call System_Big('L',operamatsma1,smacolindex1,smarowindex1,&
+			operamatbig1,bigcolindex1,bigrowindex1,&
+			Hsma,Hsmacolindex,Hsmarowindex,&
+			Hbig,Hbigcolindex,Hbigrowindex,&
+			quantasmaL,quantasmaR,&
+			Lrealdim,subM,.false.)
+		call System_Constructquanta('L',Lrealdim,quantabigL(1:4*Lrealdim,1:2),quantasmaL(1:Lrealdim,1:2))
+		
+		if(logic_perturbation/=0) then
+			call pre_perturbation('L','big')
+		end if
+		
 		call Store_Operator('L')
 		logic_C2=0
 		call Hamiltonian('i')

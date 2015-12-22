@@ -44,8 +44,8 @@ module variables
 	integer(kind=i4),allocatable :: treelink(:,:)  ! treelink information
 
 	integer(kind=i4),parameter :: &
-	logic_bondorder= 2   , &    ! if calculate bond order
-	logic_localspin= 1          ! if calculate local spin
+	logic_bondorder= 0   , &    ! if calculate bond order
+	logic_localspin= 0          ! if calculate local spin
 	character(len=20) :: diagmethod  ! the diagonalization method
 !=========================================================
 	
@@ -61,16 +61,20 @@ module variables
 	integer(kind=i4) :: exscheme         ! target excited state scheme
 	integer(kind=i4) :: &
 	subM , &                             ! DMRG subspace M 
+	subMp, &                             ! the perturbation space M
 	sweeps , &                           ! finite DMRG sweeps
 	exactsite , &                        ! the number of exact discrible sites
 	isweep                               ! the at present isweep
 	real(kind=r8) :: energythresh,&        ! energy convegence threshold in the middle of every sweep
 	                 hopthresh
 	real(kind=r8),allocatable :: sweepenergy(:,:)  ! store every sweep energy in the middle
-	integer(kind=i4) :: Lrealdim,Rrealdim   ! L/R space real dimension
+	integer(kind=i4) :: Lrealdim,Rrealdim , &  ! L/R space real dimension
+		              Lrealdimp,Rrealdimp    ! L/R space perturbation space dimension
 	integer(kind=i4) :: nleft,nright        ! L/R space site number L+sigmaL+sigmaR+R
 	integer(kind=i4) :: ngoodstates         ! the number of basis fullfill the good quantum number
 
+	logical :: IfOpenperturbation   ! control the perturbation
+	integer :: logic_perturbation   ! if do perturbation in sweep
 !=========================================================
 
 	! Hamiltonian part
@@ -83,7 +87,11 @@ module variables
 	quantasmaL(:,:) , &           ! L space good quantum number (N and Sz)in M basis
 	quantasmaR(:,:) , &           ! R space good quantum number (N and Sz)in M basis
 	quantabigL(:,:) , &           ! L space good quantum number (N and Sz)in 4M basis
-	quantabigR(:,:)               ! R space good quantum number (N and Sz)in 4M basis
+	quantabigR(:,:) , &           ! R space good quantum number (N and Sz)in 4M basis
+	quantasmaLp(:,:) , &          ! perturbation mode : L space good quantum number (N and Sz)in M basis
+	quantasmaRp(:,:) , &          ! perturbation mode : R space good quantum number (N and Sz)in M basis
+	quantabigLp(:,:) , &          ! perturbation mode : L space good quantum number (N and Sz)in 4M basis
+	quantabigRp(:,:)              ! perturbation mode : R space good quantum number (N and Sz)in 4M basis
 
 !============================================================
 

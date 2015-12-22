@@ -637,4 +637,55 @@ end subroutine SpMMtrace
 
 !=============================================
 !=============================================
+
+subroutine GetSpmat1Vec(dim1,index1,first,last,Amat,Acol,Arow,direction,vecdim,vector)
+! this subroutine get the one row or one column of a sparse matrix
+! dim1 :: the dimensiton of matrix A
+! index1 :: the specific col/row index
+! first/last :: the first/last element index of such row and col
+! Amat,Acol,Arow
+! direction :: row/col
+! vecdim,vector :: store vector
+
+	implicit none
+
+	integer :: dim1,vecdim,index1,first,last
+	character(len=3) :: direction
+	integer(kind=i4) :: Arow(dim1+1),Acol(Arow(dim1+1)-1)
+	real(kind=r8) :: Amat(Arow(dim1+1)-1),vector(vecdim)
+	
+	integer :: i,j
+	
+	if(vecdim/=last-first+1) then
+		write(*,*) "GetSpmat1Vec dim1/=last-first+1",dim1,last,first
+		stop
+	end if
+
+	vector=0.0D0
+	if(direction=="col") then
+		do i=first,last,1
+			do j=Arow(i),Arow(i+1)-1,1
+				if(Acol(j)>index1) then
+					exit
+				else if(Acol(j)==index1) then
+					vector(i-first+1)=Amat(j)
+					exit
+				end if
+			end do
+		end do
+	else if(direction=="row") then
+		do i=Arow(index1),Arow(index1+1)-1,1
+			if(Acol(i)>=first .and. Acol(i)<=last) then
+				vector(Acol(i)-first+1)=Amat(i)
+			end if
+		end do
+	else
+		write(*,*) "direction=",direction,"failed!"
+	end if
+return
+
+end subroutine GetSpmat1Vec
+
+!=============================================
+!=============================================
 end module MathLib

@@ -1,4 +1,4 @@
-subroutine selectstates(valuework,dim1,valueindex,singularvalue,&
+subroutine selectstates(valuework,svdfulldim,valueindex,singularvalue,getsvddim,&
 		subspacenum,syssite,szzero,szl0)
 	
 	use variables
@@ -6,24 +6,26 @@ subroutine selectstates(valuework,dim1,valueindex,singularvalue,&
 	use communicate
 
 	implicit none
-	integer :: dim1
-	integer :: szzero,szl0
-	real(kind=r8) :: valuework(dim1),singularvalue(subM)
-	integer :: valueindex(subM)
+	integer,intent(in) :: svdfulldim,getsvddim
+	integer,intent(in) :: szzero,szl0
+	real(kind=r8),intent(in) :: valuework(svdfulldim)
+	real(kind=r8),intent(out) :: singularvalue(getsvddim)
+	integer,intent(out) :: valueindex(getsvddim)
+	integer,intent(in) :: syssite,subspacenum((syssite*2+1)*(syssite*2+3)+1)
+
+	! local
 	real(kind=r8) :: percent
 	integer :: i,j,m,k
-	integer :: directly,syssite
+	integer :: directly
 	! directly is the num of states we have selected
-	integer :: subspacenum((syssite*2+1)*(syssite*2+3)+1)
 	logical :: noequal,done,ifexist,iffind
 
 	write(*,*) "enter in selectstates subroutine!"
 	
-	if(dim1<subM) then
-		call master_print_message(dim1,"dim1<subM")
-		stop
+	if(svdfulldim<getsvddim) then
+		write(*,*) svdfulldim,getsvddim,"svdfulldim<getsvddim"
 	end if
-
+	
 	singularvalue=-1.0D0
 	valueindex=0
 
@@ -50,7 +52,7 @@ subroutine selectstates(valuework,dim1,valueindex,singularvalue,&
 
 	if(logic_spinreversal==0) then
 		
-		do i=1,dim1,1
+		do i=1,svdfulldim,1
 			do j=1,directly,1
 				if(valuework(i)>singularvalue(j)) then
 					valueindex(j+1:directly)=valueindex(j:directly-1)
@@ -175,7 +177,7 @@ subroutine selectstates(valuework,dim1,valueindex,singularvalue,&
 			end if
 		end if
 	end if
-
+	
 	! check if every valueindex is not 0
 	do i=1,subM,1
 		if(valueindex(i)==0) then
@@ -183,6 +185,30 @@ subroutine selectstates(valuework,dim1,valueindex,singularvalue,&
 			stop
 		end if
 	end do
+
+	! in the perturbation mode
+	if(getsvddim>subM .and. svdfulldim>subM) then
+		do i=1,svdfulldim,1
+			ifexist=.false.
+			do j=1,subM,1
+				if(valueindex(j)==i) then
+					ifexist=.true.
+					exit
+				end if
+			end do
+			if(ifexist==.false.) then
+				do j=subM+1,getsvddim,1
+					if(valuework(i)>singularvalue(j)) then
+						valueindex(j+1:getsvddim)=valueindex(j:getsvddim-1)
+						singularvalue(j+1:getsvddim)=singularvalue(j:getsvddim-1)
+						valueindex(j)=i
+						singularvalue(j)=valuework(i)
+						exit
+					end if
+				end do
+			end if
+		end do
+	end if
 return
 
 end subroutine selectstates

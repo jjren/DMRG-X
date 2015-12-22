@@ -1,4 +1,8 @@
-subroutine SplitSVD_direct(istate,leftu,rightv,singularvalue)
+subroutine SplitSVD_direct(iLrealdim,iRrealdim,LRcoeff,&
+lsvddim,rsvddim,svdvaluedim,&
+leftu,rightv,singularvalue,cap_quantabigL,cap_quantabigR,&
+cap_quantasmaL,cap_quantasmaR)
+
 ! this subroutine is to do svd directly from the coeffC
 ! only can be used in the single state case
 	use kinds_mod
@@ -8,17 +12,20 @@ subroutine SplitSVD_direct(istate,leftu,rightv,singularvalue)
 	use blas95
 	use lapack95
 	use f95_precision
-	
+
 	implicit none
 	
-	integer :: istate
-	real(kind=r8) :: leftu(4*Lrealdim,subM),rightv(subM,4*Rrealdim),&
-	singularvalue(subM)
+	integer,intent(in) :: iLrealdim,iRrealdim
+	real(kind=r8),intent(inout) :: LRcoeff(4*iLrealdim,4*iRrealdim)
+	integer,intent(inout) :: lsvddim,rsvddim,svdvaluedim
+	integer(kind=i4),intent(in) :: cap_quantabigL(4*iLrealdim,2),cap_quantabigR(4*iRrealdim,2)
+	integer(kind=i4),intent(out) :: cap_quantasmaL(lsvddim,2),cap_quantasmaR(rsvddim,2)
+	real(kind=r8),intent(out) :: leftu(4*iLrealdim,lsvddim),rightv(rsvddim,4*iRrealdim),&
+	singularvalue(svdvaluedim)
+	! svdvaluedim :: the maxmun number of svd value
 
 	! local
-	integer :: job(8)
 	real(kind=r8),allocatable :: &
-		LRcoeff(:,:)        , &
 		leftufull(:,:)      , &
 		rightvfull(:,:)     , &
 		svaluefull(:)       , &
@@ -39,65 +46,46 @@ subroutine SplitSVD_direct(istate,leftu,rightv,singularvalue)
 		valueindex(:)      , &
 		subspacenum(:)
 	integer :: error,info,tmp
-	integer :: lp,ls,rp,rs,i,j,q,smadim,rhimp1,lhimp1
+	integer :: lp,ls,rp,rs,i,j,q,smadim,rhimp1,lhimp1,mm
 	integer :: mv,nv,ml,nl,mr,nr,phase,szl0,szzero
 	real(kind=r8) :: discard
 
 	integer :: ibegin,iend
 	real(kind=8) :: scale1,sum1
+	integer :: nleftulast,nrightvlast,nleftulast2,nrightvlast2,dim1
 
 	call master_print_message("enter in subroutine SplitSVD_direct")
+	
+	! no singular value basis
+	nleftulast=0
+	nrightvlast=0
+	nleftulast2=0
+	nrightvlast2=0
 
-	allocate(LRcoeff(4*Lrealdim,4*Rrealdim),stat=error)
-	if(error/=0) stop
-	allocate(leftufull(4*Lrealdim,4*Lrealdim),stat=error)
-	if(error/=0) stop
+	allocate(leftufull(4*iLrealdim,4*iLrealdim))
 	leftufull=0.0D0
-	allocate(rightvfull(4*Rrealdim,4*Rrealdim),stat=error)
-	if(error/=0) stop
+	allocate(rightvfull(4*iRrealdim,4*iRrealdim))
 	rightvfull=0.0D0
-	allocate(svaluefull(4*Lrealdim),stat=error)
-	if(error/=0) stop
+	allocate(svaluefull(min(4*iLrealdim,4*iRrealdim)))
 	svaluefull=0.0D0
-	allocate(ww(4*Lrealdim-1),stat=error)
-	if(error/=0) stop
-	allocate(quantabigLbuf(4*Lrealdim,2),stat=error)
-	if(error/=0) stop
-	allocate(quantabigRbuf(4*Rrealdim,2),stat=error)
-	if(error/=0) stop
-	allocate(symmlinkLbuf(4*Lrealdim),stat=error)
-	if(error/=0) stop
-	allocate(symmlinkRbuf(4*Rrealdim),stat=error)
-	if(error/=0) stop
-	allocate(lindex(4*Lrealdim),stat=error)
-	if(error/=0) stop
-	allocate(rindex(4*Rrealdim),stat=error)
-	if(error/=0) stop
-	allocate(valueindex(subM),stat=error)
-	if(error/=0) stop
+	allocate(ww(4*iLrealdim-1))
+	allocate(quantabigLbuf(4*iLrealdim,2))
+	allocate(quantabigRbuf(4*iRrealdim,2))
+	allocate(symmlinkLbuf(4*iLrealdim))
+	allocate(symmlinkRbuf(4*iRrealdim))
+	allocate(lindex(4*iLrealdim))
+	allocate(rindex(4*iRrealdim))
+	allocate(valueindex(svdvaluedim))
 	valueindex=0
-	allocate(subspacenum((2*nleft+3)*(2*nleft+3)+1),stat=error)
-	if(error/=0) stop
+	allocate(subspacenum((2*nleft+3)*(2*nleft+3)+1))
 	subspacenum=0
 
-	! recover coeffIF to its dense format
-	job(1)=1
-	job(2)=1
-	job(3)=1
-	job(4)=2
-	job(5)=0
-	job(6)=1
-	call mkl_ddnscsr(job,4*Lrealdim,4*Rrealdim,LRcoeff(:,:),4*Lrealdim,coeffIF(:,istate),coeffIFcolindex(:,istate),coeffIFrowindex(:,istate),info)
-	if(info/=0) then
-		call master_print_message(info,"MoreInitFinite info/=")
-		stop
-	end if
 	
 	! record the basis index
-	do i=1,4*Lrealdim,1
+	do i=1,4*iLrealdim,1
 		lindex(i)=i
 	end do
-	do j=1,4*Rrealdim,1
+	do j=1,4*iRrealdim,1
 		rindex(j)=j
 	end do
 
@@ -109,9 +97,19 @@ subroutine SplitSVD_direct(istate,leftu,rightv,singularvalue)
 	ml=0  ! the total number of basis have counted
 	mr=0
 	mv=0  ! singular value have counted
+	
+	! check
+	do i=1,iRrealdim*4,1
+		if(cap_quantabigR(i,1)<0 .or. cap_quantabigR(i,1)>2*norbs .or. &
+		cap_quantabigR(i,2)<-norbs .or. cap_quantabigR(i,2)>norbs)  then
+			write(*,*) cap_quantabigR(i,1:2)
+			stop
+		end if
+	end do
 
 	! Sz loop
 	do ls=nleft+1,-(nleft+1),-1
+!	do ls=norbs,-norbs,-1
 
 		! the Sz>0 rotate matrix is the same as Sz<0 rotatematrix; only need copy
 		if(logic_spinreversal/=0 .and. ls<0) then
@@ -119,6 +117,7 @@ subroutine SplitSVD_direct(istate,leftu,rightv,singularvalue)
 		end if
 
 		do lp=0,2*(nleft+1),1
+	!	do lp=0,norbs*2,1
 		
 			! define R space sz and np
 			rs=totalSz-ls
@@ -126,8 +125,8 @@ subroutine SplitSVD_direct(istate,leftu,rightv,singularvalue)
 			
 			! L space sweep
 			nl=ml+1
-			do i=nl,4*Lrealdim,1
-				if(quantabigL(lindex(i),1)==lp .and. quantabigL(lindex(i),2)==ls) then
+			do i=nl,4*iLrealdim,1
+				if(cap_quantabigL(lindex(i),1)==lp .and. cap_quantabigL(lindex(i),2)==ls) then
 					ml=ml+1
 					call swap(LRcoeff(ml,:),LRcoeff(i,:))
 					tmp=lindex(ml)
@@ -138,8 +137,8 @@ subroutine SplitSVD_direct(istate,leftu,rightv,singularvalue)
 			
 			! R space sweep
 			nr=mr+1  
-			do j=nr,4*Rrealdim,1
-				if(quantabigR(rindex(j),1)==rp .and. quantabigR(rindex(j),2)==rs) then
+			do j=nr,4*iRrealdim,1
+				if(cap_quantabigR(rindex(j),1)==rp .and. cap_quantabigR(rindex(j),2)==rs) then
 					mr=mr+1
 					call swap(LRcoeff(:,mr),LRcoeff(:,j))
 					tmp=rindex(mr)
@@ -150,8 +149,10 @@ subroutine SplitSVD_direct(istate,leftu,rightv,singularvalue)
 			
 			nv=mv+1
 			! this subgroup have basis
+			
+			if(mr/=nr-1 .or. ml/=nl-1) then
+			
 			if(mr/=nr-1 .and. ml/=nl-1) then
-				
 				! ls=0 is very special in spin reversal symmetry
 				if(logic_spinreversal/=0 .and. ls==0) then
 					
@@ -175,8 +176,8 @@ subroutine SplitSVD_direct(istate,leftu,rightv,singularvalue)
 					call gemm(LRcoeff(nl:ml,nr:mr),transformR(nr:mr,nr:mr),midmat,'N','N',1.0D0,0.0D0)
 					call gemm(transformL(nl:ml,nl:ml),midmat,LRcoeff(nl:ml,nr:mr),'T','N',1.0D0,0.0D0)
 					
-					call Sz0Swap(nl,ml,1,1,lindex(nl:ml),LRcoeff,transformL(nl:ml,nl:ml),lhimp1)
-					call Sz0Swap(nr,mr,2,phase,rindex(nr:mr),LRcoeff,transformR(nr:mr,nr:mr),rhimp1)
+					call Sz0Swap(iLrealdim,iRrealdim,nl,ml,1,1,lindex(nl:ml),LRcoeff,transformL(nl:ml,nl:ml),lhimp1)
+					call Sz0Swap(iLrealdim,iRrealdim,nr,mr,2,phase,rindex(nr:mr),LRcoeff,transformR(nr:mr,nr:mr),rhimp1)
 					
 					! gesvd sigular value is the descending order
 					if(lhimp1/=nl-1 .and. rhimp1/=nr-1) then
@@ -232,9 +233,24 @@ subroutine SplitSVD_direct(istate,leftu,rightv,singularvalue)
 				else
 					! gesvd sigular value is the descending order
 					smadim=min(mr-nr+1,ml-nl+1)
-					call gesvd(LRcoeff(nl:ml,nr:mr),svaluefull(mv+1:mv+smadim),leftufull(nl:ml,mv+1:mv+smadim),rightvfull(mv+1:mv+smadim,nr:mr),ww,'N',info)
-					if(info/=0) then
-						write(*,*) "SVD failed!",info,lp,ls
+					if(ifopenperturbation==.false.) then
+						call gesvd(LRcoeff(nl:ml,nr:mr),svaluefull(mv+1:mv+smadim),leftufull(nl:ml,mv+1:mv+smadim),rightvfull(mv+1:mv+smadim,nr:mr),ww,'N',info)
+					!	write(*,*) "svd=",svaluefull(mv+1:mv+smadim)
+					else
+						call gesvd(LRcoeff(nl:ml,nr:mr),svaluefull(mv+1:mv+smadim),leftufull(nl:ml,mv+1:mv+ml-nl+1),rightvfull(mv+1:mv+mr-nr+1,nr:mr),ww,'N',info)
+					!	write(*,*) "svd2=",svaluefull(mv+1:mv+smadim)
+						if(info/=0) then
+							write(*,*) "SVD failed!",info,lp,ls
+						end if
+						if(ml-nl+1>smadim) then
+							leftufull(nl:ml,4*iLrealdim-nleftulast-(ml-nl+1-smadim)+1:4*iLrealdim-nleftulast)=leftufull(nl:ml,mv+smadim+1:mv+ml-nl+1)
+							leftufull(nl:ml,mv+smadim+1:mv+ml-nl+1)=0.0D0
+							nleftulast2=nleftulast+ml-nl+1-smadim
+						else if(mr-nr+1>smadim) then
+							rightvfull(4*iRrealdim-nrightvlast-(mr-nr+1-smadim)+1:4*iRrealdim-nrightvlast,nr:mr)=rightvfull(mv+smadim+1:mv+mr-nr+1,nr:mr)
+							rightvfull(mv+smadim+1:mv+mr-nr+1,nr:mr)=0.0D0
+							nrightvlast2=nrightvlast+mr-nr+1-smadim
+						end if
 					end if
 					mv=mv+smadim
 				end if
@@ -243,8 +259,8 @@ subroutine SplitSVD_direct(istate,leftu,rightv,singularvalue)
 					! shift the singular value if realnelecs/=norbs
 					! get more large electron basis
 				!	if((lp>=nleft+1 .and. lp<=nleft+2) .and. nelecs<realnelecs) then
-				!		svaluefull(nv:mv)=svaluefull(nv:mv)+sqrt(1.0D0/DBLE(subM))
-				!		write(*,*) "shift=",sqrt(1.0D0/4.0D0/DBLE(subM))
+				!		svaluefull(nv:mv)=svaluefull(nv:mv)+sqrt(1.0D0/DBLE(isubM))
+				!		write(*,*) "shift=",sqrt(1.0D0/4.0D0/DBLE(isubM))
 				!		write(*,*) svaluefull(nv:mv)
 				!	end if
 					! set quanta number
@@ -272,12 +288,64 @@ subroutine SplitSVD_direct(istate,leftu,rightv,singularvalue)
 					midmat4=rightvfull(nv:mv,nr:mr)
 					rightvfull(nv:mv,nr:mr)=0.0D0
 					do j=nr,mr,1
-						call swap(midmat4(nv:mv,j),rightvfull(nv:mv,rindex(j)))
+						call copy(midmat4(nv:mv,j),rightvfull(nv:mv,rindex(j)))
+					end do
+					deallocate(midmat4)
+				else
+					write(*,*) "mv=nv-1"
+				end if
+			else
+			!	write(*,*) "ml/=nl-1 .or. mr/=nr-1 case"
+				if(ml/=nl-1) then
+					leftufull(nl:ml,4*iLrealdim-nleftulast-(ml-nl+1)+1:4*iLrealdim-nleftulast)=0.0D0
+					do mm=nl,ml,1
+						leftufull(mm,4*iLrealdim-nleftulast-(ml-mm+1)+1)=1.0D0
+					end do
+					nleftulast2=nleftulast+ml-nl+1
+				else if(mr/=nr-1) then
+					rightvfull(4*iRrealdim-nrightvlast-(mr-nr+1)+1:4*iRrealdim-nrightvlast,nr:mr)=0.0D0
+					do mm=nr,mr,1
+						rightvfull(4*iRrealdim-nrightvlast-(mr-mm+1)+1,mm)=1.0D0
+					end do
+					nrightvlast2=nrightvlast+mr-nr+1
+				end if
+			end if
+
+				if(ifopenperturbation==.true.) then
+				if(nleftulast2>nleftulast) then
+					! set quanta number
+					quantabigLbuf(4*iLrealdim-nleftulast2+1:4*iLrealdim-nleftulast,1)=lp
+					quantabigLbuf(4*iLrealdim-nleftulast2+1:4*iLrealdim-nleftulast,2)=ls
+
+					allocate(midmat4(nl:ml,4*iLrealdim-nleftulast2+1:4*iLrealdim-nleftulast))
+					midmat4=leftufull(nl:ml,4*iLrealdim-nleftulast2+1:4*iLrealdim-nleftulast)
+					leftufull(nl:ml,4*iLrealdim-nleftulast2+1:4*iLrealdim-nleftulast)=0.0D0
+					do i=nl,ml,1
+						call copy(midmat4(i,4*iLrealdim-nleftulast2+1:4*iLrealdim-nleftulast),leftufull(lindex(i),4*iLrealdim-nleftulast2+1:4*iLrealdim-nleftulast))
 					end do
 					deallocate(midmat4)
 				end if
+				if(nrightvlast2>nrightvlast) then
+					quantabigRbuf(4*iRrealdim-nrightvlast2+1:4*iRrealdim-nrightvlast,1)=rp
+					quantabigRbuf(4*iRrealdim-nrightvlast2+1:4*iRrealdim-nrightvlast,2)=rs
+
+					allocate(midmat4(4*iRrealdim-nrightvlast2+1:4*iRrealdim-nrightvlast,nr:mr))
+					midmat4=rightvfull(4*iRrealdim-nrightvlast2+1:4*iRrealdim-nrightvlast,nr:mr)
+					rightvfull(4*iRrealdim-nrightvlast2+1:4*iRrealdim-nrightvlast,nr:mr)=0.0D0
+					do j=nr,mr,1
+						call copy(midmat4(4*iRrealdim-nrightvlast2+1:4*iRrealdim-nrightvlast,j),rightvfull(4*iRrealdim-nrightvlast2+1:4*iRrealdim-nrightvlast,rindex(j)))
+					end do
+					deallocate(midmat4)
+				end if
+				end if
 			end if
+
+			nleftulast=nleftulast2
+			nrightvlast=nrightvlast2
+		!	write(*,*) "mv=",mv,"ml=",ml,"mr=",mr
+		!	write(*,*) "nleftulast=",nleftulast,"nrightvlast=",nrightvlast
 		end do
+		
 
 		if(ls>0) then
 			szl0=mv  ! store the number of Sz>0 Renormalized basis
@@ -285,14 +353,16 @@ subroutine SplitSVD_direct(istate,leftu,rightv,singularvalue)
 			szzero=mv-szl0  ! store the number of Sz=0 Renormalized basis  
 		end if
 	end do
-
-	write(*,*) "szl0=",szl0,"szzero=",szzero
+	
+!	write(*,*) "mv=",mv,"ml=",ml,"mr=",mr
+	write(*,*) "szl0=",szl0,"szzero=",szzero,"mv=",mv
+	write(*,*) "nleftulast=",nleftulast,"nrightvlast=",nrightvlast
 
 ! copy the Sz>0 part and Sz=0(symmetry pair is not himself) to the symmetry pair
 
 	if(logic_spinreversal/=0) then
-		do i=1,4*Lrealdim,1
-			if(quantabigL(i,2)>0) then
+		do i=1,4*iLrealdim,1
+			if(cap_quantabigL(i,2)>0) then
 				! transfer every -1 link to 1 link
 				leftufull(abs(symmlinkbig(i,1,1)),szl0+szzero+1:szl0*2+szzero)=leftufull(i,1:szl0)*DBLE(sign(1,symmlinkbig(i,1,1)))
 			end if
@@ -300,8 +370,8 @@ subroutine SplitSVD_direct(istate,leftu,rightv,singularvalue)
 		quantabigLbuf(szl0+szzero+1:2*szl0+szzero,1)=quantabigLbuf(1:szl0,1)
 		quantabigLbuf(szl0+szzero+1:2*szl0+szzero,2)=-1*quantabigLbuf(1:szl0,2)
 		
-		do i=1,4*Rrealdim,1
-			if(quantabigR(i,2)<0) then
+		do i=1,4*iRrealdim,1
+			if(cap_quantabigR(i,2)<0) then
 				! transfer every -1 link to 1 link according to phase
 				! maybe some problem here
 				rightvfull(szl0+szzero+1:szl0*2+szzero,abs(symmlinkbig(i,1,2)))=rightvfull(1:szl0,i)*DBLE(sign(1,symmlinkbig(i,1,2))*phase)
@@ -330,19 +400,26 @@ subroutine SplitSVD_direct(istate,leftu,rightv,singularvalue)
 !			! no problem in the select states
 !		end do
 !	end if
-
+	write(*,*) "sum of total singular value:", sum(svaluefull*svaluefull)
+	
+	dim1=min(mv,svdvaluedim)
+	
 	if(logic_spinreversal/=0) then
-		call selectstates(svaluefull,szl0*2+szzero,valueindex,singularvalue,subspacenum,nleft,szzero,szl0)
+		call selectstates(svaluefull,szl0*2+szzero,valueindex,singularvalue,svdvaluedim,subspacenum,nleft,szzero,szl0)
 	else
-		call selectstates(svaluefull,mv,valueindex,singularvalue,subspacenum,nleft,szzero,szl0)
+		call selectstates(svaluefull,mv,valueindex,singularvalue,dim1,subspacenum,nleft,szzero,szl0)
 	end if
 
 	singularvalue=singularvalue*singularvalue
 
-
 !------------------------------------------------------------------------
+	! mv : exact get svd value number
+	! svdvaluedim : min(4*iLrealdim,4*iRrealdim,isubM)
+	! dim1 : exact stored svd value number and index number
+
+
 	! check if the valueindex is right
-	do i=1,subM,1
+	do i=1,dim1,1
 		if(valueindex(i)==0) then
 			write(*,*) "----------------------------------"
 			write(*,*) "splitsvd valueindex(i)==0",i
@@ -350,8 +427,8 @@ subroutine SplitSVD_direct(istate,leftu,rightv,singularvalue)
 			stop
 		end if
 	end do
-	do i=1,subM,1
-		do j=i+1,subM,1
+	do i=1,dim1,1
+		do j=i+1,dim1,1
 			if(valueindex(i)==valueindex(j)) then
 				write(*,*) "----------------------------------"
 				write(*,*) "splitsvd valueindex(i)=valueindex(j)",i,j,valueindex(i)
@@ -361,19 +438,34 @@ subroutine SplitSVD_direct(istate,leftu,rightv,singularvalue)
 		end do
 	end do
 !------------------------------------------------------------------------
+	if(ifopenperturbation==.true.) then
+		lsvddim=min(dim1+nleftulast,lsvddim)
+		rsvddim=min(dim1+nrightvlast,rsvddim)
+	end if
 
 	! copy the leftufull and rightvfull to the U/V according to the valueindex
 	! write(*,*) "L space nelecs"
-	do i=1,subM,1
-		call copy(leftufull(:,valueindex(i)),leftu(:,i))
-		quantasmaL(i,:)=quantabigLbuf(valueindex(i),:)
-	!	write(*,*) quantasmaL(i,1)
+	do i=1,lsvddim,1
+		if(i<=dim1) then
+			call copy(leftufull(:,valueindex(i)),leftu(:,i))
+			cap_quantasmaL(i,:)=quantabigLbuf(valueindex(i),:)
+		!	write(*,*) cap_quantasmaL(i,1)
+		else
+			call copy(leftufull(:,4*iLrealdim-(i-dim1)+1),leftu(:,i))
+			cap_quantasmaL(i,:)=quantabigLbuf(4*iLrealdim-(i-dim1)+1,:)
+		end if
 	end do
+
 	! write(*,*) "R space nelecs"
-	do i=1,subM,1
-		call copy(rightvfull(valueindex(i),:),rightv(i,:))
-		quantasmaR(i,:)=quantabigRbuf(valueindex(i),:)
-	!	write(*,*) quantasmaR(i,1)
+	do i=1,rsvddim,1
+		if(i<=dim1) then
+			call copy(rightvfull(valueindex(i),:),rightv(i,:))
+			cap_quantasmaR(i,:)=quantabigRbuf(valueindex(i),:)
+		!	write(*,*) cap_quantasmaR(i,1)
+		else
+			call copy(rightvfull(4*iRrealdim-(i-dim1)+1,:),rightv(i,:))
+			cap_quantasmaR(i,:)=quantabigRbuf(4*iRrealdim-(i-dim1)+1,:)
+		end if
 	end do
 
 	if(logic_spinreversal/=0) then
@@ -397,10 +489,9 @@ subroutine SplitSVD_direct(istate,leftu,rightv,singularvalue)
 		end do
 	end if
 
-	discard=1.0D0-sum(singularvalue)
+	discard=1.0D0-sum(singularvalue(1:dim1))
 	write(*,'(A20,D12.5)') "totaldiscard=",discard
 
-	deallocate(LRcoeff)
 	deallocate(leftufull,rightvfull,svaluefull)
 	deallocate(quantabigLbuf,quantabigRbuf)
 	deallocate(symmlinkLbuf,symmlinkRbuf)
@@ -413,18 +504,18 @@ return
 end subroutine splitsvd_direct
 
 
-subroutine Sz0swap(n,m,Hindex,phase,index1,LRcoeff,transform,himp1)
+subroutine Sz0swap(iLrealdim,iRrealdim,n,m,Hindex,phase,index1,LRcoeff,transform,himp1)
 	
-	use variables,only: Lrealdim,Rrealdim,symmlinkbig
+	use variables
 	use kinds_mod
 	use blas95
 	use f95_precision
 
 	implicit none
 	
-	integer :: n,m,Hindex,phase
+	integer :: n,m,Hindex,phase,iLrealdim,iRrealdim
 	integer :: index1(n:m)
-	real(kind=r8) :: LRcoeff(4*Lrealdim,4*Rrealdim),transform(n:m,n:m)
+	real(kind=r8) :: LRcoeff(4*iLrealdim,4*iRrealdim),transform(n:m,n:m)
 	integer :: himp1  ! output
 
 	! local

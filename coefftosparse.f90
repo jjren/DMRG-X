@@ -1,7 +1,7 @@
-subroutine coefftosparse(nrows,ncols,maxnelement,coeffmat,coeffmatcol,coeffmatrow,&
-	num,coeffnosymm)
+subroutine coefftosparse(maxnelement,coeffmat,coeffmatcol,coeffmatrow,&
+	num,coeffnosymm,iLrealdim,iRrealdim,cap_quantabigL,cap_quantabigR)
 ! this subroutine is to transfer the fortran column major coeff mat
-! like coeffnosymm( only ngoodstates number ) to CSR format
+! like coeffnosymm to CSR format
 ! the problem in that 
 ! CSR format and fortran's column major format not corresponds
 
@@ -10,29 +10,15 @@ subroutine coefftosparse(nrows,ncols,maxnelement,coeffmat,coeffmatcol,coeffmatro
 	use mathlib
 	implicit none
 	
-	integer :: num,nrows,ncols,maxnelement
+	integer,intent(in) :: iLrealdim,iRrealdim,cap_quantabigL(4*iLrealdim,2),cap_quantabigR(4*iRrealdim,2)
+	integer :: num,maxnelement
 	real(kind=r8) :: coeffnosymm(num),coeffmat(maxnelement)
-	integer(kind=i4) :: coeffmatrow(nrows+1),coeffmatcol(maxnelement)
+	integer(kind=i4) :: coeffmatrow(4*iLrealdim+1),coeffmatcol(maxnelement)
 
 	! local
 	integer(kind=i4),allocatable :: coeffrowdummy(:)
 	integer :: error
 	integer :: m,i,j
-
-	if(nrows/=4*Lrealdim .or. ncols/=4*Rrealdim) then
-		write(*,*) "==============================================="
-		write(*,*) "coefftosparse subroutine nrows/=4*Lrealdim &
-		ncols/=4*Rrealdim",nrows,ncols,4*Lrealdim,4*Rrealdim
-		write(*,*) "==============================================="
-		stop
-	end if
-
-	if(num/=ngoodstates) then
-		write(*,*) "==============================="
-		write(*,*) "coefftosparse num/=ngoodstates",num,ngoodstates
-		write(*,*) "==============================="
-		stop
-	end if
 
 	if(maxnelement<num) then
 		write(*,*) "==============================="
@@ -42,17 +28,17 @@ subroutine coefftosparse(nrows,ncols,maxnelement,coeffmat,coeffmatcol,coeffmatro
 	end if
 
 
-	allocate(coeffrowdummy(4*Rrealdim+1),stat=error)
+	allocate(coeffrowdummy(4*iRrealdim+1),stat=error)
 	if(error/=0) stop
 
 	! in the CSC form
 	m=0
 	coeffrowdummy(1)=1
 
-	do i=1,4*Rrealdim,1
-	do j=1,4*Lrealdim,1
-		if((quantabigL(j,1)+quantabigR(i,1)==nelecs) .and. &
-			quantabigL(j,2)+quantabigR(i,2)==totalSz) then
+	do i=1,4*iRrealdim,1
+	do j=1,4*iLrealdim,1
+		if((cap_quantabigL(j,1)+cap_quantabigR(i,1)==nelecs) .and. &
+			cap_quantabigL(j,2)+cap_quantabigR(i,2)==totalSz) then
 			m=m+1
 			coeffmat(m)=coeffnosymm(m)
 			coeffmatcol(m)=j
@@ -62,7 +48,7 @@ subroutine coefftosparse(nrows,ncols,maxnelement,coeffmat,coeffmatcol,coeffmatro
 	end do
 
 	! CSC transfer to CSR form
-	call CSCtoCSR('CR',4*Lrealdim,4*Rrealdim,coeffmat,coeffmatcol,coeffrowdummy,coeffmatrow)
+	call CSCtoCSR('CR',4*iLrealdim,4*iRrealdim,coeffmat,coeffmatcol,coeffrowdummy,coeffmatrow)
 
 	deallocate(coeffrowdummy)
 

@@ -1,4 +1,16 @@
-Subroutine System_Big(domain)
+module Construct_System_Big
+
+contains
+!=================================================================
+!=================================================================
+
+Subroutine System_Big(domain,&
+cap_sma,cap_smacol,cap_smarow,&
+cap_big,cap_bigcol,cap_bigrow,&
+cap_Hsma,cap_Hsmacol,cap_Hsmarow,&
+cap_Hbig,cap_Hbigcol,cap_Hbigrow,&
+cap_quantasmaL,cap_quantasmaR,&
+LRdim,isubM,ifperturbation)
 
 ! construct the L+sigmaL/R+sigmaR subspace operator matrix in 4M basis
 ! two different conditions
@@ -18,17 +30,27 @@ Subroutine System_Big(domain)
 
 	implicit none
 
-	character(len=1) :: domain   !L/R
+	character(len=1),intent(in) :: domain   !L/R
+	real(kind=r8),intent(in) :: cap_sma(:,:),cap_Hsma(:,:)
+	real(kind=r8),intent(out) :: cap_big(:,:),cap_Hbig(:,:)
+	integer(kind=i4),intent(in) :: cap_smacol(:,:),cap_smarow(:,:),&
+		cap_Hsmacol(:,:),cap_Hsmarow(:,:),cap_quantasmaL(:,:),cap_quantasmaR(:,:)
+	integer(kind=i4),intent(out) :: cap_bigcol(:,:),cap_bigrow(:,:),&
+		cap_Hbigcol(:,:),cap_Hbigrow(:,:)
+	integer,intent(in) :: LRdim,isubM
+	logical,intent(in) :: ifperturbation
 	
 	! local
-	integer :: orbstart,orbend,orbadd,Hindex,dim1
+	integer :: orbstart,orbend,orbadd,Hindex
 	! orbstart is from 1 or norbs-nright+1
 	! orbend is nleft or norbs
 	! orbadd is nleft+1 or norbs-nright
 	! Hindex : HL/1 HR/2
+	integer :: iHbigdim ,& ! the biggest H dimension
+			ibigdim1
 	integer :: operaindex,operaindex2,operaindex3
-	real(kind=r8) :: II(4),IM(subM)
-	integer(kind=i4) :: IIrowindex(5),IIcolindex(4),IMrowindex(subM+1),IMcolindex(subM)
+	real(kind=r8) :: II(4),IM(isubM)
+	integer(kind=i4) :: IIrowindex(5),IIcolindex(4),IMrowindex(isubM+1),IMcolindex(isubM)
 
 	integer(kind=i4),allocatable :: phase(:)
 
@@ -51,13 +73,21 @@ Subroutine System_Big(domain)
 	integer :: ierr
 
 	call master_print_message("enter in subroutine system_big")
+	
+	! define the biggest H dimension
+	if(ifperturbation==.true.) then
+		iHbigdim=Hbigdimp
+		ibigdim1=bigdim1p
+	else
+		iHbigdim=Hbigdim
+		ibigdim1=bigdim1
+	end if
 
 ! set the parameters
 	if(domain=='L') then
 		orbstart=1
 		orbend=nleft
 		orbadd=nleft+1
-		dim1=Lrealdim
 		Hindex=1
 		if(nleft<=(norbs-1)/2) then
 			ifbondord=.true.
@@ -70,7 +100,6 @@ Subroutine System_Big(domain)
 		orbstart=norbs-nright+1
 		orbend=norbs
 		orbadd=norbs-nright
-		dim1=Rrealdim
 		Hindex=2
 		if(nright<=(norbs-2)/2) then
 			ifbondord=.true.
@@ -88,23 +117,25 @@ Subroutine System_Big(domain)
 	do i=orbstart,orbend,1
 		if(myid==orbid1(i,1)) then
 		! the intermediate H0mat matrix
-			allocate(Hbufmat(Hbigdim),stat=error)
+			allocate(Hbufmat(iHbigdim),stat=error)
 			if(error/=0) stop
-			allocate(Hbufrowindex(4*subM+1),stat=error)
+			allocate(Hbufrowindex(4*isubM+1),stat=error)
 			if(error/=0) stop
-			allocate(Hbufcolindex(Hbigdim),stat=error)
+			allocate(Hbufcolindex(iHbigdim),stat=error)
 			if(error/=0) stop
+			Hbufrowindex=1
 
 			! store the H0mat matrix
-			allocate(H0mat(Hbigdim),stat=error)
+			allocate(H0mat(iHbigdim),stat=error)
 			if(error/=0) stop
-			allocate(H0colindex(Hbigdim),stat=error)
+			allocate(H0colindex(iHbigdim),stat=error)
 			if(error/=0) stop
-			allocate(H0rowindex(4*subM+1),stat=error)
+			allocate(H0rowindex(4*isubM+1),stat=error)
 			if(error/=0) stop
+			H0rowindex=1
 			
 			! pack the H0mat matrix
-			packsize=Hbigdim*12+16*subM+1000
+			packsize=iHbigdim*12+16*isubM+1000
 			allocate(packbuf(packsize),stat=error) 
 			if(error/=0) stop
 			
@@ -113,38 +144,39 @@ Subroutine System_Big(domain)
 	end do
 
 	if(myid==0) then
-		allocate(H0mat(Hbigdim),stat=error)
+		allocate(H0mat(iHbigdim),stat=error)
 		if(error/=0) stop
-		allocate(H0colindex(Hbigdim),stat=error)
+		allocate(H0colindex(iHbigdim),stat=error)
 		if(error/=0) stop
-		allocate(H0rowindex(4*subM+1),stat=error)
+		allocate(H0rowindex(4*isubM+1),stat=error)
 		if(error/=0) stop
+		H0rowindex=1
 		! pack the H0mat matrix
-		packsize=Hbigdim*12+16*subM+1000
+		packsize=iHbigdim*12+16*isubM+1000
 		allocate(packbuf(packsize),stat=error) 
 		if(error/=0) stop
 	end if
 
 !==================================================================
 ! set phase value
-	allocate(phase(4*subM),stat=error)
+	allocate(phase(4*isubM),stat=error)
 	if(error/=0) stop
 	if(domain=='R' .and. logic_C2==0) then
-		phase(1:4*dim1:4)=1
-		phase(2:4*dim1:4)=-1
-		phase(3:4*dim1:4)=-1
-		phase(4:4*dim1:4)=1
+		phase(1:4*LRdim:4)=1
+		phase(2:4*LRdim:4)=-1
+		phase(3:4*LRdim:4)=-1
+		phase(4:4*LRdim:4)=1
 	else
-		do j=1,4*dim1,1
-			if(mod(j,dim1)==0) then
-				k=dim1
+		do j=1,4*LRdim,1
+			if(mod(j,LRdim)==0) then
+				k=LRdim
 			else
-				k=mod(j,dim1)
+				k=mod(j,LRdim)
 			end if
 			if(domain=='L') then
-				phase(j)=(-1)**(mod(quantasmaL(k,1),2))
+				phase(j)=(-1)**(mod(cap_quantasmaL(k,1),2))
 			else
-				phase(j)=(-1)**(mod(quantasmaR(k,1),2))
+				phase(j)=(-1)**(mod(cap_quantasmaR(k,1),2))
 			end if
 		end do
 	end if
@@ -157,11 +189,11 @@ Subroutine System_Big(domain)
 	end do
 	IIrowindex(5)=5
 	IM=1.0D0
-	do i=1,subM,1
+	do i=1,isubM,1
 		IMrowindex(i)=i
 		IMcolindex(i)=i
 	end do
-	IMrowindex(subM+1)=subM+1
+	IMrowindex(isubM+1)=isubM+1
 
 !=========================================================================
 	! calculate the hopping term and PPP term
@@ -177,16 +209,16 @@ Subroutine System_Big(domain)
 				operaindex=orbid1(i,2)*3-3+j
 				if(domain=='R' .and. logic_C2==0) then
 					call SparseDirectProduct(4,4,onesitemat(:,j+3),osmcolindex(:,j+3),osmrowindex(:,j+3),&
-									dim1,dim1,operamatsma1(:,operaindex),smacolindex1(:,operaindex),smarowindex1(:,operaindex),&
-									Hbufmat,Hbufcolindex,Hbufrowindex,Hbigdim)
-					do k=1,Hbufrowindex(4*dim1+1)-1,1
+									LRdim,LRdim,cap_sma(:,operaindex),cap_smacol(:,operaindex),cap_smarow(:,operaindex),&
+									Hbufmat,Hbufcolindex,Hbufrowindex,iHbigdim)
+					do k=1,Hbufrowindex(4*LRdim+1)-1,1
 						Hbufmat(k)=Hbufmat(k)*DBLE(phase(Hbufcolindex(k)))*(-1.0D0)
 					end do
 				else
-					call SparseDirectProduct(dim1,dim1,operamatsma1(:,operaindex),smacolindex1(:,operaindex),smarowindex1(:,operaindex),&
+					call SparseDirectProduct(LRdim,LRdim,cap_sma(:,operaindex),cap_smacol(:,operaindex),cap_smarow(:,operaindex),&
 									4,4,onesitemat(:,j+3),osmcolindex(:,j+3),osmrowindex(:,j+3),&
-									Hbufmat,Hbufcolindex,Hbufrowindex,Hbigdim)
-					do k=1,Hbufrowindex(4*dim1+1)-1,1
+									Hbufmat,Hbufcolindex,Hbufrowindex,iHbigdim)
+					do k=1,Hbufrowindex(4*LRdim+1)-1,1
 						Hbufmat(k)=Hbufmat(k)*DBLE(phase(Hbufcolindex(k)))
 					end do
 				end if
@@ -201,19 +233,19 @@ Subroutine System_Big(domain)
 						stop
 					end if
 					operaindex2=orbid2(i,orbadd,2)*2-2+j
-					bigrowindex2(1:4*dim1+1,operaindex2)=Hbufrowindex(1:4*dim1+1)
-					nnonzero=Hbufrowindex(4*dim1+1)-1
+					bigrowindex2(1:4*LRdim+1,operaindex2)=Hbufrowindex(1:4*LRdim+1)
+					nnonzero=Hbufrowindex(4*LRdim+1)-1
 					bigcolindex2(1:nnonzero,operaindex2)=Hbufcolindex(1:nnonzero)
 					operamatbig2(1:nnonzero,operaindex2)=Hbufmat(1:nnonzero)
 				end if
 				!======================================================================
 
 				! ai^+*aj
-				call SpmatAdd(4*dim1,4*dim1,H0mat,H0colindex,H0rowindex,&
-				'N',t(i,orbadd),4*dim1,4*dim1,Hbufmat,Hbufcolindex,Hbufrowindex,Hbigdim)
+				call SpmatAdd(4*LRdim,4*LRdim,H0mat,H0colindex,H0rowindex,&
+				'N',t(i,orbadd),4*LRdim,4*LRdim,Hbufmat,Hbufcolindex,Hbufrowindex,iHbigdim)
 				! aj^+*ai
-				call SpmatAdd(4*dim1,4*dim1,H0mat,H0colindex,H0rowindex,&
-				'T',t(i,orbadd),4*dim1,4*dim1,Hbufmat,Hbufcolindex,Hbufrowindex,Hbigdim)
+				call SpmatAdd(4*LRdim,4*LRdim,H0mat,H0colindex,H0rowindex,&
+				'T',t(i,orbadd),4*LRdim,4*LRdim,Hbufmat,Hbufcolindex,Hbufrowindex,iHbigdim)
 			end do
 		end if
 
@@ -222,16 +254,15 @@ Subroutine System_Big(domain)
 		operaindex=orbid1(i,2)*3
 		if(domain=='R' .and. logic_C2==0) then
 			call SparseDirectProduct(4,4,onesitemat(:,3),osmcolindex(:,3),osmrowindex(:,3),&
-							dim1,dim1,operamatsma1(:,operaindex),smacolindex1(:,operaindex),smarowindex1(:,operaindex),&
-							Hbufmat,Hbufcolindex,Hbufrowindex,Hbigdim)
+							LRdim,LRdim,cap_sma(:,operaindex),cap_smacol(:,operaindex),cap_smarow(:,operaindex),&
+							Hbufmat,Hbufcolindex,Hbufrowindex,iHbigdim)
 		else
-			call SparseDirectProduct( dim1,dim1,operamatsma1(:,operaindex),smacolindex1(:,operaindex),smarowindex1(:,operaindex),&
+			call SparseDirectProduct( LRdim,LRdim,cap_sma(:,operaindex),cap_smacol(:,operaindex),cap_smarow(:,operaindex),&
 							4,4,onesitemat(:,3),osmcolindex(:,3),osmrowindex(:,3),&
-							Hbufmat,Hbufcolindex,Hbufrowindex,Hbigdim)
+							Hbufmat,Hbufcolindex,Hbufrowindex,iHbigdim)
 		end if
-
-		call SpmatAdd(4*dim1,4*dim1,H0mat,H0colindex,H0rowindex,&
-			'N',pppV(i,orbadd),4*dim1,4*dim1,Hbufmat,Hbufcolindex,Hbufrowindex,Hbigdim)
+		call SpmatAdd(4*LRdim,4*LRdim,H0mat,H0colindex,H0rowindex,&
+			'N',pppV(i,orbadd),4*LRdim,4*LRdim,Hbufmat,Hbufcolindex,Hbufrowindex,iHbigdim)
 	end if
 	end do
 	
@@ -239,9 +270,9 @@ Subroutine System_Big(domain)
 	do j=orbstart,orbend,1
 		if(myid==orbid1(j,1)) then
 			position1=0
-			call MPI_PACK(H0rowindex,4*subM+1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
-			call MPI_PACK(H0colindex,H0rowindex(4*dim1+1)-1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
-			call MPI_PACK(H0mat,H0rowindex(4*dim1+1)-1,MPI_real8,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
+			call MPI_PACK(H0rowindex,4*isubM+1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
+			call MPI_PACK(H0colindex,H0rowindex(4*LRdim+1)-1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
+			call MPI_PACK(H0mat,H0rowindex(4*LRdim+1)-1,MPI_real8,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
 			call MPI_ISEND(packbuf,position1,MPI_PACKED,0,myid,MPI_COMM_WORLD,sendrequest,ierr)
 			exit  ! only send once
 		end if
@@ -253,26 +284,26 @@ Subroutine System_Big(domain)
 	do i=orbstart,orbend,1
 	if(myid==orbid1(i,1)) then
 		
-		bigrowindex1(:,orbid1(i,2)*3-2:orbid1(i,2)*3)=0
+		cap_bigrow(:,orbid1(i,2)*3-2:orbid1(i,2)*3)=0
 		
 		if(domain=='R' .and. logic_C2==0 ) then
 			do j=1,3,1
 				operaindex=(orbid1(i,2)-1)*3+j
 				call SparseDirectProduct(4,4,II,IIcolindex,IIrowindex,&
-								dim1,dim1,operamatsma1(:,operaindex),smacolindex1(:,operaindex),smarowindex1(:,operaindex),&
-								operamatbig1(:,operaindex),bigcolindex1(:,operaindex),bigrowindex1(:,operaindex),bigdim1)
+								LRdim,LRdim,cap_sma(:,operaindex),cap_smacol(:,operaindex),cap_smarow(:,operaindex),&
+								cap_big(:,operaindex),cap_bigcol(:,operaindex),cap_bigrow(:,operaindex),ibigdim1)
 				if(j<=2) then
-					do k=1,bigrowindex1(4*dim1+1,operaindex)-1,1
-						operamatbig1(k,operaindex)=operamatbig1(k,operaindex)*DBLE(phase(bigcolindex1(k,operaindex)))
+					do k=1,cap_bigrow(4*LRdim+1,operaindex)-1,1
+						cap_big(k,operaindex)=cap_big(k,operaindex)*DBLE(phase(cap_bigcol(k,operaindex)))
 					end do
 				end if
 			end do
 		else
 			do j=1,3,1
 				operaindex=(orbid1(i,2)-1)*3+j
-				call SparseDirectProduct(dim1,dim1,operamatsma1(:,operaindex),smacolindex1(:,operaindex),smarowindex1(:,operaindex),&
+				call SparseDirectProduct(LRdim,LRdim,cap_sma(:,operaindex),cap_smacol(:,operaindex),cap_smarow(:,operaindex),&
 								4,4,II,IIcolindex,IIrowindex,&
-								operamatbig1(:,operaindex),bigcolindex1(:,operaindex),bigrowindex1(:,operaindex),bigdim1)
+								cap_big(:,operaindex),cap_bigcol(:,operaindex),cap_bigrow(:,operaindex),ibigdim1)
 			end do
 		end if
 	end if
@@ -284,24 +315,24 @@ Subroutine System_Big(domain)
 	
 	if(myid==orbid1(orbadd,1)) then
 		
-		bigrowindex1(:,orbid1(orbadd,2)*3-2:orbid1(orbadd,2)*3)=0
+		cap_bigrow(:,orbid1(orbadd,2)*3-2:orbid1(orbadd,2)*3)=0
 		
 		if(domain=='R' .and. logic_C2==0) then
 			do j=1,3,1
 				operaindex=(orbid1(orbadd,2)-1)*3+j
 				call SparseDirectProduct(4,4,onesitemat(:,j),osmcolindex(:,j),osmrowindex(:,j),&
-								dim1,dim1,IM,IMcolindex,IMrowindex,&
-								operamatbig1(:,operaindex),bigcolindex1(:,operaindex),bigrowindex1(:,operaindex),bigdim1)
+								LRdim,LRdim,IM,IMcolindex,IMrowindex,&
+								cap_big(:,operaindex),cap_bigcol(:,operaindex),cap_bigrow(:,operaindex),ibigdim1)
 			end do
 		else 
 			do j=1,3,1
 				operaindex=(orbid1(orbadd,2)-1)*3+j
-				call SparseDirectProduct(dim1,dim1,IM,IMcolindex,IMrowindex,&
+				call SparseDirectProduct(LRdim,LRdim,IM,IMcolindex,IMrowindex,&
 								4,4,onesitemat(:,j),osmcolindex(:,j),osmrowindex(:,j),&
-								operamatbig1(:,operaindex),bigcolindex1(:,operaindex),bigrowindex1(:,operaindex),bigdim1)
+								cap_big(:,operaindex),cap_bigcol(:,operaindex),cap_bigrow(:,operaindex),ibigdim1)
 				if(j<=2) then
-					do k=1,bigrowindex1(4*dim1+1,operaindex)-1,1
-						operamatbig1(k,operaindex)=operamatbig1(k,operaindex)*DBLE(phase(bigcolindex1(k,operaindex)))
+					do k=1,cap_bigrow(4*LRdim+1,operaindex)-1,1
+						cap_big(k,operaindex)=cap_big(k,operaindex)*DBLE(phase(cap_bigcol(k,operaindex)))
 					end do
 				end if
 			end do
@@ -325,20 +356,20 @@ Subroutine System_Big(domain)
 				shouldrecv(count1)=orbid1(i,1)
 			end if
 		end do
-		
-		! initiate the Hbig matrix
-		Hbigrowindex(:,Hindex)=1
+
+		! initiate the cap_Hbig matrix
+		cap_Hbigrow(:,Hindex)=1
 		
 		! get the ppp term and transfer integral term
 		do i=1,count1,1
 			call MPI_RECV(packbuf,packsize,MPI_PACKED,MPI_ANY_SOURCE,MPI_ANY_TAG,MPI_COMM_WORLD,status,ierr)
 			position1=0
-			call MPI_UNPACK(packbuf,packsize,position1,H0rowindex,4*subM+1,MPI_integer4,MPI_COMM_WORLD,ierr)
-			call MPI_UNPACK(packbuf,packsize,position1,H0colindex,H0rowindex(4*dim1+1)-1,MPI_integer4,MPI_COMM_WORLD,ierr)
-			call MPI_UNPACK(packbuf,packsize,position1,H0mat,H0rowindex(4*dim1+1)-1,MPI_real8,MPI_COMM_WORLD,ierr)
+			call MPI_UNPACK(packbuf,packsize,position1,H0rowindex,4*isubM+1,MPI_integer4,MPI_COMM_WORLD,ierr)
+			call MPI_UNPACK(packbuf,packsize,position1,H0colindex,H0rowindex(4*LRdim+1)-1,MPI_integer4,MPI_COMM_WORLD,ierr)
+			call MPI_UNPACK(packbuf,packsize,position1,H0mat,H0rowindex(4*LRdim+1)-1,MPI_real8,MPI_COMM_WORLD,ierr)
 			
-			call SpmatAdd(4*dim1,4*dim1,Hbig(:,Hindex),Hbigcolindex(:,Hindex),Hbigrowindex(:,Hindex),&
-			'N',1.0D0,4*dim1,4*dim1,H0mat,H0colindex,H0rowindex,Hbigdim)
+			call SpmatAdd(4*LRdim,4*LRdim,cap_Hbig(:,Hindex),cap_Hbigcol(:,Hindex),cap_Hbigrow(:,Hindex),&
+			'N',1.0D0,4*LRdim,4*LRdim,H0mat,H0colindex,H0rowindex,iHbigdim)
 		end do
 
 !===========================================================
@@ -348,16 +379,16 @@ Subroutine System_Big(domain)
 
 		if(domain=='R' .and. logic_C2==0) then
 			call SparseDirectProduct(4,4,II,IIcolindex,IIrowindex,&
-							dim1,dim1,Hsma(:,Hindex),Hsmacolindex(:,Hindex),Hsmarowindex(:,Hindex),&
-							H0mat,H0colindex,H0rowindex,Hbigdim)
+							LRdim,LRdim,cap_Hsma(:,Hindex),cap_Hsmacol(:,Hindex),cap_Hsmarow(:,Hindex),&
+							H0mat,H0colindex,H0rowindex,iHbigdim)
 		else
-			call SparseDirectProduct(dim1,dim1,Hsma(:,Hindex),Hsmacolindex(:,Hindex),Hsmarowindex(:,Hindex),&
+			call SparseDirectProduct(LRdim,LRdim,cap_Hsma(:,Hindex),cap_Hsmacol(:,Hindex),cap_Hsmarow(:,Hindex),&
 							4,4,II,IIcolindex,IIrowindex,&
-							H0mat,H0colindex,H0rowindex,Hbigdim)
+							H0mat,H0colindex,H0rowindex,iHbigdim)
 		end if
 			
-		call SpmatAdd(4*dim1,4*dim1,Hbig(:,Hindex),Hbigcolindex(:,Hindex),Hbigrowindex(:,Hindex),&
-			'N',1.0D0,4*dim1,4*dim1,H0mat,H0colindex,H0rowindex,Hbigdim)
+		call SpmatAdd(4*LRdim,4*LRdim,cap_Hbig(:,Hindex),cap_Hbigcol(:,Hindex),cap_Hbigrow(:,Hindex),&
+			'N',1.0D0,4*LRdim,4*LRdim,H0mat,H0colindex,H0rowindex,iHbigdim)
 
 !===========================================================
 
@@ -367,22 +398,22 @@ Subroutine System_Big(domain)
 
 		if(domain=='R' .and. logic_C2==0) then
 			call SparseDirectProduct(4,4,onesitemat(:,6),osmcolindex(:,6),osmrowindex(:,6),&
-							dim1,dim1,IM,IMcolindex,IMrowindex,&
-							H0mat,H0colindex,H0rowindex,Hbigdim)
+							LRdim,LRdim,IM,IMcolindex,IMrowindex,&
+							H0mat,H0colindex,H0rowindex,iHbigdim)
 		else
-			call SparseDirectProduct(dim1,dim1,IM,IMcolindex,IMrowindex,&
+			call SparseDirectProduct(LRdim,LRdim,IM,IMcolindex,IMrowindex,&
 							4,4,onesitemat(:,6),osmcolindex(:,6),osmrowindex(:,6),&
-							H0mat,H0colindex,H0rowindex,Hbigdim)
+							H0mat,H0colindex,H0rowindex,iHbigdim)
 		end if
 
-		call SpmatAdd(4*dim1,4*dim1,Hbig(:,Hindex),Hbigcolindex(:,Hindex),Hbigrowindex(:,Hindex),&
-			'N',1.0D0,4*dim1,4*dim1,H0mat,H0colindex,H0rowindex,Hbigdim)
+		call SpmatAdd(4*LRdim,4*LRdim,cap_Hbig(:,Hindex),cap_Hbigcol(:,Hindex),cap_Hbigrow(:,Hindex),&
+			'N',1.0D0,4*LRdim,4*LRdim,H0mat,H0colindex,H0rowindex,iHbigdim)
 		
 !=========================================================================
 	
 	! construct the symmmlinkbig
 		if(logic_spinreversal/=0) then
-			call Creatsymmlinkbig(dim1,domain,Hindex)
+			call Creatsymmlinkbig(LRdim,domain,Hindex)
 		end if
 		
 	end if
@@ -402,10 +433,10 @@ Subroutine System_Big(domain)
 						bigrowindex2(:,operaindex2)=0
 						if(domain=='R' .and. logic_C2==0) then
 							call SparseDirectProduct(4,4,II,IIcolindex,IIrowindex,&
-								dim1,dim1,operamatsma2(:,operaindex2),smacolindex2(:,operaindex2),smarowindex2(:,operaindex2),&
+								LRdim,LRdim,operamatsma2(:,operaindex2),smacolindex2(:,operaindex2),smarowindex2(:,operaindex2),&
 								operamatbig2(:,operaindex2),bigcolindex2(:,operaindex2),bigrowindex2(:,operaindex2),bigdim2)
 						else
-							call SparseDirectProduct(dim1,dim1,operamatsma2(:,operaindex2),smacolindex2(:,operaindex2),smarowindex2(:,operaindex2),&
+							call SparseDirectProduct(LRdim,LRdim,operamatsma2(:,operaindex2),smacolindex2(:,operaindex2),smarowindex2(:,operaindex2),&
 								4,4,II,IIcolindex,IIrowindex,&
 								operamatbig2(:,operaindex2),bigcolindex2(:,operaindex2),bigrowindex2(:,operaindex2),bigdim2)
 						end if
@@ -423,10 +454,10 @@ Subroutine System_Big(domain)
 				if(domain=='R' .and. logic_C2==0) then
 					! in onesite matrix the niup/down index is 7/8
 					call SparseDirectProduct(4,4,onesitemat(:,j+6),osmcolindex(:,j+6),osmrowindex(:,j+6),&
-							dim1,dim1,IM,IMcolindex,IMrowindex,&
+							LRdim,LRdim,IM,IMcolindex,IMrowindex,&
 							operamatbig2(:,operaindex2),bigcolindex2(:,operaindex2),bigrowindex2(:,operaindex2),bigdim2)
 				else
-					call SparseDirectProduct(dim1,dim1,IM,IMcolindex,IMrowindex,&
+					call SparseDirectProduct(LRdim,LRdim,IM,IMcolindex,IMrowindex,&
 							4,4,onesitemat(:,j+6),osmcolindex(:,j+6),osmrowindex(:,j+6),&
 							operamatbig2(:,operaindex2),bigcolindex2(:,operaindex2),bigrowindex2(:,operaindex2),bigdim2)
 				end if
@@ -450,16 +481,16 @@ Subroutine System_Big(domain)
 							bigrowindex2(:,operaindex2)=0
 							if(domain=='R' .and. logic_C2==0) then
 								call SparseDirectProduct(4,4,onesitemat(:,j+3),osmcolindex(:,j+3),osmrowindex(:,j+3),&
-												dim1,dim1,operamatsma1(:,operaindex),smacolindex1(:,operaindex),smarowindex1(:,operaindex),&
+												LRdim,LRdim,cap_sma(:,operaindex),cap_smacol(:,operaindex),cap_smarow(:,operaindex),&
 												operamatbig2(:,operaindex2),bigcolindex2(:,operaindex2),bigrowindex2(:,operaindex2),bigdim2)
-								do k=1,bigrowindex2(4*dim1+1,operaindex2)-1,1
+								do k=1,bigrowindex2(4*LRdim+1,operaindex2)-1,1
 									operamatbig2(k,operaindex2)=operamatbig2(k,operaindex2)*DBLE(phase(bigcolindex2(k,operaindex2)))*(-1.0D0)
 								end do
 							else
-								call SparseDirectProduct(dim1,dim1,operamatsma1(:,operaindex),smacolindex1(:,operaindex),smarowindex1(:,operaindex),&
+								call SparseDirectProduct(LRdim,LRdim,cap_sma(:,operaindex),cap_smacol(:,operaindex),cap_smarow(:,operaindex),&
 												4,4,onesitemat(:,j+3),osmcolindex(:,j+3),osmrowindex(:,j+3),&
 												operamatbig2(:,operaindex2),bigcolindex2(:,operaindex2),bigrowindex2(:,operaindex2),bigdim2)
-								do k=1,bigrowindex2(4*dim1+1,operaindex2)-1,1
+								do k=1,bigrowindex2(4*LRdim+1,operaindex2)-1,1
 									operamatbig2(k,operaindex2)=operamatbig2(k,operaindex2)*DBLE(phase(bigcolindex2(k,operaindex2)))
 								end do
 							end if
@@ -481,10 +512,10 @@ Subroutine System_Big(domain)
 				do k=operaindex3-1,operaindex3,1
 					if(domain=='R' .and. logic_C2==0) then
 						call SparseDirectProduct(4,4,II,IIcolindex,IIrowindex,&
-							dim1,dim1,operamatsma3(:,k),smacolindex3(:,k),smarowindex3(:,k),&
+							LRdim,LRdim,operamatsma3(:,k),smacolindex3(:,k),smarowindex3(:,k),&
 							operamatbig3(:,k),bigcolindex3(:,k),bigrowindex3(:,k),bigdim3)
 					else
-						call SparseDirectProduct(dim1,dim1,operamatsma3(:,k),smacolindex3(:,k),smarowindex3(:,k),&
+						call SparseDirectProduct(LRdim,LRdim,operamatsma3(:,k),smacolindex3(:,k),smarowindex3(:,k),&
 							4,4,II,IIcolindex,IIrowindex,&
 							operamatbig3(:,k),bigcolindex3(:,k),bigrowindex3(:,k),bigdim3)
 					end if
@@ -504,10 +535,10 @@ Subroutine System_Big(domain)
 				end if
 				if(domain=='R' .and. logic_C2==0) then
 					call SparseDirectProduct(4,4,onesitemat(:,onesitematindex),osmcolindex(:,onesitematindex),osmrowindex(:,onesitematindex),&
-							dim1,dim1,IM,IMcolindex,IMrowindex,&
+							LRdim,LRdim,IM,IMcolindex,IMrowindex,&
 							operamatbig3(:,operaindex3),bigcolindex3(:,operaindex3),bigrowindex3(:,operaindex3),bigdim3)
 				else
-					call SparseDirectProduct(dim1,dim1,IM,IMcolindex,IMrowindex,&
+					call SparseDirectProduct(LRdim,LRdim,IM,IMcolindex,IMrowindex,&
 							4,4,onesitemat(:,onesitematindex),osmcolindex(:,onesitematindex),osmrowindex(:,onesitematindex),&
 							operamatbig3(:,operaindex3),bigcolindex3(:,operaindex3),bigrowindex3(:,operaindex3),bigdim3)
 				end if
@@ -532,19 +563,19 @@ Subroutine System_Big(domain)
 				if(domain=='R' .and. logic_C2==0) then
 					! ai^+down*aiup*aj^+up*aj^down
 					call SparseDirectProduct(4,4,onesitemat(:,9),osmcolindex(:,9),osmrowindex(:,9),&
-							dim1,dim1,operamatsma3(:,systemmatindex),smacolindex3(:,systemmatindex),smarowindex3(:,systemmatindex),&
+							LRdim,LRdim,operamatsma3(:,systemmatindex),smacolindex3(:,systemmatindex),smarowindex3(:,systemmatindex),&
 							operamatbig3(:,operaindex3-1),bigcolindex3(:,operaindex3-1),bigrowindex3(:,operaindex3-1),bigdim3)
 					! (niup-nidown)*(njup-njdown)
 					call SparseDirectProduct(4,4,onesitemat(:,8),osmcolindex(:,8),osmrowindex(:,8),&
-							dim1,dim1,operamatsma2(:,operaindex2),smacolindex2(:,operaindex2),smarowindex2(:,operaindex2),&
+							LRdim,LRdim,operamatsma2(:,operaindex2),smacolindex2(:,operaindex2),smarowindex2(:,operaindex2),&
 							operamatbig3(:,operaindex3),bigcolindex3(:,operaindex3),bigrowindex3(:,operaindex3),bigdim3)
 				else
 					! ai^+down*aiup*aj^+up*aj^down
-					call SparseDirectProduct( dim1,dim1,operamatsma3(:,systemmatindex),smacolindex3(:,systemmatindex),smarowindex3(:,systemmatindex),&
+					call SparseDirectProduct( LRdim,LRdim,operamatsma3(:,systemmatindex),smacolindex3(:,systemmatindex),smarowindex3(:,systemmatindex),&
 							4,4,onesitemat(:,9),osmcolindex(:,9),osmrowindex(:,9),&
 							operamatbig3(:,operaindex3-1),bigcolindex3(:,operaindex3-1),bigrowindex3(:,operaindex3-1),bigdim3)
 					! (niup-nidown)*(njup-njdown)
-					call SparseDirectProduct( dim1,dim1,operamatsma2(:,operaindex2),smacolindex2(:,operaindex2),smarowindex2(:,operaindex2),&
+					call SparseDirectProduct( LRdim,LRdim,operamatsma2(:,operaindex2),smacolindex2(:,operaindex2),smarowindex2(:,operaindex2),&
 							4,4,onesitemat(:,8),osmcolindex(:,8),osmrowindex(:,8),&
 							operamatbig3(:,operaindex3),bigcolindex3(:,operaindex3),bigrowindex3(:,operaindex3),bigdim3)
 				end if
@@ -561,6 +592,8 @@ Subroutine System_Big(domain)
 			exit
 		end if
 	end do
+	
+	call MPI_BARRIER(MPI_COMM_WORLD,ierr)
 
 	if(allocated(packbuf)) deallocate(packbuf)
 	if(allocated(H0mat)) deallocate(H0mat,H0colindex,H0rowindex)
@@ -570,3 +603,6 @@ Subroutine System_Big(domain)
 	return
 end subroutine System_Big
 
+!=================================================================
+!=================================================================
+end module construct_System_Big

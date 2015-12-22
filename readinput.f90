@@ -60,7 +60,8 @@ Subroutine ReadInput
 	read(10,*) logic_spinreversal    ! if do spin reversal logic_spinreversal=+-1 
 	read(10,*) logic_C2              ! if do C2 symmetry or the same mirror reflection and center reflection
 	read(10,*) logic_tree            ! if do tree tensor algorithm logic_tree=1
-	read(10,*) subM                  ! DMRG Sub space  M
+	read(10,*) logic_perturbation    ! if do perturbation algorithm
+	read(10,*) subM,subMp            ! DMRG Sub space M; perturbation space subMp
 	read(10,*) sweeps                ! DMRG how many sweeps
 	read(10,*) nstate                ! how many state wanted to get
 	read(10,*) energythresh          ! the threshold of the total energy you want to get
@@ -213,7 +214,9 @@ Subroutine ReadInput
 		call MPI_PACK(logic_spinreversal,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
 		call MPI_PACK(logic_C2,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
 		call MPI_PACK(logic_tree,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
+		call MPI_PACK(logic_perturbation,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
 		call MPI_PACK(subM,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
+		call MPI_PACK(subMp,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
 		call MPI_PACK(sweeps,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
 		call MPI_PACK(nstate,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
 		call MPI_PACK(exscheme,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
@@ -252,7 +255,9 @@ Subroutine ReadInput
 		call MPI_UNPACK(packbuf,packsize,position1,logic_spinreversal,1,MPI_integer4,MPI_COMM_WORLD,ierr)
 		call MPI_UNPACK(packbuf,packsize,position1,logic_C2,1,MPI_integer4,MPI_COMM_WORLD,ierr)
 		call MPI_UNPACK(packbuf,packsize,position1,logic_tree,1,MPI_integer4,MPI_COMM_WORLD,ierr)
+		call MPI_UNPACK(packbuf,packsize,position1,logic_perturbation,1,MPI_integer4,MPI_COMM_WORLD,ierr)
 		call MPI_UNPACK(packbuf,packsize,position1,subM,1,MPI_integer4,MPI_COMM_WORLD,ierr)
+		call MPI_UNPACK(packbuf,packsize,position1,subMp,1,MPI_integer4,MPI_COMM_WORLD,ierr)
 		call MPI_UNPACK(packbuf,packsize,position1,sweeps,1,MPI_integer4,MPI_COMM_WORLD,ierr)
 		call MPI_UNPACK(packbuf,packsize,position1,nstate,1,MPI_integer4,MPI_COMM_WORLD,ierr)
 		call MPI_UNPACK(packbuf,packsize,position1,exscheme,1,MPI_integer4,MPI_COMM_WORLD,ierr)
@@ -280,7 +285,6 @@ Subroutine ReadInput
 		call MPI_UNPACK(packbuf,packsize,position1,t(1,1),norbs*norbs,MPI_real8,MPI_COMM_WORLD,ierr)
 		call MPI_UNPACK(packbuf,packsize,position1,hubbardU(1),norbs,MPI_real8,MPI_COMM_WORLD,ierr)
 		call MPI_UNPACK(packbuf,packsize,position1,diagmethod,20,MPI_CHARACTER,MPI_COMM_WORLD,ierr)
-		
 		write(*,*) myid,"getpacksize=",position1
 	end if
 
@@ -307,7 +311,9 @@ Subroutine ReadInput
 		write(*,*) "logic_spinreversal=",logic_spinreversal
 		write(*,*) "logic_C2=",logic_C2
 		write(*,*) "logic_tree=",logic_tree
+		write(*,*) "logic_pertubation=",logic_perturbation
 		write(*,*) "subM=",subM
+		write(*,*) "subMp=",subMp
 		write(*,*) "sweeps=",sweeps
 		write(*,*) "nstates=",nstate
 		write(*,*) "exscheme=",exscheme

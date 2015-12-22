@@ -56,6 +56,16 @@ Subroutine Finit_MPS
 	formernelecs=nelecs
 	do isweep=sweepbegin,sweeps,1
 		
+		! open the perturbation coefficient scheme
+		if(isweep==2) then
+			if(logic_perturbation/=0) then
+				IfOpenperturbation=.true.
+				! in the ifopenperturbation=.false. case
+				! only the big matrix is copyed from subM space to subMp space
+				call pre_perturbation('L',"sma")
+			end if
+		end if
+		
 		do isystem=ibegin,norbs-exactsite-2,1
 			! add 2,0,2,0 if nelecs does not reach realnelecs
 		!	if(nelecs==formernelecs .and. nelecs<realnelecs) then

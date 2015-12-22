@@ -17,6 +17,7 @@ Module Renormalization_mod
 	leftu(:,:) , &
 	rightv(:,:)  , &
 	singularvalue(:)
+	integer :: lsvddim,rsvddim,svdvaluedim
 
 contains
 
@@ -31,26 +32,57 @@ Subroutine Renormalization(direction)
 	
 	character(len=1) :: direction
 	integer :: error,ierr
+	integer :: iLrealdim,iRrealdim,isubM
+	real(kind=r8),allocatable :: LRcoeff(:,:)
 
 	call master_print_message("enter Renormalization subroutine")
 
-	if(4*Lrealdim>subM .or. 4*Rrealdim>subM) then
+	if(ifopenperturbation==.true.) then
+		iLrealdim=Lrealdimp
+		iRrealdim=Rrealdimp
+		isubM=subMp
+	else
+		iLrealdim=Lrealdim
+		iRrealdim=Rrealdim
+		isubM=subM
+	end if
+	lsvddim=min(4*iLrealdim,isubM)
+	rsvddim=min(4*iRrealdim,isubM)
+	svdvaluedim=min(lsvddim,rsvddim)
+
+
+	if(4*Lrealdim>subM .or. 4*Rrealdim>subM) then  ! do Renormalization in this case
+		
+		if(myid==0) allocate(LRcoeff(4*iLrealdim,4*iRrealdim))
+		
+		call Prepare_LRcoeff(iLrealdim,iRrealdim,LRcoeff,1)
+		
 		if(myid==0) then
 			! allocate work array
-			allocate(singularvalue(subM),stat=error)
-			if(error/=0) stop
-			allocate(leftu(4*Lrealdim,subM),stat=error)
-			if(error/=0) stop
-			allocate(rightv(subM,4*Rrealdim),stat=error)
-			if(error/=0) stop
+			allocate(singularvalue(svdvaluedim))
+			allocate(leftu(4*iLrealdim,lsvddim))
+			allocate(rightv(rsvddim,4*iRrealdim))
 			
 			! get rotate matrix leftu/rightv and singularvalue
 			if(nstate==1 .or. exscheme==4 ) then
 				! the index 1 can be changed!
-				call splitsvd_direct(1,leftu,rightv,singularvalue)
+				if(ifopenperturbation==.false.) then
+					call splitsvd_direct(iLrealdim,iRrealdim,LRcoeff,lsvddim,rsvddim,svdvaluedim,leftu,rightv,singularvalue,&
+						quantabigL(1:4*iLrealdim,1:2),quantabigR(1:4*iRrealdim,1:2),&
+						quantasmaL(1:lsvddim,1:2),quantasmaR(1:rsvddim,1:2))
+				else
+					call splitsvd_direct(iLrealdim,iRrealdim,LRcoeff,lsvddim,rsvddim,svdvaluedim,leftu,rightv,singularvalue,&
+						quantabigLp(1:4*iLrealdim,1:2),quantabigRp(1:4*iRrealdim,1:2),&
+						quantasmaLp(1:lsvddim,1:2),quantasmaRp(1:rsvddim,1:2))
+					write(*,*) "get lsvddim=",lsvddim
+					write(*,*) "get rsvddim=",rsvddim
+					if(lsvddim<subM .or. rsvddim<subM) then
+						call master_print_message("lsvddim/rsvddim<subM")
+					end if
+				end if
 			else if(exscheme==1) then
-				call splitsvd('L',Lrealdim,1,nstate)
-				call splitsvd('R',Rrealdim,1,nstate)
+				call splitsvd('L',iLrealdim,1,nstate)
+				call splitsvd('R',iRrealdim,1,nstate)
 			else if(exscheme==2) then
 				! my new exScheme
 				call ExScheme2
@@ -60,18 +92,67 @@ Subroutine Renormalization(direction)
 			call StoreWaveFunction
 		end if
 
-		! bcast the updated quantasmaL/R because only the 0 process know it
-		call MPI_BCAST(quantasmaL(1,1),subM*2,MPI_integer4,0,MPI_COMM_WORLD,ierr)
-		call MPI_BCAST(quantasmaR(1,1),subM*2,MPI_integer4,0,MPI_COMM_WORLD,ierr)
-		
+		if(ifopenperturbation==.false.) then
+			! bcast the updated quantasmaL/R because only the 0 process know it
+			call MPI_BCAST(quantasmaL(1,1),subM*2,MPI_integer4,0,MPI_COMM_WORLD,ierr)
+			call MPI_BCAST(quantasmaR(1,1),subM*2,MPI_integer4,0,MPI_COMM_WORLD,ierr)
+		else
+			call MPI_BCAST(lsvddim,1,MPI_integer4,0,MPI_COMM_WORLD,ierr)
+			call MPI_BCAST(rsvddim,1,MPI_integer4,0,MPI_COMM_WORLD,ierr)
+			call MPI_BCAST(quantasmaLp(1,1),subMp*2,MPI_integer4,0,MPI_COMM_WORLD,ierr)
+			call MPI_BCAST(quantasmaRp(1,1),subMp*2,MPI_integer4,0,MPI_COMM_WORLD,ierr)
+			quantasmaL(:,:)=quantasmaLp(1:subM,:)
+			quantasmaR(:,:)=quantasmaRp(1:subM,:)
+		end if
+
 		! rotate the bigmat to smamat
 		! L subspace
 		if(direction=='i' .or. direction=='l') then
-			call RotateBasis('L')
+			if(ifopenperturbation==.false.)  then
+			!	if(myid==0) then
+			!		write(*,*) "leftu1"
+			!		write(*,*) leftu
+			!	end if
+				call RotateBasis('L',operamatbig1,bigcolindex1,bigrowindex1,operamatsma1,smacolindex1,smarowindex1,&
+				Hbig,Hbigcolindex,Hbigrowindex,Hsma,Hsmacolindex,Hsmarowindex,Lrealdim,subM,Hsmadim,smadim1)
+			!	if(myid==0) then
+			!		write(*,*) "Hsma"
+			!		write(*,*) Hsma(:,1)
+			!		write(*,*) Hsmacolindex(:,1)
+			!		write(*,*) Hsmarowindex(:,1)
+			!	end if
+			else
+			!	if(myid==0) then
+			!		write(*,*) "leftu1"
+			!		write(*,*) leftu
+			!	end if
+				call RotateBasis('L',operamatbig1p,bigcolindex1p,bigrowindex1p,operamatsma1p,smacolindex1p,smarowindex1p,&
+					Hbigp,Hbigcolindexp,Hbigrowindexp,Hsmap,Hsmacolindexp,Hsmarowindexp,Lrealdimp,lsvddim,Hsmadimp,smadim1p)
+				call RotateBasis('L',operamatbig1p,bigcolindex1p,bigrowindex1p,operamatsma1,smacolindex1,smarowindex1,&
+					Hbigp,Hbigcolindexp,Hbigrowindexp,Hsma,Hsmacolindex,Hsmarowindex,Lrealdimp,subM,Hsmadim,smadim1)
+				! update the Lrealdimp value
+				Lrealdimp=lsvddim
+			!	if(myid==0) then
+			!		write(*,*) "Hsma"
+			!		write(*,*) Hsma(:,1)
+			!		write(*,*) Hsmacolindex(:,1)
+			!		write(*,*) Hsmarowindex(:,1)
+			!	end if
+			end if
 		end if
 		! R subspace
 		if(direction=='i' .or. direction=='r') then
-			call RotateBasis('R')
+			if(ifopenperturbation==.false.)  then
+				call RotateBasis('R',operamatbig1,bigcolindex1,bigrowindex1,operamatsma1,smacolindex1,smarowindex1,&
+					Hbig,Hbigcolindex,Hbigrowindex,Hsma,Hsmacolindex,Hsmarowindex,Rrealdim,subM,Hsmadim,smadim1)
+			else
+				call RotateBasis('R',operamatbig1p,bigcolindex1p,bigrowindex1p,operamatsma1p,smacolindex1p,smarowindex1p,&
+					Hbigp,Hbigcolindexp,Hbigrowindexp,Hsmap,Hsmacolindexp,Hsmarowindexp,Rrealdimp,rsvddim,Hsmadimp,smadim1p)
+				call RotateBasis('R',operamatbig1p,bigcolindex1p,bigrowindex1p,operamatsma1,smacolindex1,smarowindex1,&
+					Hbigp,Hbigcolindexp,Hbigrowindexp,Hsma,Hsmacolindex,Hsmarowindex,Rrealdimp,subM,Hsmadim,smadim1)
+				! update the Rrealdimp value
+				Rrealdimp=rsvddim
+			end if
 		end if
 	else
 		! direct copy bigmat to smamat
@@ -85,6 +166,7 @@ Subroutine Renormalization(direction)
 			deallocate(singularvalue)
 			deallocate(leftu)
 			deallocate(rightv)
+			deallocate(LRcoeff)
 		end if
 	end if
 return
@@ -198,7 +280,9 @@ end subroutine StoreWaveFunction
 !===================================================
 !===================================================
 
-subroutine RotateBasis(domain)
+subroutine RotateBasis(domain,cap_big,cap_bigcol,cap_bigrow,cap_sma,cap_smacol,cap_smarow,&
+cap_Hbig,cap_Hbigcol,cap_Hbigrow,cap_Hsma,cap_Hsmacol,cap_Hsmarow,&
+bigLRdim,smaLRdim,dummyHsmadim,dummysmadim)
 ! Rotate Basis ; In fact transfer the operator matrix
 ! to new basis
 	
@@ -208,12 +292,19 @@ subroutine RotateBasis(domain)
 	implicit none
 	include "mkl_spblas.fi"
 
-	character(len=1) :: domain
+	character(len=1),intent(in) :: domain
+	real(kind=r8),intent(in) :: cap_big(:,:),cap_Hbig(:,:)
+	real(kind=r8),intent(out) :: cap_sma(:,:),cap_Hsma(:,:)
+	integer(kind=i4),intent(in) :: cap_bigcol(:,:),cap_bigrow(:,:),&
+		cap_Hbigcol(:,:),cap_Hbigrow(:,:)
+	integer(kind=i4),intent(out) :: cap_smacol(:,:),cap_smarow(:,:),&
+		cap_Hsmacol(:,:),cap_Hsmarow(:,:)
+	integer,intent(in) :: bigLRdim,smaLRdim,dummyHsmadim,dummysmadim
 	! local
 	real(kind=r8),allocatable ::     &
 			rotatematdens(:,:) , &     ! store leftu and rightv
 			rotatemat(:)               ! store the CSR sparse format
-	integer :: orbstart,orbend,Hindex,dim1
+	integer :: orbstart,orbend,Hindex
 	integer :: arraylength,nrows,operaindex
 	integer(kind=i4),allocatable :: rotcolindex(:),rotrowindex(:)
 	integer :: job(8)
@@ -230,7 +321,6 @@ subroutine RotateBasis(domain)
 		orbstart=1
 		orbend=nleft+1
 		Hindex=1
-		dim1=Lrealdim
 		if(nleft<=(norbs-1)/2) then
 			ifbondord=.true.
 			iflocalspin=.true.
@@ -242,7 +332,6 @@ subroutine RotateBasis(domain)
 		orbstart=norbs-nright
 		orbend=norbs
 		Hindex=2
-		dim1=Rrealdim
 		if(nright<=(norbs-2)/2) then
 			ifbondord=.true.
 			iflocalspin=.true.
@@ -255,28 +344,28 @@ subroutine RotateBasis(domain)
 	end if
 
 	! define the U and V nonzero element numbers
-	arraylength=CEILING(DBLE(4*subM*subM)/UVmatratio)
+	arraylength=CEILING(DBLE(4*bigLRdim*smaLRdim)/UVmatratio)
 
 	! leftu rightv store in CSR format
 	allocate(rotatemat(arraylength),stat=error)
 	if(error/=0) stop
 	allocate(rotcolindex(arraylength),stat=error)
 	if(error/=0) stop
-	allocate(rotrowindex(4*dim1+1),stat=error) 
+	allocate(rotrowindex(4*bigLRdim+1),stat=error) 
 	if(error/=0) stop
 
-	packsize=arraylength*12+4*(4*dim1+1)+1000
+	packsize=arraylength*12+4*(4*bigLRdim+1)+1000
 	allocate(packbuf(packsize),stat=error) 
 	if(error/=0) stop
 
 	if(myid==0) then
 		! store the dense U/V
-		allocate(rotatematdens(4*dim1,subM),stat=error)
+		allocate(rotatematdens(4*bigLRdim,smaLRdim),stat=error)
 		if(error/=0) stop
 		if(domain=='L') then
-			rotatematdens=leftu
+			rotatematdens=leftu(1:4*bigLRdim,1:smaLRdim)
 		else if(domain=='R') then
-			rotatematdens=transpose(rightv)
+			rotatematdens=transpose(rightv(1:smaLRdim,1:4*bigLRdim))
 		end if
 		job(1)=0
 		job(2)=1
@@ -284,8 +373,8 @@ subroutine RotateBasis(domain)
 		job(4)=2
 		job(5)=arraylength
 		job(6)=1
-		nrows=4*dim1
-		call mkl_ddnscsr(job,nrows,subM,rotatematdens,nrows,rotatemat,rotcolindex,rotrowindex,info)
+		nrows=4*bigLRdim
+		call mkl_ddnscsr(job,nrows,smaLRdim,rotatematdens,nrows,rotatemat,rotcolindex,rotrowindex,info)
 		if(info==0) then
 		!	call master_print_message(arraylength,"U/V maxnelement=")
 		!	call master_print_message(rotrowindex(nrows+1)-1,"U/V nonzero=")
@@ -296,9 +385,9 @@ subroutine RotateBasis(domain)
 		deallocate(rotatematdens)
 
 		position1=0
-		call MPI_PACK(rotrowindex,4*dim1+1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
-		call MPI_PACK(rotatemat,rotrowindex(4*dim1+1)-1,MPI_real8,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
-		call MPI_PACK(rotcolindex,rotrowindex(4*dim1+1)-1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
+		call MPI_PACK(rotrowindex,4*bigLRdim+1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
+		call MPI_PACK(rotatemat,rotrowindex(4*bigLRdim+1)-1,MPI_real8,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
+		call MPI_PACK(rotcolindex,rotrowindex(4*bigLRdim+1)-1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
 	end if
 	
 	! broadcast the rotate matrix
@@ -307,9 +396,9 @@ subroutine RotateBasis(domain)
 	
 	if(myid/=0) then
 		position1=0
-		call MPI_UNPACK(packbuf,packsize,position1,rotrowindex,4*dim1+1,MPI_integer4,MPI_COMM_WORLD,ierr)
-		call MPI_UNPACK(packbuf,packsize,position1,rotatemat,rotrowindex(4*dim1+1)-1,MPI_real8,MPI_COMM_WORLD,ierr)
-		call MPI_UNPACK(packbuf,packsize,position1,rotcolindex,rotrowindex(4*dim1+1)-1,MPI_integer4,MPI_COMM_WORLD,ierr)
+		call MPI_UNPACK(packbuf,packsize,position1,rotrowindex,4*bigLRdim+1,MPI_integer4,MPI_COMM_WORLD,ierr)
+		call MPI_UNPACK(packbuf,packsize,position1,rotatemat,rotrowindex(4*bigLRdim+1)-1,MPI_real8,MPI_COMM_WORLD,ierr)
+		call MPI_UNPACK(packbuf,packsize,position1,rotcolindex,rotrowindex(4*bigLRdim+1)-1,MPI_integer4,MPI_COMM_WORLD,ierr)
 	end if
 	
 	! rotate the matrix
@@ -317,20 +406,22 @@ subroutine RotateBasis(domain)
 		if(myid==orbid1(i,1)) then
 			do j=1,3,1
 				operaindex=orbid1(i,2)*3-3+j
-				call SpMatRotateBasis(subM,4*dim1,rotatemat,rotcolindex,rotrowindex, &
-							4*dim1,4*dim1,operamatbig1(:,operaindex),bigcolindex1(:,operaindex),bigrowindex1(:,operaindex), &
-							subM,operamatsma1(:,operaindex),smacolindex1(:,operaindex),smarowindex1(:,operaindex),smadim1)
+				call SpMatRotateBasis(smaLRdim,4*bigLRdim,rotatemat,rotcolindex,rotrowindex, &
+							4*bigLRdim,4*bigLRdim,cap_big(:,operaindex),cap_bigcol(:,operaindex),cap_bigrow(:,operaindex), &
+							smaLRdim,cap_sma(:,operaindex),cap_smacol(:,operaindex),cap_smarow(:,operaindex),dummysmadim)
 			end do
 		end if
 	end do
 
 	! rotate HL and HR
 	if(myid==0) then
-		call SpMatRotateBasis(subM,4*dim1,rotatemat,rotcolindex,rotrowindex, &
-					4*dim1,4*dim1,Hbig(:,Hindex),Hbigcolindex(:,Hindex),Hbigrowindex(:,Hindex), &
-					subM,Hsma(:,Hindex),Hsmacolindex(:,Hindex),Hsmarowindex(:,Hindex),Hsmadim)
+	!	write(*,*) cap_Hbigrow(1:4*bigLRdim+1,Hindex)
+		call SpMatRotateBasis(smaLRdim,4*bigLRdim,rotatemat,rotcolindex,rotrowindex, &
+					4*bigLRdim,4*bigLRdim,cap_Hbig(:,Hindex),cap_Hbigcol(:,Hindex),cap_Hbigrow(:,Hindex), &
+					smaLRdim,cap_Hsma(:,Hindex),cap_Hsmacol(:,Hindex),cap_Hsmarow(:,Hindex),dummyHsmadim)
+	!	write(*,*) cap_Hsmarow(1:smaLRdim+1,Hindex)
 	end if
-
+	
 	! rotate the bond order matrix
 	if(logic_bondorder/=0 .and. ifbondord==.true.) then
 		do i=orbstart,orbend,1
@@ -339,8 +430,8 @@ subroutine RotateBasis(domain)
 				if(myid==orbid2(i,j,1)) then
 					do k=1,2,1
 						operaindex=orbid2(i,j,2)*2-2+k
-						call SpMatRotateBasis(subM,4*dim1,rotatemat,rotcolindex,rotrowindex, &
-								4*dim1,4*dim1,operamatbig2(:,operaindex),bigcolindex2(:,operaindex),bigrowindex2(:,operaindex), &
+						call SpMatRotateBasis(subM,4*bigLRdim,rotatemat,rotcolindex,rotrowindex, &
+								4*bigLRdim,4*bigLRdim,operamatbig2(:,operaindex),bigcolindex2(:,operaindex),bigrowindex2(:,operaindex), &
 								subM,operamatsma2(:,operaindex),smacolindex2(:,operaindex),smarowindex2(:,operaindex),smadim2)
 					end do
 				end if
@@ -355,8 +446,8 @@ subroutine RotateBasis(domain)
 			if(myid==orbid3(i,j,1)) then
 				do k=1,2,1
 					operaindex=orbid3(i,j,2)-2+k
-					call SpMatRotateBasis(subM,4*dim1,rotatemat,rotcolindex,rotrowindex, &
-							4*dim1,4*dim1,operamatbig3(:,operaindex),bigcolindex3(:,operaindex),bigrowindex3(:,operaindex), &
+					call SpMatRotateBasis(subM,4*bigLRdim,rotatemat,rotcolindex,rotrowindex, &
+							4*bigLRdim,4*bigLRdim,operamatbig3(:,operaindex),bigcolindex3(:,operaindex),bigrowindex3(:,operaindex), &
 							subM,operamatsma3(:,operaindex),smacolindex3(:,operaindex),smarowindex3(:,operaindex),smadim3)
 				end do
 			end if
@@ -1125,4 +1216,57 @@ end subroutine RspaceCorrespond
 !===================================================
 !===================================================
 
+subroutine Prepare_LRcoeff(iLrealdim,iRrealdim,LRcoeff,istate)
+	use blas95
+	use noise_mod
+	implicit none
+	integer,intent(in) :: iLrealdim,iRrealdim,istate
+	real(kind=r8),intent(out) :: LRcoeff(:,:)
+	real(kind=r8) :: norm
+
+	! local
+	integer :: job(8),info
+	integer :: i
+
+	if(myid==0) then
+		! recover coeffIF to its dense format
+		LRcoeff=0.0D0
+		if(ifopenperturbation==.false.) then
+			job(1)=1
+			job(2)=1
+			job(3)=1
+			job(4)=2
+			job(5)=0
+			job(6)=1
+			call mkl_ddnscsr(job,4*iLrealdim,4*iRrealdim,LRcoeff(:,:),4*iLrealdim,coeffIF(:,istate),coeffIFcolindex(:,istate),coeffIFrowindex(:,istate),info)
+			if(info/=0) then
+				call master_print_message(info,"coeffIF to dense format info/=")
+				stop
+			end if
+		else
+		! recover the coeffIFp in coordinate format to dense format
+			norm=dot(coeffIFp(1:coeffIFplast,1),coeffIFp(1:coeffIFplast,1))
+			write(*,*) "Perturbation after normalization3:",1,norm
+			do i=1,coeffIFplast,1
+				LRcoeff(coeffIFrowindexp(i),coeffIFcolindexp(i))=coeffIFp(i,istate)
+				!write(*,*) coeffIFrowindexp(i),coeffIFcolindexp(i)
+				if(quantabigLp(coeffIFrowindexp(i),1)+quantabigRp(coeffIFcolindexp(i),1)/=nelecs &
+				.or. quantabigLp(coeffIFrowindexp(i),2)+quantabigRp(coeffIFcolindexp(i),2)/=totalSz) then
+					write(*,*) "!!!!" 
+					write(*,*) i,coeffIFrowindexp(i),coeffIFcolindexp(i)
+				end if
+			end do
+			write(*,*) "goodquantum number",coeffIfplast
+		end if
+	end if
+
+	if(Ifnoise==.true.) then
+		call svd_noise(iLrealdim,iRrealdim,LRcoeff)
+	end if
+
+	return
+end subroutine Prepare_LRcoeff
+
+!===================================================
+!===================================================
 end Module Renormalization_mod

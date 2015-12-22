@@ -17,7 +17,8 @@ subroutine Store_Operator(domain)
 	integer :: count1,nonzero,dim1
 	! orbref is the reference orbindex 1 or norbs
 	! orbnow is nleft+1 or norbs-nright
-	character(len=50) :: filename,Hfilename,Hcolfilename,Hrowfilename,symmfilename,quantafilename
+	character(len=50) :: filename,Hfilename,Hcolfilename,Hrowfilename,symmfilename,quantafilename,&
+		filenamep,Hfilenamep,Hcolfilenamep,Hrowfilenamep,quantafilenamep,LRdimfilename
 	logical :: alive,ifmiddle
 
 	integer :: thefile , status(MPI_STATUS_SIZE) ! MPI_flag
@@ -60,6 +61,7 @@ subroutine Store_Operator(domain)
 	else
 		call exit_DMRG(sigAbort,"domain/=L .and. domain/='R' failed!")
 	end if
+	
 
 	call MPI_FILE_OPEN(MPI_COMM_WORLD,trim(filename),MPI_MODE_WRONLY+MPI_MODE_CREATE,MPI_INFO_NULL,thefile,ierr)
 	if(myid/=0) then
@@ -283,6 +285,125 @@ subroutine Store_Operator(domain)
 !		close(108)
 !	end if
 !=============================================================
+	
+	! store the perturbation matrix
+	if(logic_perturbation/=0) then
+	
+	if(domain=='L') then
+		write(filenamep,'(i5.5,a9)') orbnow,'leftp.tmp'
+		dim1=Lrealdimp
+		LRdimfilename="Lrealdimp.tmp"
+	else if (domain=='R') then
+		write(filenamep,'(i5.5,a10)') orbnow,'rightp.tmp'
+		dim1=Rrealdimp
+		LRdimfilename="Rrealdimp.tmp"
+	end if
+	
+	! write down the Lrealdimp,Rrealdimp
+	if(myid==0) then
+		reclength=1
+		inquire(file=LRdimfilename,exist=alive)
+		if(alive) then
+			open(unit=1001,file=LRdimfilename,access="Direct",form="unformatted",recl=reclength,status="old")
+		else
+			open(unit=1001,file=LRdimfilename,access="Direct",form="unformatted",recl=reclength,status="replace")
+		end if
+		recindex=abs(orbnow-orbref)+1
+		write(1001,rec=recindex) dim1
+		close(1001)
+	end if
+	
+	call MPI_FILE_OPEN(MPI_COMM_WORLD,trim(filenamep),MPI_MODE_WRONLY+MPI_MODE_CREATE,MPI_INFO_NULL,thefile,ierr)
+	if(myid/=0) then
+		do i=orbstart,orbend,1
+			if(myid==orbid1(i,1)) then
+				operaindex=orbid1(i,2)
+				! store rowindex-> mat-> colindex in CSR format
+				offset=abs(i-orbref)*(bigdim1p*12+(4*subMp+1)*4)*3
+				do j=1,3,1
+					call MPI_FILE_WRITE_AT(thefile,offset,bigrowindex1p(1,3*operaindex-3+j),(4*subMp+1),mpi_integer4,status,ierr)
+					offset=offset+(4*subMp+1)*4
+					nonzero=bigrowindex1p(4*dim1+1,3*operaindex-3+j)-1
+				!	write(*,*) "wnonzero=",dim1,nonzero,offset
+					call MPI_FILE_WRITE_AT(thefile,offset,operamatbig1p(1,3*operaindex-3+j),nonzero,mpi_real8,status,ierr)
+					offset=offset+nonzero*8
+					call MPI_FILE_WRITE_AT(thefile,offset,bigcolindex1p(1,3*operaindex-3+j),nonzero,mpi_integer4,status,ierr)
+					offset=offset+nonzero*4
+				end do
+			end if
+		end do
+	else if(myid==0) then
+		if(domain=='L') then
+			Hfilenamep="0-leftp.tmp"
+			Hcolfilenamep="0-leftcolp.tmp"
+			Hrowfilenamep="0-leftrowp.tmp"
+			quantafilenamep="quantabigLp.tmp"
+			Hindex=1
+		else if(domain=='R') then
+			Hfilenamep="0-rightp.tmp"
+			Hcolfilenamep="0-rightcolp.tmp"
+			Hrowfilenamep="0-rightrowp.tmp"
+			quantafilenamep="quantabigRp.tmp"
+			Hindex=2
+		end if
+		recindex=abs(orbnow-orbref)+1
+!----------------open a binary file-------------
+		
+		! rowindex
+		reclength=subMp*4+1
+		inquire(file=trim(Hrowfilenamep),exist=alive)
+		if(alive) then
+			open(unit=111,file=trim(Hrowfilenamep),access="Direct",form="unformatted",recl=reclength,status="old")
+		else
+			open(unit=111,file=trim(Hrowfilenamep),access="Direct",form="unformatted",recl=reclength,status="replace")
+		end if
+		! sigmaR index =norbs is 1; norbs-1 is 2
+		write(111,rec=recindex) Hbigrowindexp(:,Hindex)
+		close(111)
+
+		! Hmat
+		nonzero=Hbigrowindexp(4*dim1+1,Hindex)-1   ! nonzero element numbers in Hbig
+	
+		reclength=2*Hbigdimp
+		inquire(file=trim(Hfilenamep),exist=alive)
+		if(alive) then
+			open(unit=101,file=trim(Hfilenamep),access="Direct",form="unformatted",recl=reclength,status="old")
+		else
+			open(unit=101,file=trim(Hfilenamep),access="Direct",form="unformatted",recl=reclength,status="replace")
+		end if
+		! sigmaR index =norbs is 1; norbs-1 is 2
+		write(101,rec=recindex) Hbigp(1:nonzero,Hindex)
+		close(101)
+		
+		! colindex
+		reclength=Hbigdimp
+		inquire(file=trim(Hcolfilenamep),exist=alive)
+		if(alive) then
+			open(unit=109,file=trim(Hcolfilenamep),access="Direct",form="unformatted",recl=reclength,status="old")
+		else
+			open(unit=109,file=trim(Hcolfilenamep),access="Direct",form="unformatted",recl=reclength,status="replace")
+		end if
+		! sigmaR index =norbs is 1; norbs-1 is 2
+		write(109,rec=recindex) Hbigcolindexp(1:nonzero,Hindex)
+		close(109) 
+!------------------------------write the quantabigL/R(4*subM,2)---
+		reclength=4*subMp*2
+		! quantabigL is  integer(kind=4) so without *2
+		inquire(file=trim(quantafilenamep),exist=alive)
+		if(alive) then
+			open(unit=107,file=trim(quantafilenamep),access="Direct",form="unformatted",recl=reclength,status="old")
+		else
+			open(unit=107,file=trim(quantafilenamep),access="Direct",form="unformatted",recl=reclength,status="replace")
+		end if
+		if(domain=='L') then
+			write(107,rec=recindex) quantabigLp
+		else if(domain=='R') then
+			write(107,rec=recindex) quantabigRp
+		end if
+		close(107)
+	end if
+	call MPI_FILE_CLOSE(thefile,ierr)
+	end if
 
 return
 

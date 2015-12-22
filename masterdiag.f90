@@ -82,9 +82,10 @@ subroutine masterop(bigdim,smadim,coeff,newcoeff)
 
 	! to transform the 16M*M coeff to 4M*4M(L*R) format ; coeff(16M^2,n) to coeff(4M,4M,n) 
 	do k=1,smadim,1
-		call coefftosparse(4*Lrealdim,4*Rrealdim,ngoodstates,&
+		call coefftosparse(ngoodstates,&
 			LRcoeffin(:,k),LRcoeffincol(:,k),LRcoeffinrow(:,k),&
-			ngoodstates,coeffnosymm((k-1)*ngoodstates+1:k*ngoodstates))
+			ngoodstates,coeffnosymm((k-1)*ngoodstates+1:k*ngoodstates),&
+			Lrealdim,Rrealdim,quantabigL(1:4*Lrealdim,1:2),quantabigR(1:4*Rrealdim,1:2))
 	end do
 
 	LRcoeffoutrow=1  ! define the LRcoeffout matrix is 0

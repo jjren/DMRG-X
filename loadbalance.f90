@@ -174,14 +174,25 @@ Subroutine LoadBalance
 !------------------------------------------------------
 ! allocate the quanta of every many body basis
 ! 1 means the total electron; 2 means the total Sz
-	allocate(quantasmaL(subM,2),stat=error)
-	if(error/=0) stop
-	allocate(quantasmaR(subM,2),stat=error)
-	if(error/=0) stop
-	allocate(quantabigL(4*subM,2),stat=error)
-	if(error/=0) stop
-	allocate(quantabigR(4*subM,2),stat=error)
-	if(error/=0) stop
+	! diagnolization space quanta
+	allocate(quantasmaL(subM,2))
+	allocate(quantasmaR(subM,2))
+	allocate(quantabigL(4*subM,2))
+	allocate(quantabigR(4*subM,2))
+	quantasmaL=0
+	quantasmaR=0
+	quantabigL=0
+	quantabigR=0
+
+	! perturbation space quanta
+	allocate(quantasmaLp(subMp,2))
+	allocate(quantasmaRp(subMp,2))
+	allocate(quantabigLp(4*subMp,2))
+	allocate(quantabigRp(4*subMp,2))
+	quantasmaLp=0
+	quantasmaRp=0
+	quantabigLp=0
+	quantabigRp=0
 !------------------------------------------------------
 return
 end Subroutine LoadBalance

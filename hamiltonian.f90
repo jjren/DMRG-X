@@ -11,6 +11,9 @@ Module Hamiltonian_mod
 	USE symmetry
 	use module_sparse
 	use masterdiag
+	use GetHdiag_mod
+	use perturbation_mod
+	use ABop
 
 	implicit none
 	integer :: dimN
@@ -27,6 +30,13 @@ subroutine Hamiltonian(direction)
 	
 	starttime=MPI_WTIME()
 	call master_print_message("enter hamiltonian subroutine")
+	
+	write(*,*) "myid=",myid
+	write(*,*) "Lrealdim",Lrealdim
+	write(*,*) "Rrealdim",Rrealdim
+	write(*,*) "Lrealdimp",Lrealdimp
+	write(*,*) "Rrealdimp",Rrealdimp
+
 	if(diagmethod=="Davidson" .or. diagmethod=="D" .or. diagmethod=="MD") then
 		call Davidson_wrapper(direction)
 	else if(diagmethod=="JacobiDavidson" .or. diagmethod=="JD") then
@@ -148,7 +158,11 @@ subroutine JacobiDavidson_Wrapper(direction)
 		(logic_C2/=0 .and. nleft==nright)) then
 		call SymmHDiag(HDIAG)
 	else 
-		call GetHDiag(HDIAG)
+		call GetHDiag(HDIAG,dimN,&
+		operamatbig1,bigcolindex1,bigrowindex1,&
+		Hbig,Hbigcolindex,Hbigrowindex,&
+		quantabigL,quantabigR,&
+		.false.)
 	end if
 	endtime=MPI_WTIME()
 	call master_print_message(endtime-starttime,"HDIAGTIME:")
@@ -177,7 +191,11 @@ subroutine JacobiDavidson_Wrapper(direction)
 		if(IJOB/=1) then
 			exit
 		else
-			call op(dimN,1,eigenvector(NDX1),eigenvector(NDX2))
+			call op(dimN,1,eigenvector(NDX1),eigenvector(NDX2),&
+				Lrealdim,Rrealdim,subM,ngoodstates,&
+				operamatbig1,bigcolindex1,bigrowindex1,&
+				Hbig,Hbigcolindex,Hbigrowindex,&
+				quantabigL,quantabigR)
 		end if
 	end do
 
@@ -187,7 +205,16 @@ subroutine JacobiDavidson_Wrapper(direction)
 			stop
 		end if
 		call DavidOutput(EIGS,eigenvector)
+		write(*,*) "low state energy"
+		do i=1,nstate,1
+			write(*,*) nleft+1,norbs-nright,i,"th energy=",EIGS(i)
+		end do
 	end if
+	
+	if(ifopenperturbation==.true.) then
+		call perturbation(EIGS,nstate)
+	end if
+	
 
 	! deallocate symmetry workarray
 	if(logic_spinreversal/=0 .or. (logic_C2/=0 .and. nleft==nright)) then
@@ -231,7 +258,7 @@ Subroutine Davidson_Wrapper(direction)
 	! davidson parameter
 	integer :: nloops,nmv,ierror,smadim,IWRSZ
 	logical :: hiend
-	external op
+!	external op
 
 	real(kind=r8),allocatable :: DavidWORK(:)
 	real(kind=r8),allocatable :: dummycoeff(:),dummynewcoeff(:) ! have no use in fact
@@ -298,7 +325,12 @@ Subroutine Davidson_Wrapper(direction)
 		(logic_C2/=0 .and. nleft==nright)) then
 		call SymmHDiag(HDIAG)
 	else 
-		call GetHDiag(HDIAG)
+		call GetHDiag(HDIAG,dimN,&
+		operamatbig1,bigcolindex1,bigrowindex1,&
+		Hbig,Hbigcolindex,Hbigrowindex,&
+		quantabigL,quantabigR,&
+		.false.)
+	!	write(*,*) HDIAG
 	end if
 	endtime=MPI_WTIME()
 	call master_print_message(endtime-starttime,"HDIAGTIME:")
@@ -312,7 +344,7 @@ Subroutine Davidson_Wrapper(direction)
 ! The core part of davidson diagnolization
 	if(diagmethod=="D" .or. diagmethod=="Davidson") then
 		if(myid==0) then
-			call DVDSON(op,dimN,lim,HDIAG,ilow,ihigh,iselec &
+			call DVDSON(dimN,lim,HDIAG,ilow,ihigh,iselec &
 			    ,niv,mblock,crite,critc,critr,ortho,maxiter,DavidWORK,&
 			    IWRSZ,hiend,nloops,nmv,ierror)
 			    smadim=0
@@ -327,7 +359,11 @@ Subroutine Davidson_Wrapper(direction)
 					if(error/=0) stop
 					allocate(dummynewcoeff(smadim),stat=error)
 					if(error/=0) stop
-					call op(1,smadim,dummycoeff,dummynewcoeff)
+					call op(1,smadim,dummycoeff,dummynewcoeff,&
+							Lrealdim,Rrealdim,subM,ngoodstates,&
+							operamatbig1,bigcolindex1,bigrowindex1,&
+							Hbig,Hbigcolindex,Hbigrowindex,&
+							quantabigL,quantabigR)
 					deallocate(dummycoeff)
 					deallocate(dummynewcoeff)
 				else
@@ -379,10 +415,20 @@ Subroutine Davidson_Wrapper(direction)
 		write(*,*) "NLOOPS=",nloops
 		write(*,*) "NMV=",nmv
 		call DavidOutput(DavidWORK(IHIGH*dimN+1),DavidWORK(1))
-
-		deallocate(HDIAG,DavidWORK)
 	end if
 
+	if(ifopenperturbation==.true.) then
+		if(myid==0) then
+			call perturbation(DavidWORK(IHIGH*dimN+1:IHIGH*dimN+nstate),nstate)
+		else
+			call perturbation(DavidWORK,nstate)
+		end if
+	end if
+	
+	if(myid==0) then
+		deallocate(HDIAG,DavidWORK)
+	end if
+	
 	! deallocate symmetry workarray
 	if(logic_spinreversal/=0 .or. (logic_C2/=0 .and. nleft==nright)) then
 		call DestroySymm
@@ -397,6 +443,7 @@ end subroutine Davidson_Wrapper
 !====================================================================
 
 subroutine DavidOutput(eigenvalue,eigenvector)
+	use perturbation_mod
 	implicit none
 
 	real(kind=r8) :: eigenvalue(nstate),eigenvector(nstate*dimN)
@@ -423,9 +470,10 @@ subroutine DavidOutput(eigenvalue,eigenvector)
 		 
 		! transfer the nosymmout to coeffIF
 		do k=1,nstate,1
-			call coefftosparse(4*Lrealdim,4*Rrealdim,&
+			call coefftosparse(&
 				coeffIFdim,coeffIF(:,k),coeffIFcolindex(:,k),coeffIFrowindex(:,k),&
-				ngoodstates,nosymmout((k-1)*ngoodstates+1:k*ngoodstates))
+				ngoodstates,nosymmout((k-1)*ngoodstates+1:k*ngoodstates),&
+				Lrealdim,Rrealdim,quantabigL(1:4*Lrealdim,1:2),quantabigR(1:4*Rrealdim,1:2))
 			coeffIFrowindex(4*Lrealdim+1:4*subM+1,k)=coeffIFrowindex(4*Lrealdim+1,k)
 		end do
 	!	write the coeffIF in two partical density matrix calculation
@@ -438,7 +486,14 @@ subroutine DavidOutput(eigenvalue,eigenvector)
 			write(109) coeffIFcolindex(1:nonzero,i)
 		end do
 		close(109)
-		
+	end if
+
+!	if(ifopenperturbation==.true.) then
+!		call perturbation(eigenvalue(1:nstate),nstate)
+!	end if
+	
+	if(ifopenperturbation==.false.) then
+	if(myid==0) then
 	! update the sweepenergy
 	! use the middle site as the sweepenergy
 		if(nleft==(norbs+1)/2-1) then
@@ -448,7 +503,10 @@ subroutine DavidOutput(eigenvalue,eigenvector)
 		end if
 		! update the energy
 		dmrgenergy(1:nstate)=eigenvalue(1:nstate)
+	end if
+	end if
 
+	if(myid==0) then
 		deallocate(nosymmout)
 	end if
 

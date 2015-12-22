@@ -15,7 +15,8 @@ Subroutine Enviro_Big(domain)
 	integer :: i,j,k
 	integer :: orbnow,orbstart,orbend,orbref,nsuborbs
 	integer :: reclength,operaindex,recindex,Hindex
-	character(len=50) :: filename,Hfilename,Hcolfilename,Hrowfilename,symmfilename,quantafilename
+	character(len=50) :: filename,Hfilename,Hcolfilename,Hrowfilename,symmfilename,quantafilename,&
+		filenamep,Hfilenamep,Hcolfilenamep,Hrowfilenamep,quantafilenamep,LRdimfilename
 	logical :: alive,ifmiddle
 	integer :: count1,dim1,nonzero
 
@@ -26,6 +27,12 @@ Subroutine Enviro_Big(domain)
 	! reclength is the length of direct io
 	! ifort use 4 byte as 1 by default
 	call master_print_message("enter in subroutine Enviro_Big")
+
+!	if(myid==1) then
+!		write(*,*) "subM=",subM
+!		write(*,*) "Lrealdim=",Lrealdim
+!		write(*,*) "Rrealdim=",Rrealdim
+!	end if
 	
 	ifmiddle=.false.
 	if(domain=='L') then
@@ -102,7 +109,8 @@ Subroutine Enviro_Big(domain)
 		if(alive) then
 			open(unit=112,file=trim(Hrowfilename),access="Direct",form="unformatted",recl=reclength,status="old")
 		else
-			open(unit=112,file=trim(Hrowfilename),access="Direct",form="unformatted",recl=reclength,status="replace")
+			write(*,*) trim(Hrowfilename),"doesn't exist!"
+			stop
 		end if
 		! sigmaR index =norbs is 1; norbs-1 is 2
 		read(112,rec=recindex) Hbigrowindex(:,Hindex)
@@ -128,7 +136,8 @@ Subroutine Enviro_Big(domain)
 		if(alive) then
 			open(unit=110,file=trim(Hcolfilename),access="Direct",form="unformatted",recl=reclength,status="old")
 		else
-			open(unit=110,file=trim(Hcolfilename),access="Direct",form="unformatted",recl=reclength,status="replace")
+			write(*,*) trim(Hcolfilename),"doesn't exist!"
+			stop
 		end if
 		! sigmaR index =norbs is 1; norbs-1 is 2
 		read(110,rec=recindex) Hbigcolindex(1:nonzero,Hindex)
@@ -247,7 +256,144 @@ Subroutine Enviro_Big(domain)
 		end if
 		call MPI_FILE_CLOSE(thefile,ierr)
 	end if
+
 !=====================================================
+	if(logic_perturbation/=0) then
+	if(domain=='L') then
+		write(filenamep,'(i5.5,a9)') orbnow,'leftp.tmp'
+		LRdimfilename="Lrealdimp.tmp"
+	else if (domain=='R') then
+		write(filenamep,'(i5.5,a10)') orbnow,'rightp.tmp'
+		LRdimfilename="Rrealdimp.tmp"
+	end if
+	! read the Lrealdimp,Rrealdimp
+	if(myid==0) then
+		reclength=1
+		inquire(file=LRdimfilename,exist=alive)
+		if(alive) then
+			open(unit=1001,file=LRdimfilename,access="Direct",form="unformatted",recl=reclength,status="old")
+		else
+			write(*,*) LRdimfilename,"doesn't exist!"
+			stop
+		end if
+		recindex=abs(orbnow-orbref)+1
+		read(1001,rec=recindex) dim1
+		close(1001)
+	end if
+	! bcast the L/Rrealdimp
+	call MPI_BCAST(dim1,1,MPI_integer4,0,MPI_COMM_WORLD,ierr)
+	if(domain=="L") then
+		Lrealdimp=dim1
+	else
+		Rrealdimp=dim1
+	end if
+
+	call MPI_FILE_OPEN(MPI_COMM_WORLD,trim(filenamep),MPI_MODE_RDONLY,MPI_INFO_NULL,thefile,ierr)
+	if(myid/=0) then
+		do i=orbstart,orbend,1
+		if(myid==orbid1(i,1)) then
+			operaindex=orbid1(i,2)
+			! get mat-> colindex->rowindex CSR format
+			offset=abs(i-orbref)*(bigdim1p*12+(4*subMp+1)*4)*3
+			do j=1,3,1
+				call MPI_FILE_READ_AT(thefile,offset,bigrowindex1p(1,3*operaindex-3+j),(4*subMp+1),mpi_integer4,status,ierr)
+				offset=offset+(4*subMp+1)*4
+				nonzero=bigrowindex1p(4*dim1+1,3*operaindex-3+j)-1
+			!	write(*,*) "nonzero=",dim1,nonzero,offset
+				call MPI_FILE_READ_AT(thefile,offset,operamatbig1p(1,3*operaindex-3+j),nonzero,mpi_real8,status,ierr)
+				offset=offset+nonzero*8
+				call MPI_FILE_READ_AT(thefile,offset,bigcolindex1p(1,3*operaindex-3+j),nonzero,mpi_integer4,status,ierr)
+				offset=offset+nonzero*4
+			end do
+		end if
+		end do
+	! 0 process
+	else if(myid==0) then
+		if(domain=='L') then
+			Hfilenamep="0-leftp.tmp"
+			Hcolfilenamep="0-leftcolp.tmp"
+			Hrowfilenamep="0-leftrowp.tmp"
+			quantafilenamep="quantabigLp.tmp"
+			Hindex=1
+		else if(domain=='R') then
+			Hfilenamep="0-rightp.tmp"
+			Hcolfilenamep="0-rightcolp.tmp"
+			Hrowfilenamep="0-rightrowp.tmp"
+			quantafilenamep="quantabigRp.tmp"
+			Hindex=2
+		end if
+		recindex=abs(orbnow-orbref)+1
+
+!----------------open a binary file-------------
+		! rowindex
+		reclength=subMp*4+1
+		inquire(file=trim(Hrowfilenamep),exist=alive)
+		if(alive) then
+			open(unit=112,file=trim(Hrowfilenamep),access="Direct",form="unformatted",recl=reclength,status="old")
+		else
+			write(*,*) trim(Hrowfilenamep),"doesn't exist!"
+			stop
+		end if
+		! sigmaR index =norbs is 1; norbs-1 is 2
+		read(112,rec=recindex) Hbigrowindexp(:,Hindex)
+		close(112)
+
+		nonzero=Hbigrowindexp(4*dim1+1,Hindex)-1   ! nonzero element numbers in Hbig
+		
+		reclength=2*Hbigdimp
+		inquire(file=trim(Hfilenamep),exist=alive)
+		if(alive) then
+			open(unit=102,file=trim(Hfilenamep),access="Direct",form="unformatted",recl=reclength,status="old")
+		else
+			write(*,*) trim(Hfilenamep),"doesn't exist!"
+			stop
+		end if
+! norbs is 1; norbs-1 is 2
+		read(102,rec=recindex) Hbigp(1:nonzero,Hindex)
+		close(102)
+
+		! colindex
+		reclength=Hbigdimp
+		inquire(file=trim(Hcolfilenamep),exist=alive)
+		if(alive) then
+			open(unit=110,file=trim(Hcolfilenamep),access="Direct",form="unformatted",recl=reclength,status="old")
+		else
+			write(*,*) trim(Hcolfilenamep),"doesn't exist!"
+			stop
+		end if
+		! sigmaR index =norbs is 1; norbs-1 is 2
+		read(110,rec=recindex) Hbigcolindexp(1:nonzero,Hindex)
+		close(110)
+!------------------------------read the quantabigR/L(4*subM,2)---
+! every process need to read quantabigR/L
+
+		reclength=4*subMp*2
+		! quantabigR/L is  integer(kind=4) so without *2
+		inquire(file=trim(quantafilenamep),exist=alive)
+		if(alive) then
+			open(unit=108,file=trim(quantafilenamep),access="Direct",form="unformatted",recl=reclength,status="old")
+		else
+			write(*,*) trim(quantafilenamep),"doesn't exist!"
+			stop
+		end if
+		if(domain=='L') then
+			read(108,rec=recindex) quantabigLp
+		else if(domain=='R') then
+			read(108,rec=recindex) quantabigRp
+		end if
+		close(108)
+	end if
+
+	! broadcast the quantabigR/L to other process
+	if(domain=='L') then
+		call MPI_BCAST(quantabigLp,4*subMp*2,MPI_integer4,0,MPI_COMM_WORLD,ierr)
+	else if(domain=='R') then
+		call MPI_BCAST(quantabigRp,4*subMp*2,MPI_integer4,0,MPI_COMM_WORLD,ierr)
+	end if
+
+	call MPI_FILE_CLOSE(thefile,ierr)
+	end if
+
 return
 
 end Subroutine Enviro_Big

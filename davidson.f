@@ -1,4 +1,4 @@
-        SUBROUTINE DVDSON(OP,N,LIM,DIAG,
+        SUBROUTINE DVDSON(N,LIM,DIAG,
      :                   ILOW,IHIGH,ISELEC,NIV,MBLOCK,
      :                   CRITE,CRITC,CRITR,ORTHO,MAXITER,
      :                   WORK,IWRSZ,
@@ -66,7 +66,7 @@ C
         DIMENSION DIAG(N),WORK(IWRSZ)
         DIMENSION ISELEC(LIM)
         LOGICAL HIEND
-        external op
+*        external op
         include "mpif.h"
         include "mkl_blas.fi"
 *-----------------------------------------------------------------------
@@ -298,12 +298,12 @@ C
         IF (HIEND) CALL DSCAL(N,-1.D0,DIAG,1)
 C
         iSTART=NIV
-        CALL SETUP(OP,N,LIM,NUME,HIEND,DIAG,
+        CALL SETUP(N,LIM,NUME,HIEND,DIAG,
      :             WORK(iBasis),WORK(iAB),WORK(iS),iSTART)
         NLOOPS=1
         NMV=ISTART
 C
-        CALL DVDRVR(OP,N,HIEND,LIM,MBLOCK,DIAG,
+        CALL DVDRVR(N,HIEND,LIM,MBLOCK,DIAG,
      :             NUME,iSTART,NEIG,ISELEC,
      :             CRITE,CRITC,CRITR,ORTHO,MAXITER,
      :             WORK(ieigval),WORK(iBasis),WORK(iAB),
@@ -326,7 +326,7 @@ C
  100    RETURN
         END
 *=======================================================================
-        SUBROUTINE SETUP(OP,N,LIM,NUME,HIEND,DIAG,
+        SUBROUTINE SETUP(N,LIM,NUME,HIEND,DIAG,
      :                   BASIS,AB,S,NIV)
 *=======================================================================
 *       Subroutine for setting up (i) the initial BASIS if not provided,
@@ -340,7 +340,7 @@ C
         DIMENSION DIAG(N),BASIS(N*LIM),AB(N*LIM)
         DIMENSION S(LIM*(LIM+1)/2),MINELEM(LIM)
         logical hiend
-        external op
+*        external op
         include "mpif.h"
         include "mkl_blas.fi"
 *-----------------------------------------------------------------------
@@ -396,12 +396,12 @@ C
 * small matrix S = B^TAB.
 *
         KPASS=0
-        CALL ADDABS(OP,N,LIM,HIEND,KPASS,NIV,BASIS,AB,S)
+        CALL ADDABS(N,LIM,HIEND,KPASS,NIV,BASIS,AB,S)
 C
         RETURN
         END
 *=======================================================================
-        SUBROUTINE DVDRVR(OP,N,HIEND,LIM,MBLOCK,DIAG,
+        SUBROUTINE DVDRVR(N,HIEND,LIM,MBLOCK,DIAG,
      :                    NUME,NIV,NEIG,ISELEC,
      :                    CRITE,CRITC,CRITR,ORTHO,MAXITER,
      :                    EIGVAL,BASIS,AB,S,SVEC,scra1,
@@ -440,7 +440,7 @@ C
         DIMENSION SCRA1(8*LIM),ISCRA2(LIM),INCV(LIM)
         DIMENSION ICV(NUME),OLDVAL(NUME)
         LOGICAL RESTART,FIRST,DONE,HIEND,TSTSEL
-        external op
+*        external op
         include "mpif.h"
         include "mkl_blas.fi"
 C
@@ -548,7 +548,7 @@ C
 *
 * Add new columns in D and S, from the NNCV new vectors.
 *
-           CALL ADDABS(OP,N,LIM,HIEND,KPASS,NNCV,BASIS,AB,S)
+           CALL ADDABS(N,LIM,HIEND,KPASS,NNCV,BASIS,AB,S)
 C
            NMV=NMV+NNCV
            KPASS=KPASS+NNCV
@@ -582,7 +582,7 @@ C
  60     RETURN
         END
 *=======================================================================
-       SUBROUTINE ADDABS(OP,N,LIM,HIEND,KPASS,NNCV,BASIS,AB,S)
+       SUBROUTINE ADDABS(N,LIM,HIEND,KPASS,NNCV,BASIS,AB,S)
 *=======================================================================
 *       Called by: DVDRVR, SETUP
 *
@@ -594,12 +594,13 @@ C
 *       subroutines called:
 *       OP, DDOT, DSCAL
 *-----------------------------------------------------------------------
-        use variables,only : diagmethod
+        use variables
+        use ABop
+        use module_sparse
         IMPLICIT DOUBLE PRECISION(A-H,O-Z)
         DIMENSION BASIS(N*LIM),AB(N*LIM)
         DIMENSION S(LIM*(LIM+1)/2)
         LOGICAL HIEND
-        EXTERNAL OP
         include "mpif.h"
         include "mkl_blas.fi"
 *-----------------------------------------------------------------------
@@ -623,7 +624,11 @@ c jjren add
         if(diagmethod/="MD") then
             call MPI_bcast(NNCV,1,MPI_integer,0,MPI_COMM_WORLD,ierr)
         end if
-        CALL OP(N,NNCV,BASIS(IDSTART),AB(IDSTART))
+        CALL OP(N,NNCV,BASIS(IDSTART),AB(IDSTART),
+     :           Lrealdim,Rrealdim,subM,ngoodstates,
+     :           operamatbig1,bigcolindex1,bigrowindex1,
+     :           Hbig,Hbigcolindex,Hbigrowindex,
+     :           quantabigL,quantabigR)
 *
 * If highest pairs are sought, use the negative of the matrix
 *

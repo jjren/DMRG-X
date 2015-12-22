@@ -33,7 +33,7 @@ subroutine InitialStarter(direction,lvector,nvector,initialcoeff)
 	end if
 
 	if(direction/='i' .and. logic_C2==0 .and. &
-	formernelecs==nelecs) then
+	formernelecs==nelecs .and. ifopenperturbation==.false.) then
 
 		allocate(nosymmguess(ngoodstates*nvector),stat=error)
 		if(error/=0) stop
@@ -58,8 +58,8 @@ subroutine InitialStarter(direction,lvector,nvector,initialcoeff)
 		call GramSchmit(nvector,lvector,initialcoeff,norm)
 		write(*,*) "the Initial guessvector norm",norm
 	else
-	!	call InitialRandom(initialcoeff,nvector,lvector)
-	!	call GramSchmit(nvector,lvector,initialcoeff,norm)
+		call InitialRandom(initialcoeff,nvector,lvector)
+		call GramSchmit(nvector,lvector,initialcoeff,norm)
 	!	write(*,*) "the Initial guessvector norm",norm
 
 	!	there are some problem(such as local minimun) when us univector

@@ -14,15 +14,20 @@ module module_sparse
 
 	! sparse form in 3 array CSR format
 	real(kind=r8),allocatable,public :: &
-	operamatbig1(:,:) , &         ! sparse form 1 electron operamatbig
-	operamatsma1(:,:) , &         ! sparse form 1 electron operamatsma
-	operamatbig2(:,:) , &         ! sparse form 2 electron operamatbig
-	operamatsma2(:,:) , &         ! sparse form 2 electron operamatsma
-	operamatbig3(:,:) , &         ! sparse form local spin operamatbig
-	operamatsma3(:,:) , &         ! sparse form local spin operamatsma
-	Hbig(:,:)         , &         ! Hbig in sparse form
-	Hsma(:,:)         , &         ! Hsma in sparse form
-	coeffIF(:,:)                  ! coeffIF is the inital and final wavefunction coefficient 
+	operamatbig1(:,:)  , &        ! sparse form 1 electron operamatbig
+	operamatsma1(:,:)  , &        ! sparse form 1 electron operamatsma
+	operamatbig2(:,:)  , &        ! sparse form 2 electron operamatbig
+	operamatsma2(:,:)  , &        ! sparse form 2 electron operamatsma
+	operamatbig3(:,:)  , &        ! sparse form local spin operamatbig
+	operamatsma3(:,:)  , &        ! sparse form local spin operamatsma
+	Hbig(:,:)          , &        ! Hbig in sparse form
+	Hsma(:,:)          , &        ! Hsma in sparse form
+	coeffIF(:,:)       , &        ! coeffIF is the inital and final wavefunction coefficient 
+	operamatbig1p(:,:) , &        ! sparse form 1 electron operamatbig in perturbation mode
+	operamatsma1p(:,:) , &        ! sparse form 1 electron operamatsma in perturbation mode
+	Hbigp(:,:)         , &        ! Hbig in sparse form in perturbation mode
+	Hsmap(:,:)         , &        ! Hsma in sparse form in perturbation mode
+	coeffIFp(:,:)                 ! coeffIF is the inital and final wavefunction coefficient in perturbation mode
 	
 	integer(kind=i4),allocatable,public :: &
 	bigrowindex1(:,:) , &         ! 1 electron operamatbig rowindex
@@ -42,10 +47,31 @@ module module_sparse
 	Hsmacolindex(:,:) , &         ! Hsma colindex
 	Hsmarowindex(:,:) , &         ! Hsma rowindex
 	coeffIFcolindex(:,:) ,&       ! coeffIF colindex
-	coeffIFrowindex(:,:)          ! coeffIF rowindex
-
-	integer(kind=i4),public :: bigdim1,smadim1,bigdim2,smadim2,Hbigdim,Hsmadim,coeffIFdim,bigdim3,smadim3  ! in sparse form operamatbig/operamatsma,Hbig/Hsma dim
+	coeffIFrowindex(:,:) ,&       ! coeffIF rowindex
+	bigrowindex1p(:,:) , &         ! 1 electron operamatbig rowindex in perturbation mode
+	bigcolindex1p(:,:) , &         ! 1 electron oepramatbig columnindex in perturbation mode
+	smarowindex1p(:,:) , &         ! 1 electron operamatsma rowindex in perturbation mode
+	smacolindex1p(:,:) , &         ! 1 electron operamatsma columnindex in perturbation mode
+	Hbigcolindexp(:,:) , &         ! Hbig colindex in perturbation mode
+	Hbigrowindexp(:,:) , &         ! Hbig rowindex in perturbation mode
+	Hsmacolindexp(:,:) , &         ! Hsma colindex in perturbation mode
+	Hsmarowindexp(:,:) , &         ! Hsma rowindex in perturbation mode
+	coeffIFcolindexp(:) ,&         ! coeffIF colindex in perturbation mode
+	coeffIFrowindexp(:)            ! coeffIF rowindex in perturbation mode
 	
+	integer(kind=i4),public :: coeffIFplast   ! the number of nonzero element in the coeffIFp
+	
+	! in sparse form operamatbig/operamatsma,Hbig/Hsma dim
+	integer(kind=i4),public :: &
+	bigdim1,smadim1   , & 
+	bigdim2,smadim2   , &
+	bigdim3,smadim3   , & 
+	Hbigdim,Hsmadim   , &
+	coeffIFdim        , &
+	bigdim1p,smadim1p , &
+	Hbigdimp,Hsmadimp , &
+	coeffIFdimp
+
 	! sparse parameter
 	real(kind=r8),public :: pppmatratio,hopmatratio,LRoutratio,UVmatratio,coeffIFratio
 	real(kind=r8),public :: bigratio1,smaratio1,bigratio2,smaratio2,bigratio3,smaratio3,Hbigratio,Hsmaratio  ! sparse radio
@@ -83,6 +109,13 @@ subroutine AllocateArray
 	Hbigdim=CEILING(DBLE(16*subM*subM)/Hbigratio)
 	Hsmadim=CEILING(DBLE(subM*subM)/Hsmaratio)
 	coeffIFdim=CEILING(DBLE(16*subM*subM)/coeffIFratio)
+	
+	! perturbation mode
+	bigdim1p=CEILING(DBLE(16*subMp*subMp)/bigratio1)
+	smadim1p=CEILING(DBLE(subMp*subMp)/smaratio1)
+	Hbigdimp=CEILING(DBLE(16*subMp*subMp)/Hbigratio)
+	Hsmadimp=CEILING(DBLE(subMp*subMp)/Hsmaratio)
+	coeffIFdimp=CEILING(DBLE(16*subMp*subMp)/coeffIFratio)
 
 ! allocate memory 
 	if(myid/=0) then
@@ -101,7 +134,19 @@ subroutine AllocateArray
 		if(error/=0) stop
 		bigrowindex1=1   ! set the matrix to be 0
 		smarowindex1=1
-		
+
+		if(logic_perturbation/=0) then
+			allocate(operamatbig1p(bigdim1p,3*operanum1(myid)))
+			allocate(bigcolindex1p(bigdim1p,3*operanum1(myid)))
+			allocate(bigrowindex1p(4*subMp+1,3*operanum1(myid)))
+
+			allocate(operamatsma1p(smadim1p,3*operanum1(myid)))
+			allocate(smacolindex1p(smadim1p,3*operanum1(myid)))
+			allocate(smarowindex1p(subMp+1,3*operanum1(myid)))
+			bigrowindex1p=1   ! set the matrix to be 0
+			smarowindex1p=1
+		end if
+
 		if(logic_bondorder/=0) then
 			allocate(operamatbig2(bigdim2,2*operanum2(myid)),stat=error)
 			if(error/=0) stop
@@ -147,7 +192,7 @@ subroutine AllocateArray
 		if(error/=0) stop
 		allocate(Hbigrowindex(4*subM+1,2),stat=error)
 		if(error/=0) stop
-
+		
 		allocate(Hsma(Hsmadim,2),stat=error)
 		if(error/=0) stop
 		allocate(Hsmacolindex(Hsmadim,2),stat=error)
@@ -162,6 +207,7 @@ subroutine AllocateArray
 		else
 			C2state=2*nstate
 		end if
+
 		allocate(coeffIF(coeffIFdim,C2state),stat=error)
 		if(error/=0) stop
 		allocate(coeffIFcolindex(coeffIFdim,C2state),stat=error)
@@ -172,6 +218,24 @@ subroutine AllocateArray
 		Hbigrowindex=1
 		Hsmarowindex=1
 		coeffIFrowindex=1
+		
+		if(logic_perturbation/=0) then
+			allocate(Hbigp(Hbigdimp,2))
+			allocate(Hbigcolindexp(Hbigdimp,2))
+			allocate(Hbigrowindexp(4*subMp+1,2))
+			
+			allocate(Hsmap(Hsmadimp,2))
+			allocate(Hsmacolindexp(Hsmadimp,2))
+			allocate(Hsmarowindexp(subMp+1,2))
+			
+			allocate(coeffIFp(coeffIFdimp,C2state))
+			allocate(coeffIFcolindexp(coeffIFdimp))
+			allocate(coeffIFrowindexp(coeffIFdimp))
+			Hbigrowindexp=1
+			Hsmarowindexp=1
+			coeffIFrowindexp=1
+		end if
+
 		if(diagmethod=="MD") then
 			allocate(moperamatbig1(bigdim1,3*norbs))
 			allocate(mbigcolindex1(bigdim1,3*norbs))
