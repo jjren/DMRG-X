@@ -403,9 +403,12 @@ cap_quantasmaL,cap_quantasmaR)
 	write(*,*) "sum of total singular value:", sum(svaluefull*svaluefull)
 	
 	dim1=min(mv,svdvaluedim)
-	
+	if(mv<subM) then
+		write(*,*) "mv<subM",mv
+		stop
+	end if
 	if(logic_spinreversal/=0) then
-		call selectstates(svaluefull,szl0*2+szzero,valueindex,singularvalue,svdvaluedim,subspacenum,nleft,szzero,szl0)
+		call selectstates(svaluefull,szl0*2+szzero,valueindex,singularvalue,dim1,subspacenum,nleft,szzero,szl0)
 	else
 		call selectstates(svaluefull,mv,valueindex,singularvalue,dim1,subspacenum,nleft,szzero,szl0)
 	end if

@@ -33,27 +33,34 @@ subroutine InitialStarter(direction,lvector,nvector,initialcoeff)
 	end if
 
 	if(direction/='i' .and. logic_C2==0 .and. &
-	formernelecs==nelecs .and. ifopenperturbation==.false.) then
+	formernelecs==nelecs) then
+	
+		if(ifopenperturbation==.false.) then
+			allocate(nosymmguess(ngoodstates*nvector),stat=error)
+			if(error/=0) stop
 
-		allocate(nosymmguess(ngoodstates*nvector),stat=error)
-		if(error/=0) stop
+			if(nvector==1) then
+				call SingleInitialFinite(nosymmguess,ngoodstates,direction)
+			else
+				call MoreInitialFinite(nosymmguess,ngoodstates,direction)
+			end if
 
-		if(nvector==1) then
-			call SingleInitialFinite(nosymmguess,ngoodstates,direction)
+			if(logic_spinreversal/=0) then
+				do i=1,nvector,1
+					call symmetrizestate(ngoodstates,nosymmguess((i-1)*ngoodstates+1:i*ngoodstates),&
+					initialcoeff((i-1)*lvector+1:i*lvector),'s')
+				end do
+			else
+				call copy(nosymmguess,initialcoeff)
+			end if
+
+			deallocate(nosymmguess)
 		else
-			call MoreInitialFinite(nosymmguess,ngoodstates,direction)
+			call Perturbation_Init(initialcoeff,lvector,direction)
+		!	call master_print_message("use the algorithm default as initialguess")
+		!	call InitialRandom(initialcoeff,nvector,lvector)
+		!	nvector=0  ! niv=0  
 		end if
-
-		if(logic_spinreversal/=0) then
-			do i=1,nvector,1
-				call symmetrizestate(ngoodstates,nosymmguess((i-1)*ngoodstates+1:i*ngoodstates),&
-				initialcoeff((i-1)*lvector+1:i*lvector),'s')
-			end do
-		else
-			call copy(nosymmguess,initialcoeff)
-		end if
-
-		deallocate(nosymmguess)
 		
 		call GramSchmit(nvector,lvector,initialcoeff,norm)
 		write(*,*) "the Initial guessvector norm",norm
@@ -96,6 +103,7 @@ end subroutine InitialStarter
 	integer :: error,i,j,m,k
 	character(len=1) :: direction
 	integer :: job(8),info
+	integer :: dummydim1,dummydim2
 
 	write(*,*) "enter MoreInitialFinit subroutine"
 	! two site dmrg
@@ -111,7 +119,7 @@ end subroutine InitialStarter
 	allocate(rightv(subM,4*subM),stat=error)
 	if(error/=0) stop
 
-	reclength=2*subM*subM
+	reclength=2*subMp*subMp+2
 
 	inquire(file="wavefunction.tmp",exist=alive)
 	if(alive) then
@@ -128,16 +136,28 @@ end subroutine InitialStarter
 		end if
 
 		do i=1,4,1
-			read(105,rec=4*(nleft-1)+i) leftu((i-1)*subMbefore+1:i*subMbefore,1:subM)
+			read(105,rec=4*(nleft-1)+i) dummydim1,dummydim2,leftu((i-1)*subMbefore+1:i*subMbefore,1:subM)
+			if(dummydim2/=subM) then
+				write(*,*) "dummydim2/=subM",dummydim2,subM
+				stop
+			end if
 		end do
 
 		do i=1,4,1
-			read(105,rec=4*(nleft+1)+i) rightv(1:subM,i:4*Rrealdim:4)
+			read(105,rec=4*(nleft+1)+i) dummydim1,dummydim2,rightv(1:subM,i:4*Rrealdim:4)
+			if(dummydim2/=subM) then
+				write(*,*) "dummydim2/=subM",dummydim2,subM
+				stop
+			end if
 		end do
 	else if(direction=='r' .and. nright>exactsite) then
 		
 		do i=1,4,1
-			read(105,rec=4*nleft+i) leftu((i-1)*Lrealdim+1:i*Lrealdim,1:subM)
+			read(105,rec=4*nleft+i) dummydim1,dummydim2,leftu((i-1)*Lrealdim+1:i*Lrealdim,1:subM)
+			if(dummydim2/=subM) then
+				write(*,*) "dummydim2/=subM",dummydim2,subM
+				stop
+			end if
 		end do
 		
 		if(nright==exactsite+1) then ! the last step Rrealdim
@@ -147,7 +167,11 @@ end subroutine InitialStarter
 		end if
 		
 		do i=1,4,1
-			read(105,rec=4*(nleft+2)+i) rightv(1:subM,i:4*subMbefore:4)
+			read(105,rec=4*(nleft+2)+i) dummydim1,dummydim2,rightv(1:subM,i:4*subMbefore:4)
+			if(dummydim2/=subM) then
+				write(*,*) "dummydim2/=subM",dummydim2,subM
+				stop
+			end if
 		end do
 	end if
 
@@ -266,6 +290,7 @@ end subroutine InitialStarter
 	integer :: error,i,j,m
 	real(kind=r8) :: norm
 	integer :: job(8),info
+	integer :: dummydim1,dummydim2
 	
 	call master_print_message("enter SingleInitialFinite subroutine")
 	! two site dmrg
@@ -283,7 +308,7 @@ end subroutine InitialStarter
 	allocate(singularvalue(subM),stat=error)
 	if(error/=0) stop
 
-	reclength=2*subM*subM
+	reclength=2*subMp*subMp+2
 
 	inquire(file="wavefunction.tmp",exist=alive)
 	if(alive) then
@@ -294,10 +319,18 @@ end subroutine InitialStarter
 	end if
 
 	do i=1,4,1
-		read(105,rec=4*nleft+i) leftu((i-1)*Lrealdim+1:i*Lrealdim,1:subM)
+		read(105,rec=4*nleft+i) dummydim1,dummydim2,leftu((i-1)*Lrealdim+1:i*Lrealdim,1:subM)
+		if(dummydim2/=subM) then
+			write(*,*) "dummydim2/=subM",dummydim2,subM
+			stop
+		end if
 	end do
 	do i=1,4,1
-		read(105,rec=4*(nleft+1)+i) rightv(1:subM,i:4*Rrealdim:4)
+		read(105,rec=4*(nleft+1)+i) dummydim1,dummydim2,rightv(1:subM,i:4*Rrealdim:4)
+		if(dummydim2/=subM) then
+			write(*,*) "dummydim2/=subM",dummydim2,subM
+			stop
+		end if
 	end do
 
 	open(unit=106,file="singularvalue.tmp",status="old")
@@ -420,9 +453,6 @@ Subroutine InitialRandom(guessvector,lvector,num)
 return
 end subroutine InitialRandom
 !===============================================================
-
-
-
 !================================================================
 
 ! unit vector that corresponding the smallest diagonal element!
@@ -482,5 +512,178 @@ end subroutine InitialRandom
 	return
 	end subroutine
 !===============================================================
+!================================================================
 
+subroutine Perturbation_Init(initcoeff,lvector,direction)
+	use blas95
+	use f95_precision
+	implicit none
+	include "mkl_spblas.fi"
+	integer,intent(in) :: lvector
+	real(kind=r8),intent(out) :: initcoeff(lvector*nstate)
+	character(len=1) :: direction
+	
+	real(kind=r8),allocatable :: leftu(:,:),rightv(:,:),&
+		midmat(:,:),midmat2(:,:),coeffguess(:,:)
+	integer :: istate,i,j
+	integer :: remainder,factor,Lrealdimbefore,Rrealdimbefore,&
+		lsvddimbefore,rsvddimbefore,&
+		reclength,ngoodstatesdummy
+	character(len=1) :: matdescra(6)
+	logical :: alive
+
+	call master_print_message("enter subroutine Perturbation_init ")
+	allocate(leftu(4*subMp,subMp))
+	allocate(rightv(subMp,4*subMp))
+	
+	reclength=2*subMp*subMp+2
+
+	inquire(file="wavefunction.tmp",exist=alive)
+	if(alive) then
+		open(unit=105,file="wavefunction.tmp",access="Direct",form="unformatted",recl=reclength,status="old")
+	else
+		write(*,*) "wavefunction.tmp doesn't exist"
+		stop
+	end if
+
+	if(direction=='l' .and. nleft>exactsite) then
+		
+		do i=1,4,1
+			read(105,rec=4*(nleft-1)+i) Lrealdimbefore,lsvddimbefore,leftu((i-1)*Lrealdimbefore+1:i*Lrealdimbefore,1:lsvddimbefore)
+		end do
+
+		do i=1,4,1
+			read(105,rec=4*(nleft+1)+i) Rrealdimbefore,rsvddimbefore,rightv(1:rsvddimbefore,i:4*Rrealdimbefore:4)
+		end do
+		if(Lrealdimp/=lsvddimbefore) then
+			write(*,*) "Lrealdimp/=lsvddimbefore",Lrealdimp,lsvddimbefore
+			stop
+		end if
+		if(Rrealdimp/=Rrealdimbefore) then
+			write(*,*) "Rrealdimp/=Rrealdimbefore",Rrealdimp,Rrealdimbefore
+			stop
+		end if
+		
+	else if(direction=='r' .and. nright>exactsite) then
+		
+		do i=1,4,1
+			read(105,rec=4*nleft+i) Lrealdimbefore,lsvddimbefore,leftu((i-1)*Lrealdimbefore+1:i*Lrealdimbefore,1:lsvddimbefore)
+		end do
+		
+		do i=1,4,1
+			read(105,rec=4*(nleft+2)+i) Rrealdimbefore,rsvddimbefore,rightv(1:rsvddimbefore,i:4*Rrealdimbefore:4)
+		end do
+		
+		if(Rrealdimp/=rsvddimbefore) then
+			write(*,*) "Rrealdimp/=rsvddimbefore",Rrealdimp,rsvddimbefore
+			stop
+		end if
+		if(Lrealdimp/=Lrealdimbefore) then
+			write(*,*) "Lrealdimp/=Lrealdimbefore",Lrealdimp,Lrealdimbefore
+			stop
+		end if
+	end if
+
+
+	matdescra(1)='G'
+	matdescra(2)='L'
+	matdescra(3)='N'
+	matdescra(4)='F'
+	
+	allocate(midmat(4*subMp,subMp))
+	allocate(midmat2(subMp,4*subMp))
+	allocate(coeffguess(4*subMp,4*subMp))
+
+	do istate=1,nstate,1
+		coeffguess=0.0D0
+		midmat=0.0D0
+		midmat2=0.0D0
+		if(direction=='l' .and. nleft>exactsite) then
+			write(*,*) "coeffifplast",coeffIfplast
+			! mat(4*Lrealdimbefore)*(4*rsvddimbefore)^T*mat(4*Lrealdimbefore)*(lsvddimbefore)
+			call mkl_dcoomm('T',4*Lrealdimbefore,lsvddimbefore,4*rsvddimbefore,1.0D0,&
+				matdescra,coeffIfp(:,istate),coeffIFrowindexp,coeffIfcolindexp,coeffIfplast,&
+				leftu,4*subMp,0.0D0,midmat,4*subMp)
+			! transforer mat(4*rsvddimbefore)*(lsvddimbefore) to
+			! mat(rsvddimbefore)*(4*lsvddimbefore)
+			do j=1,4*lsvddimbefore,1
+				remainder=mod(j,lsvddimbefore)
+				if(remainder==0) then 
+					remainder=lsvddimbefore
+					factor=j/lsvddimbefore-1
+				else
+					factor=j/lsvddimbefore
+				end if
+				midmat2(1:rsvddimbefore,j)=midmat((factor+1):4*rsvddimbefore:4,remainder)  ! tranfer U+C to new form
+			end do
+			! mat(rsvddimbefore)*(4*Rrealdimbefore)^T*mat(rsvddimbefore)*(4*lsvddimbefore)
+			call gemm(rightv(1:rsvddimbefore,1:4*Rrealdimbefore),midmat2(1:rsvddimbefore,1:4*lsvddimbefore),coeffguess(1:4*Rrealdimbefore,1:4*lsvddimbefore),'T','N',1.0D0,0.0D0)  !U+C*V
+			coeffguess=transpose(coeffguess)
+		else if(direction=='r' .and. nright>exactsite) then
+			! mat(4*lsvddimbefore)*(4*Rrealdimbefore)*mat(rsvddimbefore)*(4*Rrealdimbefore)^T
+			coeffguess(1:4*subMp,1:subMp)=transpose(rightv)
+			call mkl_dcoomm('N',4*lsvddimbefore,rsvddimbefore,4*Rrealdimbefore,1.0D0,&
+				matdescra,coeffIfp(:,istate),coeffIFrowindexp,coeffIfcolindexp,coeffIfplast,&
+				coeffguess,4*subMp,0.0D0,midmat,4*subMp)
+			coeffguess=0.0D0
+			! transforer mat(4*lsvddimbefore)*(rsvddimbefore) to
+			! mat(lsvddimbefore)*(4*rsvddimbefore)
+			do j=1,4*rsvddimbefore,1
+				remainder=mod(j,4)
+				if(remainder==0) then 
+					remainder=4
+					factor=j/4
+				else
+					factor=j/4+1
+				end if
+				midmat2(1:lsvddimbefore,j)=midmat(lsvddimbefore*(remainder-1)+1:lsvddimbefore*remainder,factor)
+			end do
+			! mat(4*Lrealdimbefore)*(lsvddimbefore)*mat(lsvddimbefore)*(4*rsvddimbefore)
+			call gemm(leftu(1:4*Lrealdimbefore,1:lsvddimbefore),midmat2(1:lsvddimbefore,1:4*rsvddimbefore),coeffguess(1:4*Lrealdimbefore,1:4*rsvddimbefore),'N','N',1.0D0,0.0D0)  !U+C*V
+		else if((direction=='l' .and. nleft==exactsite) .or. (direction=='r' .and. nright==exactsite)) then
+			do j=1,coeffIfplast,1
+				coeffguess(coeffIfrowindexp(j),coeffIfcolindexp(j))=coeffIfp(j,istate)  ! directly use the last step result
+			end do
+		end if
+		
+	!	sum1=0.0D0
+	!	do i=1,4*Rrealdimp,1
+	!	do j=1,4*Lrealdimp,1
+	!		if((quantabigLp(j,1)+quantabigRp(i,1)==nelecs) .and. &
+	!			quantabigLp(j,2)+quantabigRp(i,2)==totalSz) then
+	!			sum1=sum1+coeffguess(j,i)**2
+	!		end if
+	!	end do
+	!	end do
+	!	write(*,*) "sum1=",sum1
+
+		ngoodstatesdummy=0
+		do i=1,4*Rrealdimp,1
+		do j=1,4*Lrealdimp,1
+			remainder=mod(j,Lrealdimp)
+			if(remainder==0) remainder=Lrealdimp
+			if(i<=4*Rrealdim .and. remainder<=Lrealdim) then
+				if((quantabigLp(j,1)+quantabigRp(i,1)==nelecs) .and. &
+				quantabigLp(j,2)+quantabigRp(i,2)==totalSz) then
+					ngoodstatesdummy=ngoodstatesdummy+1
+					initcoeff((istate-1)*lvector+ngoodstatesdummy)=coeffguess(j,i)
+				endif
+			end if
+		end do
+		end do
+		if(ngoodstatesdummy/=lvector) then
+			write(*,*) "ngoodstatesdummy/=lvector",ngoodstatesdummy,lvector
+			stop
+		end if
+	end do
+	
+	deallocate(leftu,rightv)
+	deallocate(midmat,midmat2,coeffguess)
+	
+	return
+
+end subroutine Perturbation_Init
+
+!===============================================================
+!================================================================
 end MODULE

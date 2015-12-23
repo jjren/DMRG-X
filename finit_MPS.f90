@@ -63,6 +63,7 @@ Subroutine Finit_MPS
 				! in the ifopenperturbation=.false. case
 				! only the big matrix is copyed from subM space to subMp space
 				call pre_perturbation('L',"sma")
+				call CopyCoeff2Coeffp
 			end if
 		end if
 		

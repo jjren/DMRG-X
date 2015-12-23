@@ -243,9 +243,19 @@ subroutine StoreWaveFunction
 	integer :: reclength
 	logical :: alive
 	integer :: i
+	integer :: iLrealdim,iRrealdim
 	
 	! 4 byte as 1 direct file block
-	reclength=2*subM*subM
+	! matrix plus two integer number
+	reclength=2*subMp*subMp+2
+
+	if(ifopenperturbation==.true.) then
+		iLrealdim=Lrealdimp
+		iRrealdim=Rrealdimp
+	else
+		iLrealdim=Lrealdim
+		iRrealdim=Rrealdim
+	end if
 	
 	! wavefunction.tmp
 	inquire(file="wavefunction.tmp",exist=alive)
@@ -261,11 +271,11 @@ subroutine StoreWaveFunction
 	! divid the leftu and rightv to small M*M matrix
 	! leftu
 	do i=1,4,1
-		write(105,rec=4*nleft+i) leftu((i-1)*Lrealdim+1:i*Lrealdim,1:subM)
+		write(105,rec=4*nleft+i) iLrealdim,lsvddim,leftu((i-1)*iLrealdim+1:i*iLrealdim,1:lsvddim)
 	end do
 	! rightv
 	do i=1,4,1
-		write(105,rec=4*(norbs-nright-1)+i) rightv(1:subM,i:4*Rrealdim:4)
+		write(105,rec=4*(norbs-nright-1)+i) iRrealdim,rsvddim,rightv(1:rsvddim,i:4*iRrealdim:4)
 	end do
 
 	! write singularvalue though only used in finit MPS
@@ -945,7 +955,7 @@ subroutine splitsvd(domain,dim1,statebegin,stateend)
 	if(domain=='R' .and. (nstate==1 .or. exscheme==4)) then
 		call RspaceCorrespond(valuework,subspacenum,quantabigbuf,szzero,szl0,valueindex)
 	else 
-		call selectstates(valuework,4*dim1,valueindex,singularvalue,subspacenum,nsuborbs,szzero,szl0)
+		call selectstates(valuework,4*dim1,valueindex,singularvalue,subM,subspacenum,nsuborbs,szzero,szl0)
 	end if
 
 !------------------------------------------------------------------------
