@@ -1,6 +1,6 @@
 Module PPP_term
 !this module can include many potential terms like ohno potential
-	use variables, only : hubbardU,coord,pppV,norbs
+	use variables, only : hubbardU,coord,pppV,norbs,logic_PPP
 	use communicate
 	use kinds_mod
 	
@@ -30,7 +30,9 @@ subroutine Ohno_Potential
 			pppV(j,i)=pppV(i,j)
 		end do
 	end do
-!	pppV=0.0D0
+	if(logic_PPP==0) then
+		pppV=0.0D0
+	end if
 ! 14.397=e^2/4*pai*epsion0/e/angstrom
 	return
 end subroutine

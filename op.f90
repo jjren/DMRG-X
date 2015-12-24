@@ -138,17 +138,19 @@ cap_quantabigL,cap_quantabigR)
 			end if
 		end do
 		end do
+		
+		if(logic_PPP==1) then
+			allocate(pppVmat(pppnelement,smadim),stat=error) ! store the pppV matrix
+			if(error/=0) stop
+			allocate(pppVmatcol(pppnelement,smadim),stat=error) 
+			if(error/=0) stop
+			allocate(pppVmatrow(4*iLrealdim+1,smadim),stat=error) 
+			if(error/=0) stop
 
-		allocate(pppVmat(pppnelement,smadim),stat=error) ! store the pppV matrix
-		if(error/=0) stop
-		allocate(pppVmatcol(pppnelement,smadim),stat=error) 
-		if(error/=0) stop
-		allocate(pppVmatrow(4*iLrealdim+1,smadim),stat=error) 
-		if(error/=0) stop
-
-		pppVpacksize=(pppnelement*12+4*(4*iLrealdim+1))*smadim+1000
-		allocate(pppVpackbuf(pppVpacksize),stat=error) ! packbuf to send the pppV matrix
-		if(error/=0) stop
+			pppVpacksize=(pppnelement*12+4*(4*iLrealdim+1))*smadim+1000
+			allocate(pppVpackbuf(pppVpacksize),stat=error) ! packbuf to send the pppV matrix
+			if(error/=0) stop
+		end if
 	else  
 		! 0 process
 		allocate(LRcoeffin(nosymmdim,smadim),stat=error)   ! coeff to LR format
@@ -267,6 +269,7 @@ cap_quantabigL,cap_quantabigR)
 			operaindex=orbid1(i,2)
 !=====================================================================================
 			
+			if(logic_PPP==1) then
 			! construct the pppVmat
 			do j=1,smadim,1
 				call mkl_dcsrmultcsr('N',0,8,4*iLrealdim,4*iRrealdim,4*iRrealdim, &
@@ -305,6 +308,8 @@ cap_quantabigL,cap_quantabigR)
 					end if
 				end if
 			end do
+
+			end if  ! logic_PPP==1
 !====================================================================
 			! check if need hopping matrix
 			ifhop=.false.
@@ -405,6 +410,8 @@ cap_quantabigL,cap_quantabigR)
 	
 ! L space recv pppVmat hopmat---------------------------------------
 		if(myid/=orbid1(i,1)) then
+
+			if(logic_PPP==1) then
 			! pppVmat recv
 			do l=1,nleft+1,1
 				if(myid==orbid1(l,1)) then
@@ -418,6 +425,8 @@ cap_quantabigL,cap_quantabigR)
 					exit  ! only recv once
 				end if
 			end do
+			
+			end if
 			! hopmat recv
 			do l=1,nleft+1,1
 				if(bondlink(l,i)==1 .and. myid==orbid1(l,1)) then  
@@ -428,6 +437,7 @@ cap_quantabigL,cap_quantabigR)
 		end if
 !---------------------------------------------------------------------
 ! pppV calculation
+		if(logic_PPP==1) then
 		do l=1,nleft+1,1
 			if(myid==orbid1(l,1)) then
 				operaindex=orbid1(l,2)
@@ -445,6 +455,7 @@ cap_quantabigL,cap_quantabigR)
 				end do
 			end if
 		end do
+		end if
 !---------------------------------------------------------------------
 ! hopping term calculation
 		! wait to recv hopmat

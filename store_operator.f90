@@ -71,6 +71,7 @@ subroutine Store_Operator(domain)
 				! store rowindex-> mat-> colindex in CSR format
 				offset=abs(i-orbref)*(bigdim1*12+(4*subM+1)*4)*3
 				do j=1,3,1
+					if(logic_PPP==0 .and. j==3) exit
 					call MPI_FILE_WRITE_AT(thefile,offset,bigrowindex1(1,3*operaindex-3+j),(4*subM+1),mpi_integer4,status,ierr)
 					offset=offset+(4*subM+1)*4
 					nonzero=bigrowindex1(4*dim1+1,3*operaindex-3+j)-1

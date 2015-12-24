@@ -65,8 +65,9 @@ subroutine InitialStarter(direction,lvector,nvector,initialcoeff)
 		call GramSchmit(nvector,lvector,initialcoeff,norm)
 		write(*,*) "the Initial guessvector norm",norm
 	else
-		call InitialRandom(initialcoeff,nvector,lvector)
-		call GramSchmit(nvector,lvector,initialcoeff,norm)
+	! Random initialization
+	!	call InitialRandom(initialcoeff,nvector,lvector)
+	!	call GramSchmit(nvector,lvector,initialcoeff,norm)
 	!	write(*,*) "the Initial guessvector norm",norm
 
 	!	there are some problem(such as local minimun) when us univector

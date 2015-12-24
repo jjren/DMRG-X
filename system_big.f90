@@ -248,21 +248,23 @@ LRdim,isubM,ifperturbation)
 				'T',t(i,orbadd),4*LRdim,4*LRdim,Hbufmat,Hbufcolindex,Hbufrowindex,iHbigdim)
 			end do
 		end if
-
-		! ppp term
-		Hbufrowindex=0
-		operaindex=orbid1(i,2)*3
-		if(domain=='R' .and. logic_C2==0) then
-			call SparseDirectProduct(4,4,onesitemat(:,3),osmcolindex(:,3),osmrowindex(:,3),&
-							LRdim,LRdim,cap_sma(:,operaindex),cap_smacol(:,operaindex),cap_smarow(:,operaindex),&
-							Hbufmat,Hbufcolindex,Hbufrowindex,iHbigdim)
-		else
-			call SparseDirectProduct( LRdim,LRdim,cap_sma(:,operaindex),cap_smacol(:,operaindex),cap_smarow(:,operaindex),&
-							4,4,onesitemat(:,3),osmcolindex(:,3),osmrowindex(:,3),&
-							Hbufmat,Hbufcolindex,Hbufrowindex,iHbigdim)
+		
+		if(logic_PPP==1) then
+			! ppp term
+			Hbufrowindex=0
+			operaindex=orbid1(i,2)*3
+			if(domain=='R' .and. logic_C2==0) then
+				call SparseDirectProduct(4,4,onesitemat(:,3),osmcolindex(:,3),osmrowindex(:,3),&
+								LRdim,LRdim,cap_sma(:,operaindex),cap_smacol(:,operaindex),cap_smarow(:,operaindex),&
+								Hbufmat,Hbufcolindex,Hbufrowindex,iHbigdim)
+			else
+				call SparseDirectProduct( LRdim,LRdim,cap_sma(:,operaindex),cap_smacol(:,operaindex),cap_smarow(:,operaindex),&
+								4,4,onesitemat(:,3),osmcolindex(:,3),osmrowindex(:,3),&
+								Hbufmat,Hbufcolindex,Hbufrowindex,iHbigdim)
+			end if
+			call SpmatAdd(4*LRdim,4*LRdim,H0mat,H0colindex,H0rowindex,&
+				'N',pppV(i,orbadd),4*LRdim,4*LRdim,Hbufmat,Hbufcolindex,Hbufrowindex,iHbigdim)
 		end if
-		call SpmatAdd(4*LRdim,4*LRdim,H0mat,H0colindex,H0rowindex,&
-			'N',pppV(i,orbadd),4*LRdim,4*LRdim,Hbufmat,Hbufcolindex,Hbufrowindex,iHbigdim)
 	end if
 	end do
 	

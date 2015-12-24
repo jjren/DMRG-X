@@ -22,7 +22,7 @@ subroutine setvalue_noisemod
 	do i=0,sweeps,1
 		select case(i)
 		case(0:1)
-			noiseweight(i)=5.0D-1
+			noiseweight(i)=1.0D-1
 		case(2:3)
 			noiseweight(i)=1.0D-2
 		case default
@@ -107,25 +107,21 @@ subroutine svd_noise_wrapper(iLrealdim,iRrealdim,LRcoeff,&
 		allocate(rightrow(4*isubM+1,2))
 	end if
 	
-	if(myid==0) then
-		norm=0.0D0
-		k=0
-		do i=1,4*iRrealdim,1
-		do j=1,4*iLrealdim,1
-			if((cap_quantabigL(j,1)+cap_quantabigR(i,1)==nelecs) .and. &
-				cap_quantabigL(j,2)+cap_quantabigR(i,2)==totalSz) then
-				norm=norm+LRcoeff(j,i)*LRcoeff(j,i)
-		!		write(*,*) j,i
-				k=k+1
-		!	else
-		!		write(*,*) LRcoeff(j,i)
-		!		LRcoeff(j,i)=0.0D0
-			end if
-		end do      
-		end do      
-		write(*,*) "noise norm1=",norm
-		write(*,*) "goodquantumnumber noise :" ,k
-	end if
+!	if(myid==0) then
+!		norm=0.0D0
+!		k=0
+!		do i=1,4*iRrealdim,1
+!		do j=1,4*iLrealdim,1
+!			if((cap_quantabigL(j,1)+cap_quantabigR(i,1)==nelecs) .and. &
+!				cap_quantabigL(j,2)+cap_quantabigR(i,2)==totalSz) then
+!				norm=norm+LRcoeff(j,i)*LRcoeff(j,i)
+!				k=k+1
+!			end if
+!		end do      
+!		end do      
+!		write(*,*) "noise norm1=",norm
+!		write(*,*) "goodquantumnumber noise :" ,k
+!	end if
 
 	! leftsend
 	if(myid==orbid1(nleft+1,1)) then

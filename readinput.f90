@@ -97,16 +97,16 @@ Subroutine ReadInput
 
 !-------------------------------------------------------------
 	! if logic_ppp=1 read how many bonds and link information  
-	if(logic_PPP==1) then
-		read(10,*) nbonds
-		allocate(bondlink(norbs,norbs),stat=error)
-		if(error/=0) stop
+	read(10,*) nbonds
+	allocate(bondlink(norbs,norbs),stat=error)
+	if(error/=0) stop
 
+!	if(logic_PPP==1) then
 	! coordiantes of the system
 		open(unit= 12,file="coord.xyz",status="old")
 		read(12,*) natoms
 	  
-	! if logic_PPP=1 read nuclear q (physically, chemical potential)
+		! if logic_PPP=1 read nuclear q (physically, chemical potential)
 		allocate(nuclQ(natoms),stat=error)
 		if(error/=0) stop
 	  
@@ -130,47 +130,44 @@ Subroutine ReadInput
 		! get the center of mass
 		call centerofmass
 		close(12)
-	end if
+!	end if
 
 ! integral of the system
 	open(unit=14,file="integral.inp",status="old")
-	if(logic_PPP==1) then
-		if(natoms/=norbs) then
-			call master_print_message("!Use PPP model, the norbs/=natoms failed!")
-			stop
+	if(natoms/=norbs) then
+		call master_print_message("!Use PPP model, the norbs/=natoms failed!")
+		stop
+	end if
+	allocate(hubbardU(norbs),stat=error)
+	if(error/=0) stop
+	allocate(t(norbs,norbs),stat=error)
+	if(error/=0) stop
+! be careful about the structure of the integral formatted
+	t=0.0D0
+	bondlink=0
+	do i=1,nbonds,1
+		read(14,*) link1,link2,dummyt
+		if(abs(dummyt)>hopthresh) then
+			bondlink(link1,link2)=1  ! if linked , bondlink=1
+			bondlink(link2,link1)=1
+			t(link1,link2)=dummyt
+			t(link2,link1)=dummyt
 		end if
-		allocate(hubbardU(norbs),stat=error)
-		if(error/=0) stop
-		allocate(t(norbs,norbs),stat=error)
-		if(error/=0) stop
-	! be careful about the structure of the integral formatted
-		t=0.0D0
-		bondlink=0
-		do i=1,nbonds,1
-			read(14,*) link1,link2,dummyt
-			if(abs(dummyt)>hopthresh) then
-				bondlink(link1,link2)=1  ! if linked , bondlink=1
-				bondlink(link2,link1)=1
-				t(link1,link2)=dummyt
-				t(link2,link1)=dummyt
-			end if
-		end do
+	end do
 
-		do i=1,norbs,1
-			bondlink(i,i)=2    ! bondlink=2 means that it is the site energy
-			read(14,*) t(i,i)  ! t(i,i) is the site energy
-		end do
-		
-		hubbardU=0.0D0
-		do i=1,norbs,1
-			read(14,*) hubbardU(i)  ! read in every hubbard U
-		end do
-		
-	else
-		write(*,*) "--------------------------------------------------"
-		write(*,*) "in the QC-DMRG case readin the FCIDUMP integrals"
-		write(*,*) "--------------------------------------------------"
-	end if  
+	do i=1,norbs,1
+		bondlink(i,i)=2    ! bondlink=2 means that it is the site energy
+		read(14,*) t(i,i)  ! t(i,i) is the site energy
+	end do
+	
+	hubbardU=0.0D0
+	do i=1,norbs,1
+		read(14,*) hubbardU(i)  ! read in every hubbard U
+	end do
+	
+!	write(*,*) "--------------------------------------------------"
+!	write(*,*) "in the QC-DMRG case readin the FCIDUMP integrals"
+!	write(*,*) "--------------------------------------------------"
 	
 	if(logic_tree==1) then
 		open(unit=16,file="tree.inp",status="old")
@@ -287,11 +284,13 @@ Subroutine ReadInput
 		call MPI_UNPACK(packbuf,packsize,position1,diagmethod,20,MPI_CHARACTER,MPI_COMM_WORLD,ierr)
 		write(*,*) myid,"getpacksize=",position1
 	end if
-
+	
+!	if(logic_PPP==1) then
 	allocate(pppV(norbs,norbs),stat=error)
 	if(error/=0) stop
 	pppV=0.0D0
 	call Ohno_Potential
+!	end if
 	
 	! realnelecs is the real electrons in the system 
 	realnelecs=nelecs+ncharges
