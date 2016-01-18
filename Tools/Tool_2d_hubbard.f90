@@ -48,7 +48,7 @@ subroutine output
 		do icol=1,nsite,1
 		do irow=1,nsite,1
 			if(indexxy(irow,icol)==i) then
-				write(10,'(4F8.5)') DBLE(icol-1)*bondlength,DBLE(irow-1)*bondlength,0.0D0,1.0D0
+				write(10,'(1A,4F8.5)') 'C',DBLE(icol-1)*bondlength,DBLE(irow-1)*bondlength,0.0D0,1.0D0
 				iffind=.true.
 				exit
 			end if

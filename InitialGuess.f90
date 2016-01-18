@@ -519,7 +519,8 @@ subroutine Perturbation_Init(initcoeff,lvector,direction)
 	use blas95
 	use f95_precision
 	implicit none
-	include "mkl_spblas.fi"
+	!include "mkl_spblas.fi"
+
 	integer,intent(in) :: lvector
 	real(kind=r8),intent(out) :: initcoeff(lvector*nstate)
 	character(len=1) :: direction
@@ -594,6 +595,7 @@ subroutine Perturbation_Init(initcoeff,lvector,direction)
 	allocate(midmat(4*subMp,subMp))
 	allocate(midmat2(subMp,4*subMp))
 	allocate(coeffguess(4*subMp,4*subMp))
+!	allocate(coeffguess1(4*subMp,4*subMp))
 
 	do istate=1,nstate,1
 		coeffguess=0.0D0
@@ -618,8 +620,10 @@ subroutine Perturbation_Init(initcoeff,lvector,direction)
 				midmat2(1:rsvddimbefore,j)=midmat((factor+1):4*rsvddimbefore:4,remainder)  ! tranfer U+C to new form
 			end do
 			! mat(rsvddimbefore)*(4*Rrealdimbefore)^T*mat(rsvddimbefore)*(4*lsvddimbefore)
+		!	midmat(1:4*Rrealdimbefore,1:rsvddimbefore)=transpose(rightv(1:rsvddimbefore,1:4*Rrealdimbefore))
+		!	call dgemm('T','N',4*Rrealdimbefore,4*lsvddimbefore,rsvddimbefore,1.0D0,rightv(1:rsvddimbefore,1:4*Rrealdimbefore),rsvddimbefore,midmat2(1:rsvddimbefore,1:4*lsvddimbefore),rsvddimbefore,0.0D0,coeffguess,4*subMp)
 			call gemm(rightv(1:rsvddimbefore,1:4*Rrealdimbefore),midmat2(1:rsvddimbefore,1:4*lsvddimbefore),coeffguess(1:4*Rrealdimbefore,1:4*lsvddimbefore),'T','N',1.0D0,0.0D0)  !U+C*V
-			coeffguess=transpose(coeffguess)
+		!	coeffguess=transpose(coeffguess)
 		else if(direction=='r' .and. nright>exactsite) then
 			! mat(4*lsvddimbefore)*(4*Rrealdimbefore)*mat(rsvddimbefore)*(4*Rrealdimbefore)^T
 			coeffguess(1:4*subMp,1:subMp)=transpose(rightv)
