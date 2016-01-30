@@ -1,15 +1,15 @@
-#MKLROOT=/opt/intel/parallel_studio_xe_2016/mkl
-MKLROOT=/opt/intel/composer_xe_2013.2.146/mkl
+MKLROOT=/opt/intel/intel2016/mkl
 MKLLIB=$(MKLROOT)/lib/intel64
 mklinc=$(MKLROOT)/include/intel64/lp64 
 mklinc1=$(MKLROOT)/include
-JDLIB=/home/ren/apps/Jadamilu/JADAMILU_2.0/lib/INT64Nifort/
-MPILIB=/opt/intel/parallel_studio_xe_2016/impi/5.1.1.109/lib64
+JDLIB=/home/jjren/Code/DMRG-X/lib
+#MPILIB=/opt/intel/parallel_studio_xe_2016/impi/5.1.1.109/lib64
+MPILIB=
 MPIINC=
 
 FCCFLAG= -lmkl_blas95_lp64 -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core -lmkl_lapack95_lp64 -liomp5 -lpthread -lm
 
-FC=mpif90
+FC=mpiifort
 FCCOMPILEOPTS= -g -debug
 #FCCOMPILEOPTS= -O3
 
