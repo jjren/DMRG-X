@@ -519,20 +519,21 @@ subroutine Perturbation_Init(initcoeff,lvector,direction)
     use blas95
     use f95_precision
     implicit none
-    !include "mkl_spblas.fi"
+    include "mkl_spblas.fi"
 
     integer,intent(in) :: lvector
     real(kind=r8),intent(out) :: initcoeff(lvector*nstate)
     character(len=1) :: direction
     
     real(kind=r8),allocatable :: leftu(:,:),rightv(:,:),&
-        midmat(:,:),midmat2(:,:),coeffguess(:,:)
+        midmat(:,:),midmat2(:,:),coeffguess(:,:),coeffguess1(:,:)
     integer :: istate,i,j
     integer :: remainder,factor,Lrealdimbefore,Rrealdimbefore,&
         lsvddimbefore,rsvddimbefore,&
         reclength,ngoodstatesdummy
     character(len=1) :: matdescra(6)
     logical :: alive
+    !real :: sum1
 
     call master_print_message("enter subroutine Perturbation_init ")
     allocate(leftu(4*subMp,subMp))
@@ -595,7 +596,7 @@ subroutine Perturbation_Init(initcoeff,lvector,direction)
     allocate(midmat(4*subMp,subMp))
     allocate(midmat2(subMp,4*subMp))
     allocate(coeffguess(4*subMp,4*subMp))
-!   allocate(coeffguess1(4*subMp,4*subMp))
+    allocate(coeffguess1(4*subMp,4*subMp))
 
     do istate=1,nstate,1
         coeffguess=0.0D0
@@ -622,11 +623,19 @@ subroutine Perturbation_Init(initcoeff,lvector,direction)
             ! mat(rsvddimbefore)*(4*Rrealdimbefore)^T*mat(rsvddimbefore)*(4*lsvddimbefore)
         !   midmat(1:4*Rrealdimbefore,1:rsvddimbefore)=transpose(rightv(1:rsvddimbefore,1:4*Rrealdimbefore))
         !   call dgemm('T','N',4*Rrealdimbefore,4*lsvddimbefore,rsvddimbefore,1.0D0,rightv(1:rsvddimbefore,1:4*Rrealdimbefore),rsvddimbefore,midmat2(1:rsvddimbefore,1:4*lsvddimbefore),rsvddimbefore,0.0D0,coeffguess,4*subMp)
-            call gemm(rightv(1:rsvddimbefore,1:4*Rrealdimbefore),midmat2(1:rsvddimbefore,1:4*lsvddimbefore),coeffguess(1:4*Rrealdimbefore,1:4*lsvddimbefore),'T','N',1.0D0,0.0D0)  !U+C*V
+            call gemm(rightv(1:rsvddimbefore,1:4*Rrealdimbefore),midmat2(1:rsvddimbefore,1:4*lsvddimbefore),coeffguess1(1:4*Rrealdimbefore,1:4*lsvddimbefore),'T','N',1.0D0,0.0D0)  !U+C*V
         !   coeffguess=transpose(coeffguess)
+            do i=1,4*lsvddimbefore,1
+                call copy(coeffguess1(:,i),coeffguess(i,:))
+            end do
+
         else if(direction=='r' .and. nright>exactsite) then
             ! mat(4*lsvddimbefore)*(4*Rrealdimbefore)*mat(rsvddimbefore)*(4*Rrealdimbefore)^T
-            coeffguess(1:4*subMp,1:subMp)=transpose(rightv)
+            ! coeffguess(1:4*subMp,1:subMp)=transpose(rightv)
+            do i=1,subMp,1
+                call copy(rightv(i,:),coeffguess(:,i))
+            end do
+
             call mkl_dcoomm('N',4*lsvddimbefore,rsvddimbefore,4*Rrealdimbefore,1.0D0,&
                 matdescra,coeffIfp(:,istate),coeffIFrowindexp,coeffIfcolindexp,coeffIfplast,&
                 coeffguess,4*subMp,0.0D0,midmat,4*subMp)
@@ -651,16 +660,16 @@ subroutine Perturbation_Init(initcoeff,lvector,direction)
             end do
         end if
         
-    !   sum1=0.0D0
-    !   do i=1,4*Rrealdimp,1
-    !   do j=1,4*Lrealdimp,1
-    !       if((quantabigLp(j,1)+quantabigRp(i,1)==nelecs) .and. &
-    !           quantabigLp(j,2)+quantabigRp(i,2)==totalSz) then
-    !           sum1=sum1+coeffguess(j,i)**2
-    !       end if
-    !   end do
-    !   end do
-    !   write(*,*) "sum1=",sum1
+       ! sum1=0.0D0
+       ! do i=1,4*Rrealdimp,1
+       ! do j=1,4*Lrealdimp,1
+       !     if((quantabigLp(j,1)+quantabigRp(i,1)==nelecs) .and. &
+       !         quantabigLp(j,2)+quantabigRp(i,2)==totalSz) then
+       !         sum1=sum1+coeffguess(j,i)**2
+       !     end if
+       ! end do
+       ! end do
+       ! write(*,*) "sum1=",sum1
 
         ngoodstatesdummy=0
         do i=1,4*Rrealdimp,1
@@ -683,7 +692,7 @@ subroutine Perturbation_Init(initcoeff,lvector,direction)
     end do
     
     deallocate(leftu,rightv)
-    deallocate(midmat,midmat2,coeffguess)
+    deallocate(midmat,midmat2,coeffguess,coeffguess1)
     
     return
 

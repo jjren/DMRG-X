@@ -319,7 +319,7 @@ bigLRdim,smaLRdim,dummyHsmadim,dummysmadim)
     integer(kind=i4),allocatable :: rotcolindex(:),rotrowindex(:)
     integer :: job(8)
     integer :: error,ierr,info
-    integer :: i,j,k
+    integer :: i,j,k,itrans
     logical :: ifbondord,iflocalspin
 
     character(len=1),allocatable :: packbuf(:)
@@ -375,7 +375,11 @@ bigLRdim,smaLRdim,dummyHsmadim,dummysmadim)
         if(domain=='L') then
             rotatematdens=leftu(1:4*bigLRdim,1:smaLRdim)
         else if(domain=='R') then
-            rotatematdens=transpose(rightv(1:smaLRdim,1:4*bigLRdim))
+            ! be careful about the transpose
+            ! rotatematdens=transpose(rightv(1:smaLRdim,1:4*bigLRdim))
+            do itrans=1,smaLRdim,1
+                call copy(rightv(itrans,1:4*bigLRdim),rotatematdens(:,itrans))
+            end do
         end if
         job(1)=0
         job(2)=1

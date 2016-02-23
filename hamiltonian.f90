@@ -31,11 +31,11 @@ subroutine Hamiltonian(direction)
     starttime=MPI_WTIME()
     call master_print_message("enter hamiltonian subroutine")
     
-    write(*,*) "myid=",myid
-    write(*,*) "Lrealdim",Lrealdim
-    write(*,*) "Rrealdim",Rrealdim
-    write(*,*) "Lrealdimp",Lrealdimp
-    write(*,*) "Rrealdimp",Rrealdimp
+   ! write(*,*) "myid=",myid
+   ! write(*,*) "Lrealdim",Lrealdim
+   ! write(*,*) "Rrealdim",Rrealdim
+   ! write(*,*) "Lrealdimp",Lrealdimp
+   ! write(*,*) "Rrealdimp",Rrealdimp
 
     if(diagmethod=="Davidson" .or. diagmethod=="D" .or. diagmethod=="MD") then
         call Davidson_wrapper(direction)

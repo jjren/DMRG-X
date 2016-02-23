@@ -64,7 +64,8 @@ end subroutine svd_noise
 subroutine svd_noise_wrapper(iLrealdim,iRrealdim,LRcoeff,&
                     cap_big,cap_bigcol,cap_bigrow,&
                     cap_quantabigL,cap_quantabigR,ifperturbation)
-    
+    use BLAS95
+    use F95_PRECISION
     implicit none
     integer,intent(in) :: iLrealdim,iRrealdim
     real(kind=r8),intent(inout) :: LRcoeff(:,:)
@@ -76,11 +77,11 @@ subroutine svd_noise_wrapper(iLrealdim,iRrealdim,LRcoeff,&
 
     character(len=1),allocatable :: packbuf(:)
     integer :: position1,packsize
-    real(kind=r8),allocatable :: leftmat(:,:),rightmat(:,:),midmat(:,:),LRcoeffcorrect(:,:)
+    real(kind=r8),allocatable :: leftmat(:,:),rightmat(:,:),midmat(:,:),dummymidmat(:,:),LRcoeffcorrect(:,:)
     integer(kind=i4),allocatable :: leftcol(:,:),leftrow(:,:),rightcol(:,:),rightrow(:,:)
     character(len=1) :: operation(6)
     integer :: ierr
-    integer :: i,j,k
+    integer :: i,j,k,itrans
     integer :: ibigdim1,isubM,operaindex,nonzero,dim1
     character(len=1) :: trans1,trans2
     integer :: status(MPI_STATUS_SIZE)
@@ -183,6 +184,7 @@ subroutine svd_noise_wrapper(iLrealdim,iRrealdim,LRcoeff,&
     if(myid==0) then
         dim1=max(4*iLrealdim,4*iRrealdim)
         allocate(midmat(dim1,dim1))
+        allocate(dummymidmat(dim1,dim1))
         allocate(LRcoeffcorrect(dim1,dim1))
         
         do i=1,2,1
@@ -199,11 +201,21 @@ subroutine svd_noise_wrapper(iLrealdim,iRrealdim,LRcoeff,&
                 call mkl_dcsrmm(trans1,4*iLrealdim,4*iRrealdim,4*iLrealdim,1.0D0,operation,leftmat(:,k),&
                     leftcol(:,k),leftrow(1:4*iLrealdim,k),leftrow(2:4*iLrealdim+1,k),&
                     LRcoeff,4*iLrealdim,0.0D0,midmat,dim1)
-                midmat=transpose(midmat)
+                !midmat=transpose(midmat)
+                dummymidmat=midmat
+                do itrans=1,dim1,1
+                    call copy(dummymidmat(:,itrans),midmat(itrans,:))
+                end do
+
                 call mkl_dcsrmm(trans2,4*iRrealdim,4*iLrealdim,4*iRrealdim,1.0D0,operation,rightmat(:,k),&
                     rightcol(:,k),rightrow(1:4*iRrealdim,k),rightrow(2:4*iRrealdim+1,k),&
                     midmat,dim1,0.0D0,LRcoeffcorrect,dim1)
-                LRcoeffcorrect=transpose(LRcoeffcorrect)
+                !LRcoeffcorrect=transpose(LRcoeffcorrect)
+                dummymidmat=LRcoeffcorrect
+                do itrans=1,dim1,1
+                    call copy(dummymidmat(:,itrans),LRcoeffcorrect(itrans,:))
+                end do
+
             !   if(i==2) then
                 LRcoeff=LRcoeff+LRcoeffcorrect(1:4*iLrealdim,1:4*iRrealdim)*noiseweight(isweep)
             end do
@@ -225,7 +237,7 @@ subroutine svd_noise_wrapper(iLrealdim,iRrealdim,LRcoeff,&
         norm=sqrt(norm)
         LRcoeff=LRcoeff/norm
 
-        deallocate(midmat,LRcoeffcorrect)
+        deallocate(midmat,dummymidmat,LRcoeffcorrect)
     end if
     
     call MPI_BARRIER(MPI_COMM_WORLD,ierr)
