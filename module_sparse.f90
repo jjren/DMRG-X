@@ -253,107 +253,36 @@ end subroutine AllocateArray
 subroutine sparse_default
 ! set the default ratio according to the subM
     use communicate
+    use MPI
     implicit none
-
-    if(subM<=128) then
-        bigratio1=1.0
-        smaratio1=1.0
-        bigratio2=1.0
-        smaratio2=1.0
-        bigratio3=1.0
-        smaratio3=1.0
-        Hbigratio=1.0
-        Hsmaratio=1.0
-        pppmatratio=1.0
-        hopmatratio=1.0
-        LRoutratio=1.0
-        UVmatratio=1.0
-        coeffIFratio=1.0
-    else if(abs(subM-120)<20) then
-        bigratio1=32.0
-        smaratio1=8.0
-        bigratio2=32.0
-        smaratio2=8.0
-        bigratio3=1.0
-        smaratio3=1.0
-        Hbigratio=12.0
-        Hsmaratio=8.0
-        pppmatratio=10.0
-        hopmatratio=12.0
-        LRoutratio=10.0
-        UVmatratio=5.0
-        coeffIFratio=10.0
-    else if (abs(subM-256)<50) then
-        bigratio1=20.0
-        smaratio1=5.0
-        bigratio2=20.0
-        smaratio2=5.0
-        bigratio3=1.0
-        smaratio3=1.0
-        Hbigratio=10.0
-        Hsmaratio=5.0
-        pppmatratio=10.0
-        hopmatratio=12.0
-        LRoutratio=10.0
-        UVmatratio=5.0
-        coeffIFratio=10.0
-    else if (abs(subM-512)<50) then
-        bigratio1=15.0
-        smaratio1=4.0
-        bigratio2=15.0
-        smaratio2=4.0
-        bigratio3=15.0
-        smaratio3=4.0
-        Hbigratio=10.0
-        Hsmaratio=5.0
-        pppmatratio=8.0
-        hopmatratio=10.0
-        LRoutratio=5.0
-        UVmatratio=5.0
-        coeffIFratio=8.0
-    else if (abs(subM-1024)<100) then
-        bigratio1=25.0
-        smaratio1=5.0
-        bigratio2=25.0
-        smaratio2=5.0
-        bigratio3=15.0
-        smaratio3=4.0
-        Hbigratio=10.0
-        Hsmaratio=5.0
-        pppmatratio=10.0
-        hopmatratio=12.0
-        LRoutratio=10.0
-        UVmatratio=5.0
-        coeffIFratio=10.0
-    else if (abs(subM-2048)<500) then
-        bigratio1=27.0
-        smaratio1=5.0
-        bigratio2=27.0
-        smaratio2=5.0
-        bigratio3=27.0
-        smaratio3=5.0
-        Hbigratio=10.0
-        Hsmaratio=5.0
-        pppmatratio=10.0
-        hopmatratio=12.0
-        LRoutratio=10.0
-        UVmatratio=5.0
-        coeffIFratio=10.0
-    else
-        bigratio1=15.0
-        smaratio1=4.0
-        bigratio2=15.0
-        smaratio2=4.0
-        bigratio3=15.0
-        smaratio3=4.0
-        Hbigratio=10.0
-        Hsmaratio=5.0
-        pppmatratio=8.0
-        hopmatratio=10.0
-        LRoutratio=5.0
-        UVmatratio=5.0
-        coeffIFratio=8.0
+    integer,parameter :: nratio=13
+    real(kind=r8) :: sparseratio(nratio)
+    integer :: ierr
+    integer :: i
+    
+    if(myid==0) then
+        open(unit=15,file="sparse.inp",status="old")
+        do i=1,nratio,1
+            read(15,*) sparseratio(i)
+        end do
+        close(15)
     end if
+
+    call MPI_BCAST(sparseratio(1),nratio,MPI_REAL8,0,MPI_COMM_WORLD,ierr)
+    
+    bigratio1    = sparseratio(1)   
+    smaratio1    = sparseratio(2)         
+    bigratio2    = sparseratio(3)         
+    smaratio2    = sparseratio(4)            
+    bigratio3    = sparseratio(5)          
+    smaratio3    = sparseratio(6)           
+    Hbigratio    = sparseratio(7)            
+    Hsmaratio    = sparseratio(8)             
+    pppmatratio  = sparseratio(9)            
+    hopmatratio  = sparseratio(10)             
+    LRoutratio   = sparseratio(11)             
+    UVmatratio   = sparseratio(12)           
+    coeffIFratio = sparseratio(13)
 
     if(myid==0) then
         write(*,*) "bigratio1=",    bigratio1
