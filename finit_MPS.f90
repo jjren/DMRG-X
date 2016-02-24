@@ -12,6 +12,7 @@ Subroutine Finit_MPS
     integer :: isystem,ibegin,i,sweepbegin
     logical :: converged
     integer :: ierr ! MPI_flag
+    real(kind=r8) :: starttime,endtime
 
     call master_print_message("enter in subroutine finit_MPS")
 
@@ -55,6 +56,8 @@ Subroutine Finit_MPS
     converged=.false.
     formernelecs=nelecs
     do isweep=sweepbegin,sweeps,1
+        
+        starttime=MPI_WTIME()
         
         ! open the perturbation coefficient scheme
         if(isweep==2) then
@@ -142,6 +145,10 @@ Subroutine Finit_MPS
             call Sweep('l')
         end do
 
+        call MPI_BARRIER(MPI_COMM_WORLD,ierr)
+        endtime=MPI_WTIME()
+        call master_print_message(endtime-starttime,"RUNTIME:")
+        
         if(myid==0) then
             write(*,*) isweep,"finit MPS end!"
             write(*,*) "the energy in the middle is",sweepenergy(isweep,:)
