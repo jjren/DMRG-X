@@ -7,31 +7,10 @@ module noise_mod
 
     implicit none
 
-    logical :: Ifnoise=.false.
+    logical :: Ifnoise
     real(kind=r8),allocatable :: noiseweight(:)
 
 contains
-!=====================================================================
-!=====================================================================
-
-subroutine setvalue_noisemod
-    implicit none
-    integer :: i
-
-    allocate(noiseweight(0:sweeps))
-    do i=0,sweeps,1
-        select case(i)
-        case(0:1)
-            noiseweight(i)=1.0D-1
-        case(2:3)
-            noiseweight(i)=1.0D-2
-        case default
-            noiseweight(i)=0.0D0
-        end select
-    end do
-    return
-end subroutine setvalue_noisemod
-
 !=====================================================================
 !=====================================================================
 
@@ -44,7 +23,6 @@ subroutine svd_noise (iLrealdim,iRrealdim,LRcoeff)
 
     call master_print_message("enter svd_noise subroutine")
     
-    call setvalue_noisemod
     if(ifopenperturbation==.true.) then
         call svd_noise_wrapper(iLrealdim,iRrealdim,LRcoeff,&
         operamatbig1p,bigcolindex1p,bigrowindex1p,quantabigLp,quantabigRp,.true.)
@@ -53,7 +31,6 @@ subroutine svd_noise (iLrealdim,iRrealdim,LRcoeff)
         operamatbig1,bigcolindex1,bigrowindex1,quantabigL,quantabigR,.false.)
     end if
     
-    deallocate(noiseweight)
     return
 
 end subroutine svd_noise

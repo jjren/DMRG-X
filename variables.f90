@@ -40,12 +40,11 @@ module variables
     logic_tree, &           ! if use tree tensor algorithm, how many blocks                
     blocks, &
     logic_spinreversal,&    ! if use spinreversal symmetry :: +1 singlet -1 triplet 0 none
-    logic_C2                ! if use C2 like symmetry :: +1 A ;-1 B ; 0 none
+    logic_C2          , &   ! if use C2 like symmetry :: +1 A ;-1 B ; 0 none
+    logic_bondorder  , &    ! if calculate bond order
+    logic_localspin         ! if calculate local spin
     integer(kind=i4),allocatable :: treelink(:,:)  ! treelink information
 
-    integer(kind=i4),parameter :: &
-    logic_bondorder= 0   , &    ! if calculate bond order
-    logic_localspin= 0          ! if calculate local spin
     character(len=20) :: diagmethod  ! the diagonalization method
 !=========================================================
     
