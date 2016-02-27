@@ -59,8 +59,7 @@ subroutine Infinit_MPS
     if(error/=0) stop
     treal=t
     bondlinkreal=bondlink
-
-
+    
     ! be careful that the norbs may be odd
     ! when doing infinit MPS we use half filled system until arrive the realnelecs
     do isystem=1,norbs/2-1,1
@@ -83,6 +82,10 @@ subroutine Infinit_MPS
             nelecs=realnelecs
         else
             nelecs=(isystem+1)*2
+            ! the number of elecs is odd
+            if(mod(realnelecs,2)/=0) then
+                nelecs=nelecs+1
+            end if
         end if
         call master_print_message(nelecs,"nelecs=")
         

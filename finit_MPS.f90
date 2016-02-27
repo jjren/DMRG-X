@@ -112,6 +112,8 @@ Subroutine Finit_MPS
                 call master_print_message("nelecs/=realnelecs stop!")
                 call MPI_BARRIER(MPI_COMM_WORLD,ierr)
                 stop
+            else
+                call master_print_message(nelecs,"nelecs=")
             end if
 
             nleft=norbs-isystem-2

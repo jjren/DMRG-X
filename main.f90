@@ -30,6 +30,9 @@ program main
     
     ! read the input files
     call ReadInput
+
+    ! write FCIDUMP which is the interface to BLOCK
+    call CreatFCIDUMP
     
     ! SCF mean field procedure
     if(logic_meanfield==1 .and. myid==0) then

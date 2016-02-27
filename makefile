@@ -21,7 +21,7 @@ FCCOMPILEOPTS= -g -debug
 	$(FC) -c $(FCCOMPILEOPTS) -I/$(mklinc) -I/$(mklinc1) $<
 # 
 object = kinds_mod.o communicate.o exit_mod.o variables.o checkinfo.o \
-	   ppp_term.o onesitematrix.o contructquanta.o mathlib.o module_sparse.o  \
+	   ppp_term.o CreatFCIDUMP.o onesitematrix.o contructquanta.o mathlib.o module_sparse.o  \
 	   symmetry.o system_big.o InitialGuess.o coefftosparse.o GetHDiag.o pre_perturbation.o\
 	   op.o davidson.o masterdiag.o  perturbation.o \
 	   noise.o Renormalization.o splitsvd_direct.o\

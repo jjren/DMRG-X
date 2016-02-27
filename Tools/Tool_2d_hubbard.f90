@@ -2,9 +2,10 @@ module var
     implicit none
     integer :: nsitex,nsitey
     integer,allocatable :: indexxy(:,:),bondlink(:,:,:,:)
-    real(kind=8) :: bondlength
-    real(kind=8),parameter :: hopt=-2.4D0,hubbardU=11.26D0
+    real(kind=8) :: bondlength,nuclE
+    real(kind=8),parameter :: hopt=-1.0D0,hubbardU=4.0D0
     logical :: IfPPP
+    real(kind=8),allocatable :: siteenergy(:,:)
 
 end module var
 
@@ -22,13 +23,17 @@ program Tool_2d_hubbard
 
     allocate(indexxy(nsitex,nsitey))
     allocate(bondlink(nsitex,nsitey,nsitex,nsitey))
-    
+    allocate(siteenergy(nsitex,nsitey))
+    siteenergy=0.0D0
+    nuclE=0.0D0
+
     call bondnet
     call multichain
     call output
     
     deallocate(indexxy)
     deallocate(bondlink)
+    deallocate(siteenergy)
 end program Tool_2d_hubbard
 
 subroutine FCIDUMP
@@ -77,6 +82,9 @@ subroutine output
                 distance2=((jrow-irow)*bondlength)**2+((jcol-icol)*bondlength)**2
                 pppV=hubbardU/sqrt(1+hubbardU*hubbardU*distance2/14.397D0/14.397D0)
                 write(13,*) pppV,indexxy(jrow,jcol),indexxy(jrow,jcol),indexxy(irow,icol),indexxy(irow,icol)
+                siteenergy(irow,icol)=siteenergy(irow,icol)-pppV
+                siteenergy(jrow,jcol)=siteenergy(jrow,jcol)-pppV
+                nuclE=nuclE+pppV
             end if
         end if
     end do
@@ -90,6 +98,14 @@ subroutine output
         write(11,*) hubbardU
         write(13,*) hubbardU,i,i,i,i
     end do
+
+    do icol=1,nsitey,1
+    do irow=1,nsitex,1
+        write(13,*) siteenergy(irow,icol),indexxy(irow,icol),indexxy(irow,icol),0,0
+    end do
+    end do
+    write(13,*) nuclE,0,0,0,0
+        
 
     close(11)
     close(13)

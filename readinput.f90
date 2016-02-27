@@ -335,6 +335,9 @@ Subroutine ReadInput
         write(*,*) "exscheme=",exscheme
         write(*,*) "Diagonalization method=",diagmethod
         write(*,*) "If add noise",Ifnoise
+        if(Ifnoise==.true.) then
+            write(*,*) "noiseweight:",noiseweight
+        end if
         write(*,*) "nweight=",nweight
         write(*,*) "energythresh",energythresh ! other process do not know this number
         write(*,*) "nbonds=",nbonds,"bondlink="
