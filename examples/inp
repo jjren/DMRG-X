@@ -1,0 +1,25 @@
+s 0
+0 0 0 0
+10       ! norbs             
+10       ! junk_natoms       
+10       ! nelecs            
+0        ! ncharges          
+0        ! totalsz           
+1 OK     ! logic_PPP  PPPpot 
+1        ! logic_MeanField   
+1        ! logic_spinreversal
+0        ! logic_C2          
+0        ! logic_tree        
+0        ! logic_perturbation
+0        ! logic_bondorder   
+0        ! logic_localspin   
+64 64    ! subM,subMp        
+5        ! sweeps            
+1(2)     ! nstate            
+1.0D-5   ! energythresh      
+0.0D0    ! hopthresh         
+JD       ! diagmethod   
+(1)      ! exscheme
+(1 1)    ! average weight
+F        ! noise
+(0.3 0.2)! noise weight

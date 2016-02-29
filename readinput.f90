@@ -3,7 +3,7 @@ Subroutine ReadInput
 ! process 0 read the input file and distribute to other process
 
     USE variables
-    USE PPP_term
+    USE PPP_term_mod
     USE MPI
     use communicate
     use noise_mod,only : Ifnoise,noiseweight
@@ -56,7 +56,7 @@ Subroutine ReadInput
     read(10,*) nelecs                ! how many electrons
     read(10,*) ncharges              ! how many extra charges +1 means add 1 electron
     read(10,*) totalsz               ! total Sz of the system
-    read(10,*) logic_PPP             ! if do PPP model logic_PPP=1
+    read(10,*) logic_PPP,PPPpot      ! if do PPP model logic_PPP=1 and PPP potential model
     read(10,*) logic_MeanField       ! if do meanfield SCF calculation
     read(10,*) logic_spinreversal    ! if do spin reversal logic_spinreversal=+-1 
     read(10,*) logic_C2              ! if do C2 symmetry or the same mirror reflection and center reflection
@@ -99,7 +99,7 @@ Subroutine ReadInput
     end if
 
 !-------------------------------------------------------------
-    ! if logic_ppp=1 read how many bonds and link information  
+    ! if logic_PPP=1 read how many bonds and link information  
     read(10,*) nbonds
     allocate(bondlink(norbs,norbs),stat=error)
     if(error/=0) stop
@@ -216,6 +216,7 @@ Subroutine ReadInput
         call MPI_PACK(ncharges,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
         call MPI_PACK(totalSz,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
         call MPI_PACK(logic_PPP,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
+        call MPI_PACK(PPPpot,20,MPI_CHARACTER,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
         call MPI_PACK(logic_meanfield,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
         call MPI_PACK(logic_spinreversal,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
         call MPI_PACK(logic_C2,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
@@ -260,6 +261,7 @@ Subroutine ReadInput
         call MPI_UNPACK(packbuf,packsize,position1,ncharges,1,MPI_integer4,MPI_COMM_WORLD,ierr)
         call MPI_UNPACK(packbuf,packsize,position1,totalSz,1,MPI_integer4,MPI_COMM_WORLD,ierr)
         call MPI_UNPACK(packbuf,packsize,position1,logic_PPP,1,MPI_integer4,MPI_COMM_WORLD,ierr)
+        call MPI_UNPACK(packbuf,packsize,position1,PPPpot,20,MPI_CHARACTER,MPI_COMM_WORLD,ierr)
         call MPI_UNPACK(packbuf,packsize,position1,logic_meanfield,1,MPI_integer4,MPI_COMM_WORLD,ierr)
         call MPI_UNPACK(packbuf,packsize,position1,logic_spinreversal,1,MPI_integer4,MPI_COMM_WORLD,ierr)
         call MPI_UNPACK(packbuf,packsize,position1,logic_C2,1,MPI_integer4,MPI_COMM_WORLD,ierr)
@@ -300,12 +302,10 @@ Subroutine ReadInput
         write(*,*) myid,"getpacksize=",position1
     end if
     
-!   if(logic_PPP==1) then
     allocate(pppV(norbs,norbs),stat=error)
     if(error/=0) stop
     pppV=0.0D0
-    call Ohno_Potential
-!   end if
+    call PPP_term
     
     ! realnelecs is the real electrons in the system 
     realnelecs=nelecs+ncharges
@@ -321,6 +321,7 @@ Subroutine ReadInput
         write(*,*) "nextracharges=",ncharges
         write(*,*) "totalSz=",totalsz
         write(*,*) "logic_PPP=",logic_PPP
+        write(*,*) "PPPpot=",PPPpot
         write(*,*) "logic_MeanField=",logic_meanfield
         write(*,*) "logic_spinreversal=",logic_spinreversal
         write(*,*) "logic_C2=",logic_C2

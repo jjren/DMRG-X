@@ -1,6 +1,6 @@
-Module PPP_term
+Module PPP_term_mod
 !this module can include many potential terms like ohno potential
-    use variables, only : hubbardU,coord,pppV,norbs,logic_PPP
+    use variables, only : hubbardU,coord,pppV,norbs,logic_PPP,PPPpot
     use communicate
     use kinds_mod
     
@@ -9,7 +9,57 @@ Module PPP_term
     contains
 
 !============================================================
-    !ohno_potential begins
+!============================================================
+
+subroutine PPP_term
+   
+    implicit none
+    if(logic_PPP==1) then
+        if(PPPpot=="OK") then
+            call Ohno_Potential
+        else if(PPPpot=="EHP") then
+            call Extented_Hubbard_Peierls_Potential
+        end if
+    else if(logic_PPP==0) then
+        ! hubbard model
+        pppV=0.0D0
+    end if
+            
+return
+end subroutine PPP_term
+
+!============================================================
+!============================================================
+
+subroutine Extented_Hubbard_Peierls_Potential
+    ! only the nearest neighbor potential
+    use variables,only : bondlink
+    implicit none
+    
+    real(kind=r8) :: EHPpot
+    integer :: i,j
+
+    open(unit=21,file="EHP.inp",status="old")
+    read(21,*) EHPpot
+    close(21)
+
+    pppV=0.0D0
+    do i=1,norbs,1
+    do j=1,i-1,1
+        if(bondlink(i,j)==1) then
+            pppV(i,j)=EHPpot
+            pppV(j,i)=EHPpot
+        end if
+    end do
+    end do
+
+    return
+end subroutine Extented_Hubbard_Peierls_Potential 
+
+!============================================================
+!============================================================
+
+!ohno_potential begins
 subroutine Ohno_Potential
 
     implicit none
@@ -30,13 +80,10 @@ subroutine Ohno_Potential
             pppV(j,i)=pppV(i,j)
         end do
     end do
-    if(logic_PPP==0) then
-        pppV=0.0D0
-    end if
-! 14.397=e^2/4*pai*epsion0/e/angstrom
+    ! 14.397=e^2/4*pai*epsion0/e/angstrom
     return
 end subroutine
 
 !=========================================================  
-end Module PPP_term
+end Module PPP_term_mod
  
