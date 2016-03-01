@@ -17,13 +17,11 @@ subroutine Infinit_MPS
     ! treal bondlinkreal store the initial real value
     integer :: error,ierr
     integer :: isystem,i,j
-    integer :: logic_C2real
     
     call master_print_message("enter subroutine infinit_MPS")
     
     ! in the infinite procedure didnot constrain the logic_C2
     ! only in the diagonalization process
-    logic_C2real=logic_C2
     
     ! in the infinite process; do not do perturbation
     ifopenperturbation=.false.

@@ -41,6 +41,7 @@ module variables
     blocks, &
     logic_spinreversal,&    ! if use spinreversal symmetry :: +1 singlet -1 triplet 0 none
     logic_C2          , &   ! if use C2 like symmetry :: +1 A ;-1 B ; 0 none
+    logic_C2real     , &    ! the real logic_C2
     logic_bondorder  , &    ! if calculate bond order
     logic_localspin         ! if calculate local spin
     integer(kind=i4),allocatable :: treelink(:,:)  ! treelink information

@@ -116,11 +116,6 @@ subroutine Sweep(direction)
             logic_C2=logic_C2*(-1)
             call master_print_message(logic_C2,"logic_C2=")
             call Hamiltonian(direction)
-            if(i==1 .and. myid==0) then
-                coeffIF(:,nstate+1:2*nstate)=coeffIF(:,1:nstate)
-                coeffIFcolindex(:,nstate+1:2*nstate)=coeffIFcolindex(:,1:nstate)
-                coeffIFrowindex(:,nstate+1:2*nstate)=coeffIFrowindex(:,1:nstate)
-            end if
         end do
     else
         call Enviro_Big(envirodomain)

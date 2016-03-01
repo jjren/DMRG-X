@@ -21,5 +21,6 @@ s 0
 JD       ! diagmethod   
 (1)      ! exscheme
 (1 1)    ! average weight
+nbonds   ! bond number
 F        ! noise
 (0.3 0.2)! noise weight

@@ -54,8 +54,8 @@ Program Tool_1dchain
     close(11)
 
     open(unit=13,file="integral.inp",status="replace")
-    ts=t*(1.0D0+delta)
-    td=t*(1.0D0-delta)
+    ts=t*(1.0D0-delta)
+    td=t*(1.0D0+delta)
     do i=1,nsite-1,1
         if(mod(i,2)==1) then
             write(13,*) i,i+1,td

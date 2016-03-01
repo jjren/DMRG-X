@@ -505,6 +505,15 @@ subroutine DavidOutput(eigenvalue,eigenvector)
         dmrgenergy(1:nstate)=eigenvalue(1:nstate)
     end if
     end if
+    
+    ! in the logic_C2 mode; every half-half step do logic_C2=-1*logic_C2real 
+    ! and do logic_C2=logic_C2real
+    if(myid==0 .and. logic_C2/=logic_C2real) then
+        coeffIF(:,nstate+1:2*nstate)=coeffIF(:,1:nstate)
+        coeffIFcolindex(:,nstate+1:2*nstate)=coeffIFcolindex(:,1:nstate)
+        coeffIFrowindex(:,nstate+1:2*nstate)=coeffIFrowindex(:,1:nstate)
+        dmrgenergy(nstate+1:2*nstate)=dmrgenergy(1:nstate)
+    end if
 
     if(myid==0) then
         deallocate(nosymmout)

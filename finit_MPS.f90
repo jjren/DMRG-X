@@ -149,7 +149,7 @@ Subroutine Finit_MPS
 
         call MPI_BARRIER(MPI_COMM_WORLD,ierr)
         endtime=MPI_WTIME()
-        call master_print_message(endtime-starttime,"RUNTIME:")
+        call master_print_message(endtime-starttime,"SWEEP RUNTIME:")
         
         if(myid==0) then
             write(*,*) isweep,"finit MPS end!"

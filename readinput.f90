@@ -75,7 +75,12 @@ Subroutine ReadInput
     allocate(sweepenergy(0:sweeps,nstate),stat=error)
     if(error/=0) stop
     sweepenergy=0.0D0
-    allocate(dmrgenergy(nstate))
+    
+    if(logic_C2==0) then
+        allocate(dmrgenergy(nstate))
+    else
+        allocate(dmrgenergy(2*nstate))
+    end if
 ! 
     allocate(nweight(nstate),stat=error)
     if(error/=0) stop
@@ -309,8 +314,9 @@ Subroutine ReadInput
     
     ! realnelecs is the real electrons in the system 
     realnelecs=nelecs+ncharges
+    logic_C2real=logic_C2
 
-!================================================================
+    !================================================================
     if(myid==1) then
         write(*,*) "----------the input information---------"
         write(*,*) "mode,modeindex=",mode,modeindex
