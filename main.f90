@@ -56,6 +56,8 @@ program main
     ! print the sparse info
     call countnonzero
 
+    call Free_DMRG
+
     call MPI_BARRIER(MPI_COMM_WORLD,ierr)
     endtime=MPI_WTIME()
     call master_print_message(endtime-starttime,"RUNTIME:")

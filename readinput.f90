@@ -77,10 +77,11 @@ Subroutine ReadInput
     sweepenergy=0.0D0
     
     if(logic_C2==0) then
-        allocate(dmrgenergy(nstate))
+        C2state=nstate
     else
-        allocate(dmrgenergy(2*nstate))
+        C2state=2*nstate
     end if
+    allocate(dmrgenergy(C2state))
 ! 
     allocate(nweight(nstate),stat=error)
     if(error/=0) stop

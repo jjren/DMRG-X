@@ -5,12 +5,13 @@ module module_sparse
 
     use kinds_mod
     use variables
+    use communicate   
     
     implicit none
     private
     save
 
-    public :: AllocateArray
+    public :: AllocateArray,Deallocate_sparsemat
 
     ! sparse form in 3 array CSR format
     real(kind=r8),allocatable,public :: &
@@ -89,13 +90,11 @@ module module_sparse
 
 subroutine AllocateArray
     
-    use communicate
     implicit none
     
     
     ! local
     integer :: error
-    integer :: C2state
     
     call sparse_default
 
@@ -202,11 +201,6 @@ subroutine AllocateArray
         
         ! in C2 mode we can calculate the two subspace together
         ! without loss of accuracy
-        if(logic_C2==0) then
-            C2state=nstate
-        else
-            C2state=2*nstate
-        end if
 
         allocate(coeffIF(coeffIFdim,C2state),stat=error)
         if(error/=0) stop
@@ -252,7 +246,6 @@ end subroutine AllocateArray
 
 subroutine sparse_default
 ! set the default ratio according to the subM
-    use communicate
     use MPI
     implicit none
     integer,parameter :: nratio=13
@@ -304,6 +297,40 @@ return
 end subroutine sparse_default
 
 !=========================================================================================================
+!=========================================================================================================
+
+subroutine Deallocate_sparsemat
+    implicit none
+    
+    if(myid==0) then
+        deallocate(Hbig,Hbigcolindex,Hbigrowindex,&
+                    Hsma,Hsmacolindex,Hsmarowindex,&
+                    coeffIF,coeffIFcolindex,coeffIFrowindex )
+        if(logic_perturbation==1) then
+            deallocate(Hbigp,Hbigcolindexp,Hbigrowindexp,&
+                        Hsmap,Hsmacolindexp,Hsmarowindexp,&
+                        coeffIFp,coeffIFcolindexp,coeffIFrowindexp )
+        end if
+    else
+        deallocate(operamatbig1,bigcolindex1,bigrowindex1,&
+                    operamatsma1,smacolindex1,smarowindex1)
+        if(logic_perturbation==1) then
+            deallocate(operamatbig1p,bigcolindex1p,bigrowindex1p,&
+                        operamatsma1p,smacolindex1p,smarowindex1p)
+        end if
+        if(logic_bondorder/=0) then
+            deallocate(operamatbig2,bigcolindex2,bigrowindex2,&
+                        operamatsma2,smacolindex2,smarowindex2)
+        end if
+        if(logic_bondorder/=0) then
+            deallocate(operamatbig3,bigcolindex3,bigrowindex3,&
+                        operamatsma3,smacolindex3,smarowindex3)
+        end if
+    end if
+    return
+
+end subroutine Deallocate_sparsemat
+
 !=========================================================================================================
 
 end module module_sparse

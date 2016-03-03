@@ -14,6 +14,7 @@ subroutine Analysis
     use module_sparse
     use blas95
     use f95_precision
+    use checkmem_mod
 
     implicit none
     integer(kind=i4),allocatable :: midrowmat(:),midcolmat(:)
@@ -52,6 +53,8 @@ subroutine Analysis
     if(logic_localspin==1) then
         call LocalSpin
     end if
+
+    call checkmem_output
 return
 end subroutine Analysis
 

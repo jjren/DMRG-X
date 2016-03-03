@@ -11,6 +11,7 @@ Subroutine LoadBalance
     use communicate
     use module_sparse
     use MKL_SERVICE
+    use checkmem_mod
     
     implicit none
     ! local
@@ -193,6 +194,7 @@ Subroutine LoadBalance
     quantasmaRp=0
     quantabigLp=0
     quantabigRp=0
+    call Allocate_checkmem
 !------------------------------------------------------
 return
 end Subroutine LoadBalance

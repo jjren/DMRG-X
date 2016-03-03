@@ -21,7 +21,8 @@ module variables
     realnelecs, &              ! ncharges+nelecs
     totalSz, &                 ! totalSz component up nelecs - down nelecs
     nbonds , &                 ! how many bonds
-    nstate                     ! how many targeted states
+    nstate , &                 ! how many targeted states
+    C2state                    ! if logic_C2/=0, C2state=2*nstate
     real(kind=r8),allocatable :: &    
     nuclQ(:) , &                      ! nuclear Q :: chemical potential :: e.g carbon +1
     coord(:,:) , &                    ! coordinate(natoms,1:3)

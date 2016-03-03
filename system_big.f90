@@ -27,7 +27,7 @@ LRdim,isubM,ifperturbation)
     use OnesiteMatrix
     use BLAS95
     use f95_precision
-
+    use checkmem_mod
     implicit none
 
     character(len=1),intent(in) :: domain   !L/R
@@ -601,6 +601,9 @@ LRdim,isubM,ifperturbation)
     if(allocated(H0mat)) deallocate(H0mat,H0colindex,H0rowindex)
     if(allocated(Hbufmat)) deallocate(Hbufmat,Hbufcolindex,Hbufrowindex)
     deallocate(phase)
+    
+    ! check the bigmat and smamat sparse matrix usage
+    call checkmem
 
     return
 end subroutine System_Big
