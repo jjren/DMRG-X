@@ -116,15 +116,16 @@ subroutine checkmem
         if(logic_perturbation==1) then
             call check2d_master(Hbigrowindexp,4*subMp,2,nHbigp)
             call check2d_master(Hsmarowindexp,subMp,2,nHsmap)
-            call check2d_master(coeffIFrowindexp,4*subMp,C2state,ncoeffIFp)
+            !call check2d_master(coeffIFrowindexp,4*subMp,C2state,ncoeffIFp)
+            ncoeffIFp=coeffIFplast
         end if
     end if
 
     call check2d_slaver(bigrowindex1,orbid1,4*subM,3,noperamatbig1)
     call check2d_slaver(smarowindex1,orbid1,subM,3,noperamatsma1)
     if(logic_perturbation==1) then
-        call check2d_slaver(bigrowindex1p,orbid1,4*subMp,3,noperamatbig1)
-        call check2d_slaver(smarowindex1p,orbid1,subMp,3,noperamatsma1)
+        call check2d_slaver(bigrowindex1p,orbid1,4*subMp,3,noperamatbig1p)
+        call check2d_slaver(smarowindex1p,orbid1,subMp,3,noperamatsma1p)
     end if
     
     if(logic_bondorder/=0) then
@@ -184,7 +185,7 @@ subroutine checkmem_output
             write(99,*) "coeffIFdimp",coeffIFdimp
             write(99,*) ncoeffIFp(:)
             write(99,*) "Hbigp"
-            write(99,*) "Hbigdimp=",Hbigdim
+            write(99,*) "Hbigdimp=",Hbigdimp
             write(99,*) nHbigp(:)
             write(99,*) "Hsmap"
             write(99,*) "Hsmadimp=",Hsmadimp

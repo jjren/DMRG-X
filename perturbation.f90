@@ -13,7 +13,7 @@ module perturbation_mod
     real(kind=r8),allocatable ::  Hdiagp(:),correctenergy2(:),correctenergy3(:),&
                     H0lr(:,:)
     integer :: ngoodstatesp
-    logical :: Ifperturbation3=.true.
+    logical :: Ifperturbation3
 
 contains
 !================================================================
@@ -55,7 +55,9 @@ subroutine perturbation(eigenvalue,num)
         endtime=MPI_WTIME()
         call master_print_message(endtime-starttime,"2nd Perturbation TIME:")
         
-        if(ifperturbation3==.true.) then
+        if(ifperturbation3==.true. .and. nleft==(norbs-1)/2) then
+            ! since 3rd perturbation energy is not related to the wavefunction;
+            ! so it can be done only in the middle of each sweep
             starttime=MPI_WTIME()
             call CorrectEOrder3(eigenvalue,num)
             endtime=MPI_WTIME()
@@ -71,7 +73,7 @@ subroutine perturbation(eigenvalue,num)
             eigenvalue(istate)=correctenergy2(istate)+eigenvalue(istate)
             write(*,*) "2nd Order:",correctenergy2(istate),eigenvalue(istate)
             
-            if(Ifperturbation3==.true.) then
+            if(Ifperturbation3==.true. .and. nleft==(norbs-1)/2) then
                 eigenvalue(istate)=correctenergy3(istate)+eigenvalue(istate)
                 write(*,*) "3rd Order:",correctenergy3(istate),eigenvalue(istate)
             end if
