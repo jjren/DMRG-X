@@ -29,6 +29,7 @@ cap_quantabigL,cap_quantabigR)
     use symmetry
     use mathlib
     use module_sparse
+    use checkmem_mod
 
     implicit none
     include "mkl_spblas.fi"
@@ -41,7 +42,6 @@ cap_quantabigL,cap_quantabigR)
     integer(kind=i4),intent(in) :: cap_bigcol(:,:),cap_bigrow(:,:),&
                          cap_Hbigcol(:,:),cap_Hbigrow(:,:),&
                          cap_quantabigL(:,:),cap_quantabigR(:,:)
-    
     ! local
     integer :: operaindex
     
@@ -66,6 +66,7 @@ cap_quantabigL,cap_quantabigR)
     logical :: ifhop,ifhopsend,ifpppVsend
     integer :: hoptouched(nprocs-1),hopntouched,pppVtouched(nprocs-1),pppVntouched
     
+    real(kind=r8) :: tmpratio(4)
     ! MPI flag
     integer :: status(MPI_STATUS_SIZE),hopsendrequest(nprocs-1),hoprecvrequest
     integer :: ierr
@@ -277,6 +278,8 @@ cap_quantabigL,cap_quantabigR)
                     cap_big(:,operaindex*3),cap_bigcol(:,operaindex*3),cap_bigrow(:,operaindex*3), &
                     pppVmat(:,j),pppVmatcol(:,j),pppVmatrow(:,j),pppnelement,info)
                 call checkinfo(info)
+                tmpratio(1)=DBLE(pppVmatrow(4*iLrealdim+1,j))/DBLE(16*isubM*isubM)
+                call checkmem_OPmodMat("pppnelement",tmpratio(1),1)
             end do
             ! pack the pppVmat
             position1=0
@@ -340,6 +343,8 @@ cap_quantabigL,cap_quantabigR)
                                     hopmat(:,k,j),hopmatcol(:,k,j),hopmatrow(:,k,j),hopnelement)
                         end if
                     end do
+                    tmpratio(1:4)=DBLE(hopmatrow(4*iLrealdim+1,1:4,j))/DBLE(16*isubM*isubM)
+                    call checkmem_OPmodMat("hopnelement",tmpratio(1:4),4)
                 end do
 
             !---------------------------------------------------------
@@ -517,6 +522,12 @@ cap_quantabigL,cap_quantabigR)
 
     ! every process transfer LRcoeffout to coeffnosymm
     if(allocated(LRcoeffout)) then
+        
+        do k=1,smadim,1
+            tmpratio(1)=DBLE(LRcoeffoutrow(4*iLrealdim+1,k))/DBLE(16*isubM*isubM)
+            call checkmem_OPmodMat("LRoutnelement",tmpratio(1),1)
+        end do
+
         m=0
         do k=1,smadim,1
         do i=1,4*iRrealdim,1

@@ -6,7 +6,7 @@ Subroutine Finit_MPS
     use communicate
     use Renormalization_mod
     use hamiltonian_mod
-
+    use checkmem_mod
     implicit none
 
     integer :: isystem,ibegin,i,sweepbegin
@@ -150,6 +150,9 @@ Subroutine Finit_MPS
         call MPI_BARRIER(MPI_COMM_WORLD,ierr)
         endtime=MPI_WTIME()
         call master_print_message(endtime-starttime,"SWEEP RUNTIME:")
+        
+        ! check the memory usage
+        call checkmem_output
         
         if(myid==0) then
             write(*,*) isweep,"finit MPS end!"

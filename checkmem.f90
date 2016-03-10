@@ -7,6 +7,7 @@ module checkmem_mod
     integer(kind=i4),allocatable :: noperamatbig1(:,:),noperamatsma1(:,:),noperamatbig2(:,:,:),noperamatsma2(:,:,:),&
         noperamatbig3(:,:,:),noperamatsma3(:,:,:),nHbig(:),nHsma(:),ncoeffIF(:),&
         noperamatbig1p(:,:),noperamatsma1p(:,:),nHbigp(:),nHsmap(:),ncoeffIFp(:)
+    real(kind=r8) :: pppratiomax,hopratiomax,LRoutratiomax
 
     contains
 
@@ -106,9 +107,70 @@ end subroutine check3d_slaver
 
 !==============================================================================
 !==============================================================================
-subroutine checkmem
-    
+
+subroutine checkmem_OPmodMat(char1,ratioin,n)
     implicit none
+    character(len=*),intent(in) :: char1
+    integer,intent(in) :: n
+    real(kind=r8),intent(in) :: ratioin(n)
+    
+    if(char1=="hopnelement") then
+        call OPmodMat_inner(hopratiomax,ratioin,n)
+    else if(char1=="pppnelement") then
+        call OPmodMat_inner(pppratiomax,ratioin,n)
+    else if(char1=="LRoutnelement") then
+        call OPmodMat_inner(LRoutratiomax,ratioin,n)
+    else
+        write(*,*) "OPmodMat wrong!",char1
+        stop
+    end if
+
+    return
+
+end subroutine checkmem_OPmodMat
+
+subroutine OPmodMat_inner(ratioout,ratioin,n)
+    implicit none
+    integer,intent(in) :: n
+    real(kind=r8),intent(in) :: ratioin(n)
+    real(kind=r8),intent(inout) :: ratioout
+    
+    integer :: i
+    
+    do i=1,n,1
+        if(ratioout<ratioin(i)) then
+            ratioout=ratioin(i)
+        end if
+    end do
+
+    return
+end subroutine OPmodMat_inner
+
+!==============================================================================
+!==============================================================================
+
+subroutine checkmem(char1)
+
+    implicit none
+    character(len=8),intent(in) :: char1
+
+    if(char1=="operamat") then
+        call checkmem_operamat
+    else
+        call master_print_message("checkmem mod wrong!")
+        call master_print_message(char1)
+        stop
+    end if
+    
+    return
+end subroutine checkmem
+
+!==============================================================================
+!==============================================================================
+
+subroutine checkmem_operamat
+    implicit none
+
     if(myid==0) then
         call check2d_master(Hbigrowindex,4*subM,2,nHbig)
         call check2d_master(Hsmarowindex,subM,2,nHsma)
@@ -138,17 +200,29 @@ subroutine checkmem
     end if
 
     return
-end subroutine checkmem
+end subroutine checkmem_operamat
 
 !==============================================================================
 !==============================================================================
 
 subroutine checkmem_output
+    USE MPI
     implicit none
     integer :: i,iorb,jorb
+    real(kind=r8) :: pppratiomax0,hopratiomax0,LRoutratiomax0
+    integer :: ierr
+
+    call MPI_REDUCE(pppratiomax,pppratiomax0,1,MPI_REAL8,MPI_MAX,0,MPI_COMM_WORLD,ierr)
+    call MPI_REDUCE(hopratiomax,hopratiomax0,1,MPI_REAL8,MPI_MAX,0,MPI_COMM_WORLD,ierr)
+    call MPI_REDUCE(LRoutratiomax,LRoutratiomax0,1,MPI_REAL8,MPI_MAX,0,MPI_COMM_WORLD,ierr)
 
     if(myid==0) then
         open(unit=99,file="checkmem.out",status="replace")
+
+        write(99,*) "OP module"
+        write(99,*) "pppratiomax0=",1.0D0/pppratiomax0
+        write(99,*) "hopratiomax0=",1.0D0/hopratiomax0
+        write(99,*) "LRoutratiomax0=",1.0D0/LRoutratiomax0
 
         write(99,*) "bigrowindex1"
         write(99,*) "bigdim1=",bigdim1
@@ -280,6 +354,9 @@ subroutine Allocate_checkmem
             ncoeffIFp=0
         end if
     end if
+    pppratiomax=0.0D0
+    hopratiomax=0.0D0
+    LRoutratiomax=0.0D0
     return
 
 end subroutine Allocate_checkmem

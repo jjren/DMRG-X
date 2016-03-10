@@ -603,7 +603,7 @@ LRdim,isubM,ifperturbation)
     deallocate(phase)
     
     ! check the bigmat and smamat sparse matrix usage
-    call checkmem
+    call checkmem("operamat")
 
     return
 end subroutine System_Big
