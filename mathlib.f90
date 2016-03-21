@@ -353,9 +353,15 @@ subroutine SpMatAdd(Ancols,Anrows,Amat,Amatcol,Amatrow,&
     real(kind=r8) :: Amat(maxnelement),Bmat(Bmatrow(Bnrows+1)-1)
     real(kind=r8) :: beta
     
-    integer(kind=i4),allocatable :: Cmatcol(:),Cmatrow(:)
+    integer(kind=i4),allocatable :: Cmatcol(:),Cmatrow(:),Dmatrow(:)
     real(kind=r8),allocatable :: Cmat(:)
     integer :: error,info
+    real(kind=r8) :: Dmat(1)
+    integer(kind=i4) :: Dmatcol(1)
+    
+    !real(kind=r8) :: Dmat(Anrows)
+    !integer(kind=i4) :: Dmatcol(Anrows)
+    !integer :: i
 
     allocate(Cmat(maxnelement),stat=error)
     if(error/=0) stop
@@ -374,11 +380,36 @@ subroutine SpMatAdd(Ancols,Anrows,Amat,Amatcol,Amatrow,&
         stop
     end if
     
-    call copy(Cmat,Amat)
-    Amatcol=Cmatcol
-    Amatrow=Cmatrow
+    allocate(Dmatrow(Anrows+1))
+    ! zero sparse matrix intialize
+    Dmatrow=1
+    
+    !do i=1,Anrows,1
+    !    Dmatcol(i)=i
+    !    Dmat(i)=1.0D0
+    !    Dmatrow(i+1)=i+1
+    !end do
 
-    deallocate(Cmat,Cmatcol,Cmatrow)
+    call mkl_dcsradd('N',0,0,Anrows,Ancols,Cmat,Cmatcol,Cmatrow,&
+        0.0D0,Dmat,Dmatcol,Dmatrow,Amat,Amatcol,Amatrow,maxnelement,info) 
+    
+    !call mkl_dcsrmultcsr('N',0,8,Anrows,Anrows,Ancols, &
+    !    Dmat,Dmatcol,Dmatrow, &
+    !    Cmat,Cmatcol,Cmatrow, &
+    !    Amat,Amatcol,Amatrow,maxnelement,info)
+    
+    if(info/=0) then
+        write(*,*) "==============================" 
+        write(*,*) "SpMatAdd info/=0 failed!",info
+        write(*,*) "=============================="
+        stop
+    end if
+    
+    !call copy(Cmat,Amat)
+    !Amatcol=Cmatcol
+    !Amatrow=Cmatrow
+
+    deallocate(Cmat,Cmatcol,Cmatrow,Dmatrow)
 
     return
 end subroutine SpMatAdd
@@ -398,21 +429,48 @@ subroutine SpMatIJ(Anrows,irow,icol,Amat,Amatcol,Amatrow,output)
     ! local
     integer :: i,j
     logical :: iffind
+    integer :: testindex,firstindex,lastindex
 
-    iffind=.false.
-    do i=Amatrow(irow),Amatrow(irow+1)-1,1
-        if(Amatcol(i)<icol) then
-            cycle
-        else if(Amatcol(i)==icol) then
-            output=Amat(i)
-            iffind=.true.
-            exit
-        else if(Amatcol(i)>icol) then
-            exit
+    !iffind=.false.
+    !do i=Amatrow(irow),Amatrow(irow+1)-1,1
+    !    if(Amatcol(i)<icol) then
+    !        cycle
+    !    else if(Amatcol(i)==icol) then
+    !        output=Amat(i)
+    !        iffind=.true.
+    !        exit
+    !    else if(Amatcol(i)>icol) then
+    !        exit
+    !    end if
+    !end do
+    !if(iffind==.false.) then
+    !    output=0.0D0
+    !end if
+    output=0.0D0
+    firstindex=Amatrow(irow)
+    lastindex=Amatrow(irow+1)-1
+
+    if(lastindex>=firstindex) then
+        if(Amatcol(lastindex)<=icol .or. Amatcol(firstindex)>=icol) then
+            if(Amatcol(firstindex)==icol) then
+                output=Amat(firstindex)
+            else if(Amatcol(lastindex)==icol) then
+                output=Amat(lastindex)
+            end if
+        else
+            testindex=(firstindex+lastindex)/2
+            do while(testindex/=firstindex)
+                if(Amatcol(testindex)<icol) then
+                    firstindex=testindex
+                else if(Amatcol(testindex)>icol) then
+                    lastindex=testindex
+                else if(Amatcol(testindex)==icol) then
+                    output=Amat(testindex)
+                    exit
+                end if
+                testindex=(firstindex+lastindex)/2
+            end do
         end if
-    end do
-    if(iffind==.false.) then
-        output=0.0D0
     end if
 
     return
@@ -685,6 +743,34 @@ subroutine GetSpmat1Vec(dim1,index1,first,last,Amat,Acol,Arow,direction,vecdim,v
 return
 
 end subroutine GetSpmat1Vec
+
+!=============================================
+!=============================================
+
+subroutine CopySpAtoB(nrow,Amat,Amatcol,Amatrow,Bmat,Bmatcol,Bmatrow,Bmaxnelement)
+    ! this subroutine do sparse matrix A to B copy
+    implicit none
+    integer,intent(in) :: nrow,Bmaxnelement
+    integer(kind=i4),intent(in) :: Amatrow(nrow+1),Amatcol(Amatrow(nrow+1)-1)
+    real(kind=r8),intent(in) :: Amat(Amatrow(nrow+1)-1)
+    integer(kind=i4),intent(out) :: Bmatrow(nrow+1),Bmatcol(Bmaxnelement)
+    real(kind=r8),intent(out) :: Bmat(Bmaxnelement)
+
+    if(Amatrow(nrow+1)-1>Bmaxnelement) then
+        write(*,*) "========================="
+        write(*,*) "Bmaxnelement is too small"
+        write(*,*) "Bmaxnelement=",Bmaxnelement
+        write(*,*) "Amatrow(nrow+1)-1=",Amatrow(nrow+1)-1
+        write(*,*) "========================="
+        stop
+    end if
+
+    Bmatrow(1:nrow+1)=Amatrow(1:nrow+1)
+    Bmatcol(1:Amatrow(nrow+1)-1)=Bmatcol(1:Amatrow(nrow+1)-1)
+    call copy(Amat(1:Amatrow(nrow+1)-1),Bmat(1:Amatrow(nrow+1)-1))
+
+return
+end subroutine CopySpAtoB
 
 !=============================================
 !=============================================

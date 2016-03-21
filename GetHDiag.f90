@@ -17,6 +17,8 @@ ifperturbation)
     use variables
     use communicate
     use module_sparse
+    USE BLAS95
+    USE F95_PRECISION
 
     implicit none
     
@@ -30,13 +32,13 @@ ifperturbation)
     logical,intent(in) :: ifperturbation
     
     ! local
-    real(kind=8),allocatable :: buffermat(:),buffermat0(:,:),Hdiagdummy(:)
+    real(kind=r8),allocatable :: buffermat(:),buffermat0(:,:),Hdiagdummy(:)
     integer :: operaindex
     integer :: status(MPI_STATUS_SIZE),ierr
     integer :: i,error,j,k,m
     integer :: iLrealdim,iRrealdim
     integer :: maxdim
-
+    real(kind=r8) :: alpha
 
     call master_print_message("enter in GetHDiag subroutine")
     
@@ -129,8 +131,10 @@ ifperturbation)
             do i=1,nleft+1,1
             do j=norbs,norbs-nright,-1
                 do k=1,4*iRrealdim,1
-                    Hdiagdummy((k-1)*4*iLrealdim+1:k*4*iLrealdim)=buffermat0(1:4*iLrealdim,i)*buffermat0(k,j)*pppV(i,j)&
-                                            +Hdiagdummy((k-1)*4*iLrealdim+1:k*4*iLrealdim)
+                   ! Hdiagdummy((k-1)*4*iLrealdim+1:k*4*iLrealdim)=buffermat0(1:4*iLrealdim,i)*buffermat0(k,j)*pppV(i,j)&
+                   !                         +Hdiagdummy((k-1)*4*iLrealdim+1:k*4*iLrealdim)
+                   alpha=buffermat0(k,j)*pppV(i,j)
+                   call axpy(buffermat0(1:4*iLrealdim,i),Hdiagdummy((k-1)*4*iLrealdim+1:k*4*iLrealdim),alpha)
                 end do
             end do
             end do
