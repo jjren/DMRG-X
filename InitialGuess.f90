@@ -3,6 +3,7 @@ MODULE InitialGuess
     use communicate
     use kinds_mod
     use module_sparse
+    use basisindex_mod
     implicit none
 ! this module contains the subroutine that generate the initial guess of the MPS
 ! procedure
@@ -105,6 +106,7 @@ end subroutine InitialStarter
     character(len=1) :: direction
     integer :: job(8),info
     integer :: dummydim1,dummydim2
+    integer :: ibasis
 
     write(*,*) "enter MoreInitialFinit subroutine"
     ! two site dmrg
@@ -236,27 +238,14 @@ end subroutine InitialStarter
     else if((direction=='l' .and. nleft==exactsite) .or. (direction=='r' .and. nright==exactsite)) then
         LRcoeff=LRcoeff1  ! directly use the last step result
     end if
-
+    
     m=0
     do k=1,nstate,1
-    do i=1,4*Rrealdim,1
-    do j=1,4*Lrealdim,1
-        if((quantabigL(j,1)+quantabigR(i,1)==nelecs) .and. &
-            quantabigL(j,2)+quantabigR(i,2)==totalSz) then
-            m=m+1
-            guesscoeff(m)=LRcoeff(j,i,k)
-        end if
+    do ibasis=1,ngoodstates,1
+        m=m+1
+        guesscoeff(m)=LRcoeff(goodbasis(ibasis,1),goodbasis(ibasis,2),k)
     end do
     end do
-    end do
-
-    if(m/=lvector*nstate) then
-        write(*,*) "----------------------------------------------"
-        write(*,*) "guesscoeff good quantum states number wrong! failed!"
-        write(*,*) "----------------------------------------------"
-        stop
-    end if
-
 
     deallocate(leftu)
     deallocate(rightv)
@@ -288,7 +277,7 @@ end subroutine InitialStarter
     ,LRcoeff(:,:)
     logical :: alive
     integer :: reclength
-    integer :: error,i,j,m
+    integer :: error,i,j,ibasis
     real(kind=r8) :: norm
     integer :: job(8),info
     integer :: dummydim1,dummydim2
@@ -398,23 +387,9 @@ end subroutine InitialStarter
     end if
 
     
-    m=0
-    do i=1,4*Rrealdim,1
-    do j=1,4*Lrealdim,1
-        if((quantabigL(j,1)+quantabigR(i,1)==nelecs) .and. &
-            quantabigL(j,2)+quantabigR(i,2)==totalSz) then
-            m=m+1
-            nosymmguess(m)=LRcoeff(j,i)
-        end if
+    do ibasis=1,ngoodstates,1
+        nosymmguess(ibasis)=LRcoeff(goodbasis(ibasis,1),goodbasis(ibasis,2))
     end do
-    end do
-
-    if(m/=ngoodstates) then
-        write(*,*) "----------------------------------------------"
-        write(*,*) "guesscoeff good quantum states number wrong! failed!"
-        write(*,*) "----------------------------------------------"
-        stop
-    end if
 
     close(105)
     close(106)
@@ -527,13 +502,12 @@ subroutine Perturbation_Init(initcoeff,lvector,direction)
     
     real(kind=r8),allocatable :: leftu(:,:),rightv(:,:),&
         midmat(:,:),midmat2(:,:),coeffguess(:,:),coeffguess1(:,:)
-    integer :: istate,i,j
+    integer :: istate,i,j,ibasis,ngoodstatesdummy
     integer :: remainder,factor,Lrealdimbefore,Rrealdimbefore,&
         lsvddimbefore,rsvddimbefore,&
-        reclength,ngoodstatesdummy
+        reclength
     character(len=1) :: matdescra(6)
     logical :: alive
-    !real :: sum1
 
     call master_print_message("enter subroutine Perturbation_init ")
     allocate(leftu(4*subMp,subMp))
@@ -660,17 +634,6 @@ subroutine Perturbation_Init(initcoeff,lvector,direction)
             end do
         end if
         
-       ! sum1=0.0D0
-       ! do i=1,4*Rrealdimp,1
-       ! do j=1,4*Lrealdimp,1
-       !     if((quantabigLp(j,1)+quantabigRp(i,1)==nelecs) .and. &
-       !         quantabigLp(j,2)+quantabigRp(i,2)==totalSz) then
-       !         sum1=sum1+coeffguess(j,i)**2
-       !     end if
-       ! end do
-       ! end do
-       ! write(*,*) "sum1=",sum1
-
         ngoodstatesdummy=0
         do i=1,4*Rrealdimp,1
         do j=1,4*Lrealdimp,1
@@ -689,6 +652,15 @@ subroutine Perturbation_Init(initcoeff,lvector,direction)
             write(*,*) "ngoodstatesdummy/=lvector",ngoodstatesdummy,lvector
             stop
         end if
+
+
+        !do ibasis=1,ngoodstatesp,1
+        !    remainder=mod(goodbasisp(ibasis,1),Lrealdimp)
+        !    if(remainder==0) remainder=Lrealdimp
+        !    if(goodbasisp(ibasis,2)<=4*Rrealdim .and. remainder<=Lrealdim) then
+        !        initcoeff((istate-1)*lvector+ibasis)=coeffguess(goodbasisp(ibasis,1),goodbasisp(ibasis,2))
+        !    end if
+        !end do
     end do
     
     deallocate(leftu,rightv)
