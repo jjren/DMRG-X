@@ -161,7 +161,7 @@ subroutine JacobiDavidson_Wrapper(direction)
         call GetHDiag(HDIAG,dimN,&
         operamatbig1,bigcolindex1,bigrowindex1,&
         Hbig,Hbigcolindex,Hbigrowindex,&
-        quantabigL,quantabigR,&
+        goodbasis,&
         .false.)
     end if
     endtime=MPI_WTIME()
@@ -195,7 +195,7 @@ subroutine JacobiDavidson_Wrapper(direction)
                 Lrealdim,Rrealdim,subM,ngoodstates,&
                 operamatbig1,bigcolindex1,bigrowindex1,&
                 Hbig,Hbigcolindex,Hbigrowindex,&
-                quantabigL,quantabigR)
+                quantabigL,quantabigR,goodbasis,goodbasiscol)
         end if
     end do
 
@@ -328,7 +328,7 @@ Subroutine Davidson_Wrapper(direction)
         call GetHDiag(HDIAG,dimN,&
         operamatbig1,bigcolindex1,bigrowindex1,&
         Hbig,Hbigcolindex,Hbigrowindex,&
-        quantabigL,quantabigR,&
+        goodbasis,&
         .false.)
     !   write(*,*) HDIAG
     end if
@@ -363,7 +363,7 @@ Subroutine Davidson_Wrapper(direction)
                             Lrealdim,Rrealdim,subM,ngoodstates,&
                             operamatbig1,bigcolindex1,bigrowindex1,&
                             Hbig,Hbigcolindex,Hbigrowindex,&
-                            quantabigL,quantabigR)
+                            quantabigL,quantabigR,goodbasis,goodbasiscol)
                     deallocate(dummycoeff)
                     deallocate(dummynewcoeff)
                 else
@@ -443,6 +443,7 @@ end subroutine Davidson_Wrapper
 !====================================================================
 
 subroutine DavidOutput(eigenvalue,eigenvector)
+    use basisindex_mod
     use perturbation_mod
     implicit none
 
@@ -473,7 +474,7 @@ subroutine DavidOutput(eigenvalue,eigenvector)
             call coefftosparse(&
                 coeffIFdim,coeffIF(:,k),coeffIFcolindex(:,k),coeffIFrowindex(:,k),&
                 ngoodstates,nosymmout((k-1)*ngoodstates+1:k*ngoodstates),&
-                Lrealdim,Rrealdim,quantabigL(1:4*Lrealdim,1:2),quantabigR(1:4*Rrealdim,1:2))
+                Lrealdim,Rrealdim,goodbasis,goodbasiscol)
             coeffIFrowindex(4*Lrealdim+1:4*subM+1,k)=coeffIFrowindex(4*Lrealdim+1,k)
         end do
     !   write the coeffIF in two partical density matrix calculation
@@ -527,36 +528,20 @@ end subroutine DavidOutput
 
 subroutine GetDimSym
 ! Get dimension of H matrix and Symmetry matrix
-
+    use basisindex_mod
     implicit none
     integer :: i,j
     ! check how many states fullfill good quantum number
     ! every process do it
     ! ngoodstates is the number of good quantum number states
     
+    call basisindex(4*Lrealdim,4*Rrealdim,quantabigL(1:4*Lrealdim,1:2),quantabigR(1:4*Rrealdim,1:2),&
+        ngoodstates,goodbasis,goodbasiscol(1:4*Rrealdim+1))
+    
     ! allocate the symmetry work array
     if(logic_spinreversal/=0 .or. (logic_C2/=0 .and. nleft==nright)) then
         call SymmAllocateArray
     end if
-
-    ngoodstates=0
-    do i=1,4*Rrealdim,1
-    do j=1,4*Lrealdim,1
-        if((quantabigL(j,1)+quantabigR(i,1)==nelecs) .and. &
-        quantabigL(j,2)+quantabigR(i,2)==totalSz) then
-            ngoodstates=ngoodstates+1
-            ! construct the symmlinkgood 
-            if(logic_spinreversal/=0 .or. (logic_C2/=0 .and. nleft==nright)) then
-                call CreatSymmlinkgood(ngoodstates,j,i)
-            end if
-        end if
-    end do
-        ! construct the symmlinkcol
-        ! the nonzero LRcoeff element of every column
-        if(logic_spinreversal/=0 .or. (logic_C2/=0 .and. nleft==nright)) then
-            symmlinkcol(i+1)=ngoodstates+1
-        end if
-    end do
 
     dimN=ngoodstates
     

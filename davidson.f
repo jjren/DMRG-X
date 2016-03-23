@@ -597,6 +597,8 @@ C
         use variables
         use ABop
         use module_sparse
+        use basisindex_mod
+
         IMPLICIT DOUBLE PRECISION(A-H,O-Z)
         DIMENSION BASIS(N*LIM),AB(N*LIM)
         DIMENSION S(LIM*(LIM+1)/2)
@@ -628,7 +630,7 @@ c jjren add
      :           Lrealdim,Rrealdim,subM,ngoodstates,
      :           operamatbig1,bigcolindex1,bigrowindex1,
      :           Hbig,Hbigcolindex,Hbigrowindex,
-     :           quantabigL,quantabigR)
+     :           quantabigL,quantabigR,goodbasis,goodbasiscol)
 *
 * If highest pairs are sought, use the negative of the matrix
 *

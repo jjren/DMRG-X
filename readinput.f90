@@ -8,6 +8,7 @@ Subroutine ReadInput
     use communicate
     use noise_mod,only : Ifnoise,noiseweight
     use perturbation_mod,only : Ifperturbation3
+    use basisindex_mod,only : nmaxgoodbasis,nmaxgoodbasisp
     implicit none
 
     integer :: i,j,error,ierr 
@@ -116,6 +117,8 @@ Subroutine ReadInput
         allocate(noiseweight(0:sweeps))
         read(10,*) noiseweight(0:sweeps)
     end if
+
+    read(10,*) nmaxgoodbasis,nmaxgoodbasisp
 
 !   if(logic_PPP==1) then
     ! coordiantes of the system
@@ -247,6 +250,8 @@ Subroutine ReadInput
         call MPI_PACK(hubbardU(1),norbs,MPI_real8,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
         call MPI_PACK(diagmethod,20,MPI_CHARACTER,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
         call MPI_PACK(Ifnoise,1,MPI_LOGICAL,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
+        call MPI_PACK(nmaxgoodbasis,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
+        call MPI_PACK(nmaxgoodbasisp,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
         write(*,*) "packsizedefine=",packsize,"packbufsize=",position1
     end if
     
@@ -308,6 +313,8 @@ Subroutine ReadInput
         call MPI_UNPACK(packbuf,packsize,position1,hubbardU(1),norbs,MPI_real8,MPI_COMM_WORLD,ierr)
         call MPI_UNPACK(packbuf,packsize,position1,diagmethod,20,MPI_CHARACTER,MPI_COMM_WORLD,ierr)
         call MPI_UNPACK(packbuf,packsize,position1,Ifnoise,1,MPI_LOGICAL,MPI_COMM_WORLD,ierr)
+        call MPI_UNPACK(packbuf,packsize,position1,nmaxgoodbasis,1,MPI_integer4,MPI_COMM_WORLD,ierr)
+        call MPI_UNPACK(packbuf,packsize,position1,nmaxgoodbasisp,1,MPI_integer4,MPI_COMM_WORLD,ierr)
         write(*,*) myid,"getpacksize=",position1
     end if
     
@@ -351,6 +358,8 @@ Subroutine ReadInput
             write(*,*) "noiseweight:",noiseweight
         end if
         write(*,*) "nweight=",nweight
+        write(*,*) "nmaxgoodbasis=",nmaxgoodbasis
+        write(*,*) "nmaxgoodbasisp=",nmaxgoodbasisp
         write(*,*) "energythresh",energythresh ! other process do not know this number
         write(*,*) "nbonds=",nbonds,"bondlink="
         do i=1,norbs,1

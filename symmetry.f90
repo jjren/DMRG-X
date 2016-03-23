@@ -3,6 +3,7 @@ module Symmetry
     
     use variables
     use Communicate
+    use basisindex_mod
     implicit none
 
     real(kind=r8),allocatable :: symmat(:)
@@ -12,8 +13,6 @@ module Symmetry
     ! rowindex(nsymmstate+1) :: the symmetry matrix in 3-array CSR sparse form
     ! nsymmstate :: the number of symmetry state
     ! symmlinkcol is the LRcoeff CSC format
-    integer :: guessngoodstates
-    ! guess number of ngoodstates
     integer :: maxdim
 
 
@@ -58,47 +57,13 @@ end subroutine CreatSymmlinkbig
 !===============================================================================
 !===============================================================================
 
-subroutine CreatSymmlinkgood(igoodstate,leftindex,rightindex)
-! get the symmlinkgood infomation
-
-    implicit none
-    
-    integer :: igoodstate,leftindex,rightindex
-    
-    ! check 
-    if(igoodstate>guessngoodstates) then
-        call master_print_message(igoodstate,"igoodstate>guessgoodstates")
-        stop
-    end if
-
-    ! in the good quantum number states space
-    ! get the symmetry link information
-    ! symmlinkgood(m,1) means the left space index in 4M basis
-    ! symmlinkgood(m,2) means the right space index in 4M basis
-    
-    ! every process should know this
-    symmlinkgood(igoodstate,1)=leftindex
-    symmlinkgood(igoodstate,2)=rightindex
-return
-
-end subroutine CreatSymmlinkgood
-
-!===============================================================================
-!================================================================================
-
 subroutine SymmAllocateArray
     implicit none
 
-    integer :: error
-    ! guess number of ngoodstates
-    guessngoodstates=16*subM*subM/5
-    
-    allocate(symmlinkgood(guessngoodstates,2),stat=error)
-    if(error/=0) stop
-    allocate(symmlinkcol(4*Rrealdim+1),stat=error)
-    if(error/=0) stop
-    symmlinkcol(1)=1
-
+    allocate(symmlinkcol(4*Rrealdim+1))
+    ! construct the symmlinkcol
+    ! the nonzero LRcoeff element of every column
+    symmlinkcol(1:4*Rrealdim+1)=goodbasiscol(1:4*Rrealdim+1)
 return
 end subroutine SymmAllocateArray
 
@@ -165,19 +130,19 @@ subroutine SymmetryMat
             symmlink=0 
             do i=1,ngoodstates,1
                 if (symmlink(i)==0) then
-                    if(abs(symmlinkbig(symmlinkgood(i,1),1,1))==symmlinkgood(i,1) .and. &
-                        abs(symmlinkbig(symmlinkgood(i,2),1,2))==symmlinkgood(i,2)) then
+                    if(abs(symmlinkbig(goodbasis(i,1),1,1))==goodbasis(i,1) .and. &
+                        abs(symmlinkbig(goodbasis(i,2),1,2))==goodbasis(i,2)) then
                         symmlink(i)=i
                         spinline(i,1)=i
                     else
                         ! use the symmlinkcol to accelerate the search process
-                        tmp=symmlinkcol(abs(symmlinkbig(symmlinkgood(i,2),1,2)))
-                        tmp2=symmlinkcol(abs(symmlinkbig(symmlinkgood(i,2),1,2))+1)-1
+                        tmp=symmlinkcol(abs(symmlinkbig(goodbasis(i,2),1,2)))
+                        tmp2=symmlinkcol(abs(symmlinkbig(goodbasis(i,2),1,2))+1)-1
                         
                         if(i<=tmp2) then
                             do j=tmp,tmp2,1
                                 if(symmlink(j)==0 .and. &
-                                    abs(symmlinkbig(symmlinkgood(i,1),1,1))==symmlinkgood(j,1) ) then
+                                    abs(symmlinkbig(goodbasis(i,1),1,1))==goodbasis(j,1) ) then
                                     symmlink(i)=j
                                     symmlink(j)=i
                                     spinline(i,1)=j
@@ -197,7 +162,7 @@ subroutine SymmetryMat
                 ! the symmlink is himself
                 if(symmlink(i)==i) then
                     
-                    if(sign(1,symmlinkbig(symmlinkgood(i,1),1,1))*sign(1,symmlinkbig(symmlinkgood(i,2),1,2))&
+                    if(sign(1,symmlinkbig(goodbasis(i,1),1,1))*sign(1,symmlinkbig(goodbasis(i,2),1,2))&
                         /=phase) then
                         spinline(i,2)=0   ! the coeff should be 0
                     else
@@ -206,7 +171,7 @@ subroutine SymmetryMat
 
                 ! either of the L or R space symmlink is not himself
                 else if(symmlink(i)>i) then
-                    tmp=sign(1,symmlinkbig(symmlinkgood(i,1),1,1))*sign(1,symmlinkbig(symmlinkgood(symmlink(i),2),1,2))*phase
+                    tmp=sign(1,symmlinkbig(goodbasis(i,1),1,1))*sign(1,symmlinkbig(goodbasis(symmlink(i),2),1,2))*phase
                     spinline(i,2)=tmp
                     spinline(symmlink(i),2)=tmp
                 end if
@@ -219,8 +184,8 @@ subroutine SymmetryMat
         if(logic_C2/=0 .and. nleft==nright) then
             do i=1,ngoodstates,1
             if(C2line(i,1)==0) then
-                if(symmlinkgood(i,1)==symmlinkgood(i,2)) then
-                    if(logic_C2*(-1)**mod(quantabigL(symmlinkgood(i,1),1)*quantabigR(symmlinkgood(i,2),1),2)==-1) then
+                if(goodbasis(i,1)==goodbasis(i,2)) then
+                    if(logic_C2*(-1)**mod(quantabigL(goodbasis(i,1),1)*quantabigR(goodbasis(i,2),1),2)==-1) then
                         C2line(i,1)=i
                         C2line(i,2)=0  ! the coeff should be 0
                     else
@@ -229,15 +194,15 @@ subroutine SymmetryMat
                     end if
                 else 
                     ! use the symmlinkcol to accelerate the search process
-                    tmp=symmlinkcol(symmlinkgood(i,1))    ! i's left index equals j's right index
-                    tmp2=symmlinkcol(symmlinkgood(i,1)+1)-1
+                    tmp=symmlinkcol(goodbasis(i,1))    ! i's left index equals j's right index
+                    tmp2=symmlinkcol(goodbasis(i,1)+1)-1
 
                     if(i<=tmp2) then
                         do j=tmp,tmp2,1  ! find the link info
                             if(C2line(j,1)==0 .and. &
-                                symmlinkgood(j,1)==symmlinkgood(i,2) .and. &
-                                symmlinkgood(j,2)==symmlinkgood(i,1)) then
-                                if(logic_C2*(-1)**mod(quantabigL(symmlinkgood(i,1),1)*quantabigR(symmlinkgood(i,2),1),2)==-1) then
+                                goodbasis(j,1)==goodbasis(i,2) .and. &
+                                goodbasis(j,2)==goodbasis(i,1)) then
+                                if(logic_C2*(-1)**mod(quantabigL(goodbasis(i,1),1)*quantabigR(goodbasis(i,2),1),2)==-1) then
                                     C2line(i,1)=j
                                     C2line(j,1)=i
                                     C2line(i,2)=-1
@@ -396,7 +361,7 @@ subroutine SymmHDiag(HDIAG)
     integer :: ierr,status(MPI_STATUS_SIZE),recvrequest  ! MPI_flag
 
     real(kind=r8),allocatable :: bufmat0(:,:,:,:,:),bufmat(:,:,:,:),bufmatlocal(:,:,:,:,:),&
-    workarray(:,:),workdummy(:,:),Idummyr(:,:),Idummyl(:,:),bufmatdumm(:,:),&
+    workarray(:,:),workdummy(:,:),workdummy2(:,:),Idummyr(:,:),Idummyl(:,:),bufmatdumm(:,:),&
     bufmatdummyr(:,:),bufmatdummyl(:,:),&
     vecdummy(:),nosymmat(:,:),localdiag(:)
 
@@ -536,10 +501,9 @@ subroutine SymmHDiag(HDIAG)
             Idummyl(i,i)=1.0D0
         end do  
 
-        allocate(workdummy(nlbasis*nrbasis,nlbasis*nrbasis),stat=error)
-        if(error/=0) stop
-        allocate(workarray(nlbasis*nrbasis,nlbasis*nrbasis),stat=error)
-        if(error/=0) stop
+        allocate(workdummy(nlbasis*nrbasis,nlbasis*nrbasis))
+        allocate(workdummy2(nlbasis*nrbasis,nlbasis*nrbasis))
+        allocate(workarray(nlbasis*nrbasis,nlbasis*nrbasis))
         workarray=0.0D0  ! store Hjk
         workdummy=0.0D0
 
@@ -566,13 +530,16 @@ subroutine SymmHDiag(HDIAG)
                                 *((-1.0D0)**(mod(quantabigL(indexall(il,1,isymm),1),2)))
                         end do
                         end do
-                        workarray=(workdummy+transpose(workdummy))*t(i,j)+workarray
+                        workdummy2=workdummy+transpose(workdummy)
+                        !workarray=(workdummy+transpose(workdummy))*t(i,j)+workarray
+                        call Mataxpy(t(i,j),nlbasis*nrbasis,nlbasis*nrbasis,workdummy2,workarray)
                     end do
                 end if
                 ! PPP term
                 call directproduct(bufmatlocal(1:nlbasis,1:nlbasis,3,i,ibasis),nlbasis,bufmatlocal(1:nrbasis,1:nrbasis,3,j,ibasis),nrbasis,&
                     workdummy)
-                workarray=workdummy*pppV(i,j)+workarray
+                call Mataxpy(pppV(i,j),nlbasis*nrbasis,nlbasis*nrbasis,workdummy,workarray)
+                !workarray=workdummy*pppV(i,j)+workarray
             end do
         end do
         
@@ -591,8 +558,8 @@ subroutine SymmHDiag(HDIAG)
             ! find the correspond state to the symmmat
             ! other state is no use (nlbasis*nrbasis>dim1)
             do j=1,nrbasis*nlbasis,1
-                if((symmlinkgood(columnindex(i),1)==indexall(indexsymm(1,j),1,isymm)) &
-                .and. (symmlinkgood(columnindex(i),2)==indexall(indexsymm(2,j),2,isymm))) then
+                if((goodbasis(columnindex(i),1)==indexall(indexsymm(1,j),1,isymm)) &
+                .and. (goodbasis(columnindex(i),2)==indexall(indexsymm(2,j),2,isymm))) then
                     if(j/=i-rowindex(isymm)+1) then
                         call swap(workarray(j,:),workarray(i-rowindex(isymm)+1,:))
                         call swap(workarray(:,j),workarray(:,i-rowindex(isymm)+1))
@@ -624,7 +591,7 @@ subroutine SymmHDiag(HDIAG)
         deallocate(bufmatdummyr)
         deallocate(bufmatdummyl)
         deallocate(workarray)
-        deallocate(workdummy)
+        deallocate(workdummy,workdummy2)
     end do
     
     ! gather the diagonal element to 0 process
@@ -685,14 +652,14 @@ subroutine subspaceSymmHDIAG(domain,indexall,operanum,bufmat,bufmat0)
             do j=rowindex(i),rowindex(i+1)-1,1   ! i state element index in sparse form
                 ifexist=.false.
                 do k=1,m,1
-                    if(symmlinkgood(columnindex(j),Hindex)==index1(k)) then
+                    if(goodbasis(columnindex(j),Hindex)==index1(k)) then
                         ifexist=.true.
                         exit
                     end if
                 end do
                 if(ifexist==.false.) then
                     m=m+1
-                    index1(m)=symmlinkgood(columnindex(j),Hindex)
+                    index1(m)=goodbasis(columnindex(j),Hindex)
                 end if
             end do
             
@@ -808,7 +775,6 @@ subroutine destroysymm
     deallocate(symmat)
     deallocate(rowindex)
     deallocate(columnindex)
-    deallocate(symmlinkgood)
     deallocate(symmlinkcol)
 return
 end subroutine destroysymm

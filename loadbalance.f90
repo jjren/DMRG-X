@@ -12,7 +12,8 @@ Subroutine LoadBalance
     use module_sparse
     use MKL_SERVICE
     use checkmem_mod
-    
+    use basisindex_mod
+
     implicit none
     ! local
     integer :: i,j,error
@@ -195,6 +196,7 @@ Subroutine LoadBalance
     quantabigLp=0
     quantabigRp=0
     call Allocate_checkmem
+    call Allocate_basisindex
 !------------------------------------------------------
 return
 end Subroutine LoadBalance

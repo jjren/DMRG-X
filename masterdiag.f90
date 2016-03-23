@@ -85,7 +85,7 @@ subroutine masterop(bigdim,smadim,coeff,newcoeff)
         call coefftosparse(ngoodstates,&
             LRcoeffin(:,k),LRcoeffincol(:,k),LRcoeffinrow(:,k),&
             ngoodstates,coeffnosymm((k-1)*ngoodstates+1:k*ngoodstates),&
-            Lrealdim,Rrealdim,quantabigL(1:4*Lrealdim,1:2),quantabigR(1:4*Rrealdim,1:2))
+            Lrealdim,Rrealdim,goodbasis,goodbasiscol)
     end do
 
     LRcoeffoutrow=1  ! define the LRcoeffout matrix is 0

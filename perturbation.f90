@@ -8,6 +8,7 @@ module perturbation_mod
     use BLAS95
     use F95_precision
     use mathlib
+    use basisindex_mod
 
     implicit none
     real(kind=r8),allocatable ::  Hdiagp(:),correctenergy2(:),correctenergy3(:),&
@@ -34,7 +35,10 @@ subroutine perturbation(eigenvalue,num)
     allocate(correctenergy3(nstate))
     correctenergy2=0.0D0
     correctenergy3=0.0D0
-    
+ 
+    call basisindex(4*Lrealdimp,4*Rrealdimp,quantabigLp(1:4*Lrealdimp,1:2),quantabigRp(1:4*Rrealdimp,1:2),&
+        ngoodstatesp,goodbasisp,goodbasiscolp(1:4*Rrealdimp+1))
+
     ! Get the diagonal element in the 4Mp*4Mp basis
     call GetHdiagp
 
@@ -150,50 +154,40 @@ subroutine correct_coeff(eigenvalue,num)
     implicit none
     integer,intent(in) :: num
     real(kind=r8),intent(in) :: eigenvalue(:)
-    integer :: ngoodstatespdummy,remainder
-    integer :: i,j,k
+    integer :: remainder
+    integer :: istate,ibasis
     real(kind=r8) :: norm
     
     ! the GetH0lr1 is much efficient than the GetH0lr2
     ! because it calculate the H0j' at one time
     call GetH0lr1
-!   call GetH0lr2
+   !call GetH0lr2
 
     if(myid==0) then
-        ngoodstatespdummy=0
-        do i=1,4*Rrealdimp,1
-        do j=1,4*Lrealdimp,1
-            if((quantabigLp(j,1)+quantabigRp(i,1)==nelecs) .and. &
-            quantabigLp(j,2)+quantabigRp(i,2)==totalSz) then
-                ngoodstatespdummy=ngoodstatespdummy+1
-                
-                remainder=mod(j,Lrealdimp)
+        do ibasis=1,ngoodstatesp,1
+                remainder=mod(goodbasisp(ibasis,1),Lrealdimp)
                 if(remainder==0) remainder=Lrealdimp
-                if(i<=4*Rrealdim .and. remainder<=Lrealdim) then
+                if(goodbasisp(ibasis,2)<=4*Rrealdim .and. remainder<=Lrealdim) then
                     cycle
                 else
                     coeffIFplast=coeffIFplast+1
-                    CoeffIFcolindexp(coeffIFplast)=i
-                    CoeffIFrowindexp(coeffIFplast)=j
-                    do k=1,nstate,1
-                        CoeffIFp(coeffIFplast,k)=H0lr(ngoodstatespdummy,k)/(eigenvalue(k)-Hdiagp(ngoodstatespdummy))
-                        correctenergy2(k)=correctenergy2(k)+H0lr(ngoodstatespdummy,k)*H0lr(ngoodstatespdummy,k)/(eigenvalue(k)-Hdiagp(ngoodstatespdummy))
+                    CoeffIFcolindexp(coeffIFplast)=goodbasisp(ibasis,2)
+                    CoeffIFrowindexp(coeffIFplast)=goodbasisp(ibasis,1)
+                    do istate=1,nstate,1
+                        CoeffIFp(coeffIFplast,istate)=H0lr(ibasis,istate)/(eigenvalue(istate)-Hdiagp(ibasis))
+                        correctenergy2(istate)=correctenergy2(istate)+H0lr(ibasis,istate)*&
+                            H0lr(ibasis,istate)/(eigenvalue(istate)-Hdiagp(ibasis))
                     end do
                 end if
-            end if
-        end do
         end do
 
-        do i=1,nstate,1
-            norm=dot(coeffIFp(1:coeffIFplast,i),coeffIFp(1:coeffIFplast,i))
-            write(*,*) "Perturbation normalization:",i,norm
+        do istate=1,nstate,1
+            norm=dot(coeffIFp(1:coeffIFplast,istate),coeffIFp(1:coeffIFplast,istate))
+            write(*,*) "Perturbation normalization:",istate,norm
             norm=sqrt(norm)
-            coeffIFp(1:coeffIFplast,i)=coeffIFp(1:coeffIFplast,i)/norm
+            coeffIFp(1:coeffIFplast,istate)=coeffIFp(1:coeffIFplast,istate)/norm
         end do
-        if(ngoodstatespdummy/=ngoodstatesp) then
-            write(*,*) "ngoodstatespdummy/=ngoodstatesp",ngoodstatespdummy,ngoodstatesp
-            stop
-        end if
+
         if(coeffIFplast/=ngoodstatesp) then
             write(*,*) "coeffIFplast/=ngoodstatesp",coeffIFplast,ngoodstatesp
             stop
@@ -213,8 +207,8 @@ subroutine GetH0lr1
     ! local 
     real(kind=r8),allocatable :: H0k(:,:),H0kout(:,:)
     integer(kind=i4),allocatable :: coeffIFrowindexdummy(:,:)
-    integer :: i,istate,k,j
-    integer :: ngoodstatespdummy,remainder
+    integer :: i,istate,k,j,ibasis
+    integer :: remainder
 
     if(myid==0) then
         allocate(H0k(ngoodstatesp,nstate))
@@ -230,27 +224,17 @@ subroutine GetH0lr1
         end do
         
         k=0
-        ngoodstatespdummy=0
-        do i=1,4*Rrealdimp,1
-        do j=1,4*Lrealdimp,1
-            if((quantabigLp(j,1)+quantabigRp(i,1)==nelecs) .and. &
-            quantabigLp(j,2)+quantabigRp(i,2)==totalSz) then
-                ngoodstatespdummy=ngoodstatespdummy+1
-                remainder=mod(j,Lrealdimp)
-                if(remainder==0) remainder=Lrealdimp
-                if(i<=4*Rrealdim .and. remainder<=Lrealdim) then
-                    k=k+1
-                    H0k(ngoodstatespdummy,1:nstate)=coeffIF(k,1:nstate)
-                end if
+        do ibasis=1,ngoodstatesp,1
+            remainder=mod(goodbasisp(ibasis,1),Lrealdimp)
+            if(remainder==0) remainder=Lrealdimp
+            if(goodbasisp(ibasis,2)<=4*Rrealdim .and. remainder<=Lrealdim) then
+                k=k+1
+                H0k(ibasis,1:nstate)=coeffIF(k,1:nstate)
             end if
         end do
-        end do
+
         if(k/=ngoodstates) then
             write(*,*) "GetH0lr1 k/=ngoodstates",k,ngoodstates
-            stop
-        end if
-        if(ngoodstatespdummy/=ngoodstatesp) then
-            write(*,*) "GetH0lr1 ngoodstatepdummy/=ngoodstatesp",ngoodstatespdummy,ngoodstatesp
             stop
         end if
 
@@ -268,28 +252,20 @@ subroutine GetH0lr1
             Lrealdimp,Rrealdimp,subMp,ngoodstatesp,&
             operamatbig1p,bigcolindex1p,bigrowindex1p,&
             Hbigp,Hbigcolindexp,Hbigrowindexp,&
-            quantabigLp,quantabigRp)
+            quantabigLp,quantabigRp,goodbasisp,goodbasiscolp)
     
     if(myid==0) then
         ! matrix operation
         H0lr=H0kout
         deallocate(H0k,H0kout)
         
-        ngoodstatespdummy=0
-        do i=1,4*Rrealdimp,1
-        do j=1,4*Lrealdimp,1
-            if((quantabigLp(j,1)+quantabigRp(i,1)==nelecs) .and. &
-            quantabigLp(j,2)+quantabigRp(i,2)==totalSz) then
-                ngoodstatespdummy=ngoodstatespdummy+1
-                remainder=mod(j,Lrealdimp)
-                if(remainder==0) remainder=Lrealdimp
-                if(i<=4*Rrealdim .and. remainder<=Lrealdim) then
-                    H0lr(ngoodstatespdummy,1:nstate)=0.0D0
-                end if
+        do ibasis=1,ngoodstatesp,1
+            remainder=mod(goodbasisp(ibasis,1),Lrealdimp)
+            if(remainder==0) remainder=Lrealdimp
+            if(goodbasisp(ibasis,2)<=4*Rrealdim .and. remainder<=Lrealdim) then
+                H0lr(ibasis,1:nstate)=0.0D0
             end if
         end do
-        end do
-        
     end if
 
     return
@@ -339,16 +315,6 @@ subroutine GetHdiagp
     implicit none
     integer :: i,j
 
-    ngoodstatesp=0
-    do i=1,4*Rrealdimp,1
-    do j=1,4*Lrealdimp,1
-        if((quantabigLp(j,1)+quantabigRp(i,1)==nelecs) .and. &
-        quantabigLp(j,2)+quantabigRp(i,2)==totalSz) then
-            ngoodstatesp=ngoodstatesp+1
-        end if
-    end do
-    end do
-
     if(myid==0) allocate(HDiagp(ngoodstatesp))
     
     if(myid==0) then
@@ -358,7 +324,7 @@ subroutine GetHdiagp
     call GetHDiag(Hdiagp,ngoodstatesp,&
         operamatbig1p,bigcolindex1p,bigrowindex1p,&
         Hbigp,Hbigcolindexp,Hbigrowindexp,&
-        quantabigLp,quantabigRp,.true.)
+        goodbasisp,.true.)
     
 !   if(myid==0) then
 !       write(*,*) Hdiagp
@@ -715,7 +681,7 @@ subroutine PerturbationSpaceDvD
                 Lrealdimp,Rrealdimp,subMp,ngoodstatesp,&
                 operamatbig1p,bigcolindex1p,bigrowindex1p,&
                 Hbigp,Hbigcolindexp,Hbigrowindexp,&
-                quantabigLp,quantabigRp)
+                quantabigLp,quantabigRp,goodbasisp,goodbasiscolp)
         end if
     end do
 
@@ -750,8 +716,8 @@ subroutine CorrectEOrder3(eigenvalue,num)
     
     ! local 
     real(kind=r8),allocatable :: H0k(:,:),H0kout(:,:),midmat(:)
-    integer :: i,j,k
-    integer :: ngoodstatespdummy,remainder
+    integer :: istate,ibasis
+    integer :: remainder
 
     call master_print_message("enter CorrectEOrder3 subroutine")
 
@@ -761,24 +727,16 @@ subroutine CorrectEOrder3(eigenvalue,num)
         H0k=0.0D0
         H0kout=0.0D0
 
-        ngoodstatespdummy=0
-        do i=1,4*Rrealdimp,1
-        do j=1,4*Lrealdimp,1
-            if((quantabigLp(j,1)+quantabigRp(i,1)==nelecs) .and. &
-            quantabigLp(j,2)+quantabigRp(i,2)==totalSz) then
-                ngoodstatespdummy=ngoodstatespdummy+1
-                
-                remainder=mod(j,Lrealdimp)
-                if(remainder==0) remainder=Lrealdimp
-                if(i<=4*Rrealdim .and. remainder<=Lrealdim) then
-                    cycle
-                else
-                    do k=1,nstate,1
-                        H0k(ngoodstatespdummy,k)=H0lr(ngoodstatespdummy,k)/(eigenvalue(k)-Hdiagp(ngoodstatespdummy))
-                    end do
-                end if
+        do ibasis=1,ngoodstatesp,1       
+            remainder=mod(goodbasisp(ibasis,1),Lrealdimp)
+            if(remainder==0) remainder=Lrealdimp
+            if(goodbasisp(ibasis,2)<=4*Rrealdim .and. remainder<=Lrealdim) then
+                cycle
+            else
+                do istate=1,nstate,1
+                    H0k(ibasis,istate)=H0lr(ibasis,istate)/(eigenvalue(istate)-Hdiagp(ibasis))
+                end do
             end if
-        end do
         end do
     end if
     
@@ -787,18 +745,18 @@ subroutine CorrectEOrder3(eigenvalue,num)
             Lrealdimp,Rrealdimp,subMp,ngoodstatesp,&
             operamatbig1p,bigcolindex1p,bigrowindex1p,&
             Hbigp,Hbigcolindexp,Hbigrowindexp,&
-            quantabigLp,quantabigRp)
+            quantabigLp,quantabigRp,goodbasisp,goodbasiscolp)
     if(myid==0) then
         allocate(midmat(ngoodstatesp))
-        do i=1,nstate,1
+        do istate=1,nstate,1
             ! matrix operation
-            midmat=Hdiagp*H0k(:,i)
-            H0kout(:,i)=H0kout(:,i)-midmat
+            midmat=Hdiagp*H0k(:,istate)
+            H0kout(:,istate)=H0kout(:,istate)-midmat
         end do
         deallocate(midmat)
         ! calculate (H0j'/E0j)*A
-        do i=1,nstate,1
-            correctenergy3(i)=dot(H0k(:,i),H0kout(:,i))
+        do istate=1,nstate,1
+            correctenergy3(istate)=dot(H0k(:,istate),H0kout(:,istate))
         end do
     end if
     

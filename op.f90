@@ -6,7 +6,7 @@ subroutine op(bigdim,smadim,coeff,newcoeff,&
 iLrealdim,iRrealdim,isubM,nosymmdim,&
 cap_big,cap_bigcol,cap_bigrow,&
 cap_Hbig,cap_Hbigcol,cap_Hbigrow,&
-cap_quantabigL,cap_quantabigR)
+cap_quantabigL,cap_quantabigR,cap_goodbasis,cap_goodbasiscol)
 ! this is the core subroutine to calculate the S*H*S*C or H*C
 ! the parallel schema follow JCP 12 3174(2004) garnet chan
 ! if want to save memory, then can write a wrapper, to send one coeff every time
@@ -41,7 +41,8 @@ cap_quantabigL,cap_quantabigR)
     real(kind=r8),intent(in) :: cap_big(:,:),cap_Hbig(:,:)
     integer(kind=i4),intent(in) :: cap_bigcol(:,:),cap_bigrow(:,:),&
                          cap_Hbigcol(:,:),cap_Hbigrow(:,:),&
-                         cap_quantabigL(:,:),cap_quantabigR(:,:)
+                         cap_quantabigL(:,:),cap_quantabigR(:,:),&
+                         cap_goodbasis(:,:),cap_goodbasiscol(:)
     ! local
     integer :: operaindex
     
@@ -66,7 +67,7 @@ cap_quantabigL,cap_quantabigR)
     integer :: position1,pppVpacksize,hoppacksize
 
     real(kind=r8),allocatable :: phase(:)
-    integer :: m,ie,il,ir,istate,ispin,ileft,iright,iproc,iside,iirecv
+    integer :: m,ie,il,ir,istate,ibasis,ispin,ileft,iright,iproc,iside,iirecv
     integer :: info
     
     logical :: ifhop
@@ -194,7 +195,7 @@ cap_quantabigL,cap_quantabigR)
             call coefftosparse(nosymmdim,&
                 LRcoeffin(:,istate),LRcoeffincol(:,istate),LRcoeffinrow(:,istate),&
                 nosymmdim,coeffnosymm((istate-1)*nosymmdim+1:istate*nosymmdim),&
-                iLrealdim,iRrealdim,cap_quantabigL(1:4*iLrealdim,1:2),cap_quantabigR(1:4*iRrealdim,1:2))
+                iLrealdim,iRrealdim,cap_goodbasis,cap_goodbasiscol(1:4*iRrealdim+1))
         end do
     end if
 
@@ -551,18 +552,27 @@ cap_quantabigL,cap_quantabigR)
            ! call checkmem_OPmodMat("LRoutnelement",tmpratio(1),1)
         end do
 
+        !m=0
+        !do istate=1,smadim,1
+        !do ir=1,4*iRrealdim,1
+        !do il=1,4*iLrealdim,1
+        !    if((cap_quantabigL(il,1)+cap_quantabigR(ir,1)==nelecs) .and. &
+        !        cap_quantabigL(il,2)+cap_quantabigR(ir,2)==totalSz) then
+        !        m=m+1
+        !        call SpMatIJ(4*iLrealdim,il,ir,LRcoeffout(:,istate),LRcoeffoutcol(:,istate),LRcoeffoutrow(:,istate),coeffnosymm(m))
+        !    end if
+        !end do
+        !end do
+        !end do
+        
         m=0
         do istate=1,smadim,1
-        do ir=1,4*iRrealdim,1
-        do il=1,4*iLrealdim,1
-            if((cap_quantabigL(il,1)+cap_quantabigR(ir,1)==nelecs) .and. &
-                cap_quantabigL(il,2)+cap_quantabigR(ir,2)==totalSz) then
-                m=m+1
-                call SpMatIJ(4*iLrealdim,il,ir,LRcoeffout(:,istate),LRcoeffoutcol(:,istate),LRcoeffoutrow(:,istate),coeffnosymm(m))
-            end if
+        do ibasis=1,nosymmdim,1
+            m=m+1
+            call SpMatIJ(4*iLrealdim,cap_goodbasis(ibasis,1),cap_goodbasis(ibasis,2),LRcoeffout(:,istate),LRcoeffoutcol(:,istate),LRcoeffoutrow(:,istate),coeffnosymm(m))
         end do
         end do
-        end do
+            
 
         if(m/=nosymmdim*smadim) then
             write(*,*) "========================"

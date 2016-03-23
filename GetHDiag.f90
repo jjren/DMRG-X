@@ -4,7 +4,7 @@ contains
 Subroutine GetHDiag(HDIAGnosymm,num,&
 cap_big,cap_bigcol,cap_bigrow,&
 cap_Hbig,cap_Hbigcol,cap_Hbigrow,&
-cap_quantabigL,cap_quantabigR,&
+cap_goodbasis,&
 ifperturbation)
 ! This subroutine is to get the diagonal element of the Hamiltonian(no symmetry)
 ! from all the process which can be used in davidson diagonalization
@@ -28,7 +28,7 @@ ifperturbation)
     integer(kind=i4),intent(in) :: &
         cap_bigcol(:,:),cap_bigrow(:,:),&
         cap_Hbigcol(:,:),cap_Hbigrow(:,:),&
-        cap_quantabigL(:,:),cap_quantabigR(:,:)
+        cap_goodbasis(:,:)
     logical,intent(in) :: ifperturbation
     
     ! local
@@ -141,21 +141,10 @@ ifperturbation)
         end if
         ! copy Hdiagdummy to Hdiag
         ! and ignore those diag element corresponding states without good quantum number
-        m=1
-        do i=1,4*iRrealdim,1
-        do j=1,4*iLrealdim,1
-            if((cap_quantabigL(j,1)+cap_quantabigR(i,1)==nelecs) .and. &
-                cap_quantabigL(j,2)+cap_quantabigR(i,2)==totalSz) then
-                HDIAGnosymm(m)=Hdiagdummy((i-1)*4*iLrealdim+j)
-                m=m+1
-            end if
-        end do
-        end do
         
-        m=m-1
-        if(m/=num) then
-            call master_print_message(m,"HDIAGnosymm number wrong! failed!,m=")
-        end if
+        do i=1,num,1
+            HDIAGnosymm(i)=Hdiagdummy((cap_goodbasis(i,2)-1)*4*iLrealdim+cap_goodbasis(i,1))
+        end do
     end if
 
     if(myid==0) then

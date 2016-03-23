@@ -6,7 +6,28 @@ module MathLib
     use f95_precision
 
     implicit none
-    contains
+contains
+
+!=============================================================================
+!=============================================================================
+
+subroutine Mataxpy(a,nrow,ncol,matx,maty)
+! Maty=a*matx+maty
+    implicit none
+    integer,intent(in) :: nrow,ncol
+    real(kind=r8),intent(in) :: matx(nrow,ncol),a
+    real(kind=r8),intent(inout) :: maty(nrow,ncol)
+    
+    ! local
+    integer :: icol
+
+    do icol=1,ncol,1
+        call axpy(matx(1:nrow,icol),maty(1:nrow,icol),a)
+    end do
+
+    return
+end subroutine Mataxpy
+        
 !=============================================================================
 !=============================================================================
 Subroutine DirectProduct(a,dima,b,dimb,c)
@@ -16,18 +37,15 @@ Subroutine DirectProduct(a,dima,b,dimb,c)
 
 implicit none
 
-integer(kind=i4) :: dima,dimb
-real(kind=r8) ::a(dima,dima),b(dimb,dimb),c(dima*dimb,dima*dimb)
+integer(kind=i4),intent(in) :: dima,dimb
+real(kind=r8),intent(in) :: a(dima,dima),b(dimb,dimb)
+real(kind=r8),intent(out) :: c(dima*dimb,dima*dimb)
 integer :: iar,ial,ibr,ibl
 
-c=0.0D0
 do ibr=1,dimb,1
-do iar=1,dima,1
-    do ibl=1,dimb,1
-    do ial=1,dima,1
-        c((ibl-1)*dima+ial,(ibr-1)*dima+iar)=a(ial,iar)*b(ibl,ibr)
-    end do
-    end do
+do ibl=1,dimb,1
+    ! out-place copy
+    call mkl_domatcopy('C','N',dima,dima,b(ibl,ibr),a,dima,c((ibl-1)*dima+1:ibl*dima,(ibr-1)*dima+1:ibr*dima),dima)
 end do
 end do
 
@@ -60,9 +78,9 @@ subroutine SparseDirectProduct( ancols,anrows,amat,acolindex,arowindex,&
     integer :: ai,aj,bi,bj
     integer :: cbegin,nonzero
     
-    cmat=0.0D0
-    crowindex=0
-    ccolindex=0
+    !cmat=0.0D0
+    !crowindex=0
+    !ccolindex=0
 
     nonzero=0
     crowindex(1)=1
@@ -264,7 +282,7 @@ subroutine CSCtoCSR(operation,nleadaft,nleadbef,Amat,Acolindex,Arowindex,Arowind
 ! dcsrcsc only support square matrix
 ! CSCtoCSR have no such limitation
 ! nleadaft is the CSR ncols; CSC nrows
-! nleadbef is the CSR nrows; CSS ncols
+! nleadbef is the CSR nrows; CSC ncols
 ! Arowindex is sum 
 ! Acolindex is index
 ! in fact CSC to CSR and CSR to CSC is the same ; They both are tranpose

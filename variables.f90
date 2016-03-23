@@ -98,12 +98,11 @@ module variables
 !============================================================
 
     ! symmetry part
-    integer(kind=i2),allocatable :: symmlinksma(:,:,:),symmlinkbig(:,:,:),symmlinkgood(:,:)
+    integer(kind=i2),allocatable :: symmlinksma(:,:,:),symmlinkbig(:,:,:)
     ! symmetrylink represent the symmetry link of every state
     ! the first variable means the states 4M or M
     ! the second means different symmetry spin_reversal/electron-hole
     ! the third is the L/1 and R/2 space
-    ! symmlinkgood means the good quantum number states symmetry link information
 
 !============================================================
 
