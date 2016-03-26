@@ -246,14 +246,28 @@ subroutine GetH0lr1
 
         deallocate(coeffIFrowindexdummy)
     end if
-
-    ! calculate sigma(i<inner space) Hji'*Ci0
-    call op(ngoodstatesp,nstate,H0k,H0kout,&
-            Lrealdimp,Rrealdimp,subMp,ngoodstatesp,&
-            operamatbig1p,bigcolindex1p,bigrowindex1p,&
-            Hbigp,Hbigcolindexp,Hbigrowindexp,&
-            quantabigLp,quantabigRp,goodbasisp,goodbasiscolp)
     
+    if(opmethod=="comple") then
+        call Complement(operamatbig1p,bigcolindex1p,bigrowindex1p,Lrealdimp,Rrealdimp,subMp)
+
+        ! calculate sigma(i<inner space) Hji'*Ci0
+        call op(ngoodstatesp,nstate,H0k,H0kout,&
+                Lrealdimp,Rrealdimp,subMp,ngoodstatesp,&
+                operamatbig1p,bigcolindex1p,bigrowindex1p,&
+                Hbigp,Hbigcolindexp,Hbigrowindexp,&
+                quantabigLp,quantabigRp,goodbasisp,goodbasiscolp)
+        
+        call deallocate_Complement
+    else if(opmethod=="direct") then
+        call opdirect(ngoodstatesp,nstate,H0k,H0kout,&
+                Lrealdimp,Rrealdimp,subMp,ngoodstatesp,&
+                operamatbig1p,bigcolindex1p,bigrowindex1p,&
+                Hbigp,Hbigcolindexp,Hbigrowindexp,&
+                quantabigLp,quantabigRp,goodbasisp,goodbasiscolp)
+    else
+        stop
+    end if
+
     if(myid==0) then
         ! matrix operation
         H0lr=H0kout
@@ -741,11 +755,24 @@ subroutine CorrectEOrder3(eigenvalue,num)
     end if
     
     ! calculate A=Hji'*(H0k'/E0k)
-    call op(ngoodstatesp,nstate,H0k,H0kout,&
-            Lrealdimp,Rrealdimp,subMp,ngoodstatesp,&
-            operamatbig1p,bigcolindex1p,bigrowindex1p,&
-            Hbigp,Hbigcolindexp,Hbigrowindexp,&
-            quantabigLp,quantabigRp,goodbasisp,goodbasiscolp)
+    if(opmethod=="comple") then
+        call Complement(operamatbig1p,bigcolindex1p,bigrowindex1p,Lrealdimp,Rrealdimp,subMp)
+        call op(ngoodstatesp,nstate,H0k,H0kout,&
+                Lrealdimp,Rrealdimp,subMp,ngoodstatesp,&
+                operamatbig1p,bigcolindex1p,bigrowindex1p,&
+                Hbigp,Hbigcolindexp,Hbigrowindexp,&
+                quantabigLp,quantabigRp,goodbasisp,goodbasiscolp)
+        call deallocate_Complement
+    else if(opmethod=="direct") then
+        call opdirect(ngoodstatesp,nstate,H0k,H0kout,&
+                Lrealdimp,Rrealdimp,subMp,ngoodstatesp,&
+                operamatbig1p,bigcolindex1p,bigrowindex1p,&
+                Hbigp,Hbigcolindexp,Hbigrowindexp,&
+                quantabigLp,quantabigRp,goodbasisp,goodbasiscolp)
+    else
+        stop
+    end if
+            
     if(myid==0) then
         allocate(midmat(ngoodstatesp))
         do istate=1,nstate,1

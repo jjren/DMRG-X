@@ -72,6 +72,7 @@ Subroutine ReadInput
     read(10,*) energythresh          ! the threshold of the total energy you want to get
     read(10,*) hopthresh             ! the threshold of the hopping term < hopthresh ignore it
     read(10,*) diagmethod            ! the diagonalization method
+    read(10,*) opmethod              ! direct or complementary 
 
 ! sweepenergy is the total energy of every sweep(in the middle of the chain)
     allocate(sweepenergy(0:sweeps,nstate),stat=error)
@@ -249,6 +250,7 @@ Subroutine ReadInput
         call MPI_PACK(t(1,1),norbs*norbs,MPI_real8,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
         call MPI_PACK(hubbardU(1),norbs,MPI_real8,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
         call MPI_PACK(diagmethod,20,MPI_CHARACTER,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
+        call MPI_PACK(opmethod,20,MPI_CHARACTER,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
         call MPI_PACK(Ifnoise,1,MPI_LOGICAL,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
         call MPI_PACK(nmaxgoodbasis,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
         call MPI_PACK(nmaxgoodbasisp,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
@@ -312,14 +314,16 @@ Subroutine ReadInput
         call MPI_UNPACK(packbuf,packsize,position1,t(1,1),norbs*norbs,MPI_real8,MPI_COMM_WORLD,ierr)
         call MPI_UNPACK(packbuf,packsize,position1,hubbardU(1),norbs,MPI_real8,MPI_COMM_WORLD,ierr)
         call MPI_UNPACK(packbuf,packsize,position1,diagmethod,20,MPI_CHARACTER,MPI_COMM_WORLD,ierr)
+        call MPI_UNPACK(packbuf,packsize,position1,opmethod,20,MPI_CHARACTER,MPI_COMM_WORLD,ierr)
         call MPI_UNPACK(packbuf,packsize,position1,Ifnoise,1,MPI_LOGICAL,MPI_COMM_WORLD,ierr)
         call MPI_UNPACK(packbuf,packsize,position1,nmaxgoodbasis,1,MPI_integer4,MPI_COMM_WORLD,ierr)
         call MPI_UNPACK(packbuf,packsize,position1,nmaxgoodbasisp,1,MPI_integer4,MPI_COMM_WORLD,ierr)
         write(*,*) myid,"getpacksize=",position1
     end if
     
-    allocate(pppV(norbs,norbs),stat=error)
-    if(error/=0) stop
+    allocate(pppV(norbs,norbs))
+    allocate(pppVlink(norbs,norbs))
+    pppVlink=0
     pppV=0.0D0
     call PPP_term
     
@@ -353,6 +357,7 @@ Subroutine ReadInput
         write(*,*) "nstates=",nstate
         write(*,*) "exscheme=",exscheme
         write(*,*) "Diagonalization method=",diagmethod
+        write(*,*) "OP method=",opmethod
         write(*,*) "If add noise",Ifnoise
         if(Ifnoise==.true.) then
             write(*,*) "noiseweight:",noiseweight

@@ -36,12 +36,13 @@ subroutine Hamiltonian(direction)
    ! write(*,*) "Rrealdim",Rrealdim
    ! write(*,*) "Lrealdimp",Lrealdimp
    ! write(*,*) "Rrealdimp",Rrealdimp
-
+    
     if(diagmethod=="Davidson" .or. diagmethod=="D" .or. diagmethod=="MD") then
         call Davidson_wrapper(direction)
     else if(diagmethod=="JacobiDavidson" .or. diagmethod=="JD") then
         call JacobiDavidson_wrapper(direction)
     end if
+    
     endtime=MPI_WTIME()
     call master_print_message(endtime-starttime,"DVDTIME:")
 return
@@ -154,6 +155,9 @@ subroutine JacobiDavidson_Wrapper(direction)
 
     ! Get the diagonal element of hamiltonian
     starttime=MPI_WTIME()
+    if(opmethod=="comple") then
+        call Complement(operamatbig1,bigcolindex1,bigrowindex1,Lrealdim,Rrealdim,subM)
+    end if
     if(logic_spinreversal/=0 .or. &
         (logic_C2/=0 .and. nleft==nright)) then
         call SymmHDiag(HDIAG)
@@ -191,14 +195,26 @@ subroutine JacobiDavidson_Wrapper(direction)
         if(IJOB/=1) then
             exit
         else
-            call op(dimN,1,eigenvector(NDX1),eigenvector(NDX2),&
-                Lrealdim,Rrealdim,subM,ngoodstates,&
-                operamatbig1,bigcolindex1,bigrowindex1,&
-                Hbig,Hbigcolindex,Hbigrowindex,&
-                quantabigL,quantabigR,goodbasis,goodbasiscol)
+            if(opmethod=="comple") then
+                call op(dimN,1,eigenvector(NDX1),eigenvector(NDX2),&
+                    Lrealdim,Rrealdim,subM,ngoodstates,&
+                    operamatbig1,bigcolindex1,bigrowindex1,&
+                    Hbig,Hbigcolindex,Hbigrowindex,&
+                    quantabigL,quantabigR,goodbasis,goodbasiscol)
+            else if(opmethod=="direct") then
+                call opdirect(dimN,1,eigenvector(NDX1),eigenvector(NDX2),&
+                    Lrealdim,Rrealdim,subM,ngoodstates,&
+                    operamatbig1,bigcolindex1,bigrowindex1,&
+                    Hbig,Hbigcolindex,Hbigrowindex,&
+                    quantabigL,quantabigR,goodbasis,goodbasiscol)
+            else
+                stop
+            end if
         end if
     end do
-
+    if(opmethod=="comple") then
+        call deallocate_Complement
+    end if
     if(myid==0) then
         if(INFO/=0) then
             call master_print_message(info,"INFO/=0")
@@ -343,6 +359,9 @@ Subroutine Davidson_Wrapper(direction)
 !--------------------------------------------------------------------
 ! The core part of davidson diagnolization
     if(diagmethod=="D" .or. diagmethod=="Davidson") then
+        if(opmethod=="comple") then
+            call Complement(operamatbig1,bigcolindex1,bigrowindex1,Lrealdim,Rrealdim,subM)
+        end if
         if(myid==0) then
             call DVDSON(dimN,lim,HDIAG,ilow,ihigh,iselec &
                 ,niv,mblock,crite,critc,critr,ortho,maxiter,DavidWORK,&
@@ -359,17 +378,30 @@ Subroutine Davidson_Wrapper(direction)
                     if(error/=0) stop
                     allocate(dummynewcoeff(smadim),stat=error)
                     if(error/=0) stop
-                    call op(1,smadim,dummycoeff,dummynewcoeff,&
-                            Lrealdim,Rrealdim,subM,ngoodstates,&
-                            operamatbig1,bigcolindex1,bigrowindex1,&
-                            Hbig,Hbigcolindex,Hbigrowindex,&
-                            quantabigL,quantabigR,goodbasis,goodbasiscol)
+                    if(opmethod=="comple") then
+                        call op(1,smadim,dummycoeff,dummynewcoeff,&
+                                Lrealdim,Rrealdim,subM,ngoodstates,&
+                                operamatbig1,bigcolindex1,bigrowindex1,&
+                                Hbig,Hbigcolindex,Hbigrowindex,&
+                                quantabigL,quantabigR,goodbasis,goodbasiscol)
+                    else if(opmethod=="direct") then
+                        call opdirect(1,smadim,dummycoeff,dummynewcoeff,&
+                                Lrealdim,Rrealdim,subM,ngoodstates,&
+                                operamatbig1,bigcolindex1,bigrowindex1,&
+                                Hbig,Hbigcolindex,Hbigrowindex,&
+                                quantabigL,quantabigR,goodbasis,goodbasiscol)
+                    else
+                        stop
+                    end if
                     deallocate(dummycoeff)
                     deallocate(dummynewcoeff)
                 else
                     exit
                 end if
             end do
+        end if
+        if(opmethod=="comple") then
+            call deallocate_Complement
         end if
     else if(diagmethod=="MD") then
         if(myid==0) then

@@ -603,7 +603,6 @@ C
         DIMENSION BASIS(N*LIM),AB(N*LIM)
         DIMENSION S(LIM*(LIM+1)/2)
         LOGICAL HIEND
-        include "mpif.h"
         include "mkl_blas.fi"
 *-----------------------------------------------------------------------
 *   on entry
@@ -626,11 +625,21 @@ c jjren add
         if(diagmethod/="MD") then
             call MPI_bcast(NNCV,1,MPI_integer,0,MPI_COMM_WORLD,ierr)
         end if
-        CALL OP(N,NNCV,BASIS(IDSTART),AB(IDSTART),
-     :           Lrealdim,Rrealdim,subM,ngoodstates,
-     :           operamatbig1,bigcolindex1,bigrowindex1,
-     :           Hbig,Hbigcolindex,Hbigrowindex,
-     :           quantabigL,quantabigR,goodbasis,goodbasiscol)
+        if(opmethod=="comple") then
+            CALL OP(N,NNCV,BASIS(IDSTART),AB(IDSTART),
+     :               Lrealdim,Rrealdim,subM,ngoodstates,
+     :               operamatbig1,bigcolindex1,bigrowindex1,
+     :               Hbig,Hbigcolindex,Hbigrowindex,
+     :               quantabigL,quantabigR,goodbasis,goodbasiscol)
+        else if (opmethod=="direct") then
+            CALL OPDIRECT(N,NNCV,BASIS(IDSTART),AB(IDSTART),
+     :               Lrealdim,Rrealdim,subM,ngoodstates,
+     :               operamatbig1,bigcolindex1,bigrowindex1,
+     :               Hbig,Hbigcolindex,Hbigrowindex,
+     :               quantabigL,quantabigR,goodbasis,goodbasiscol)
+        else
+            stop
+        end if
 *
 * If highest pairs are sought, use the negative of the matrix
 *

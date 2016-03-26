@@ -5,6 +5,8 @@ Module PPP_term_mod
     use kinds_mod
     
     implicit none
+
+    integer(kind=i4),allocatable :: pppVlink(:,:)
     
     contains
 
@@ -23,6 +25,7 @@ subroutine PPP_term
     else if(logic_PPP==0) then
         ! hubbard model
         pppV=0.0D0
+        pppVlink=0
     end if
             
 return
@@ -43,12 +46,13 @@ subroutine Extented_Hubbard_Peierls_Potential
     read(21,*) EHPpot
     close(21)
 
-    pppV=0.0D0
     do i=1,norbs,1
     do j=1,i-1,1
         if(bondlink(i,j)==1) then
             pppV(i,j)=EHPpot
             pppV(j,i)=EHPpot
+            pppVlink(i,j)=1
+            pppVlink(j,i)=1
         end if
     end do
     end do
@@ -78,6 +82,8 @@ subroutine Ohno_Potential
             U=(hubbardU(i)+hubbardU(j))/2.0D0
             pppV(i,j)=U/sqrt(1+U*U*distance/14.397D0/14.397D0)
             pppV(j,i)=pppV(i,j)
+            pppVlink(i,j)=1
+            pppVlink(j,i)=1
         end do
     end do
     ! 14.397=e^2/4*pai*epsion0/e/angstrom

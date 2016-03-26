@@ -48,7 +48,8 @@ module variables
     integer(kind=i4),allocatable :: treelink(:,:)  ! treelink information
 
     character(len=20) :: diagmethod  ,&  ! the diagonalization method
-                         PPPpot          ! PPP potential model
+                         PPPpot    ,&    ! PPP potential model
+                         opmethod        ! HC method
 !=========================================================
     
     ! loadbalance part
