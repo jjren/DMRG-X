@@ -2,3 +2,6 @@
 *.o
 *.mod
 DMRG-X
+*.aux
+*.log
+*.out

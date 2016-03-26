@@ -19,7 +19,7 @@ ifperturbation)
     use module_sparse
     USE BLAS95
     USE F95_PRECISION
-
+    use mathlib
     implicit none
     
     integer,intent(in) :: num
@@ -39,7 +39,8 @@ ifperturbation)
     integer :: iLrealdim,iRrealdim
     integer :: maxdim
     real(kind=r8) :: alpha
-
+    real(kind=r8),allocatable :: Houtput(:)
+    
     call master_print_message("enter in GetHDiag subroutine")
     
     if(ifperturbation==.true.) then
@@ -106,25 +107,23 @@ ifperturbation)
     if(myid==0) then
         Hdiagdummy=0.0D0
         ! HL contribution
-        do i=1,4*iRrealdim,1
-            do j=1,4*iLrealdim,1
-                do k=cap_Hbigrow(j,1),cap_Hbigrow(j+1,1)-1,1
-                    if(cap_Hbigcol(k,1)==j) then
-                        Hdiagdummy((i-1)*4*iLrealdim+j)=cap_Hbig(k,1)
-                        exit
-                    end if
-                end do
-            end do
+        allocate(Houtput(4*maxdim))
+        do j=1,4*iLrealdim,1
+            call SpMatIJ(4*iLrealdim,j,j,cap_Hbig(:,1),&
+                cap_Hbigcol(:,1),cap_Hbigrow(:,1),Houtput(j))
         end do
+        do i=1,4*iRrealdim,1
+            call copy(Houtput(1:4*iLrealdim),Hdiagdummy((i-1)*4*iLrealdim+1:i*4*iLrealdim))
+        end do
+
         ! HR contribution
         do i=1,4*iRrealdim,1
-            do k=cap_Hbigrow(i,2),cap_Hbigrow(i+1,2)-1,1
-                if(cap_Hbigcol(k,2)==i) then
-                    Hdiagdummy((i-1)*4*iLrealdim+1:i*4*iLrealdim)=cap_Hbig(k,2)+Hdiagdummy((i-1)*4*iLrealdim+1:i*4*iLrealdim)
-                    exit
-                end if
-            end do
+            call SpMatIJ(4*iRrealdim,i,i,cap_Hbig(:,2),&
+                cap_Hbigcol(:,2),cap_Hbigrow(:,2),Houtput(i))
+            Hdiagdummy((i-1)*4*iLrealdim+1:i*4*iLrealdim)=Houtput(i)+Hdiagdummy((i-1)*4*iLrealdim+1:i*4*iLrealdim)
         end do
+        deallocate(Houtput)
+        
         ! transfer integral contribution the contribute is zero
         ! PPP term contribution
         if(logic_PPP==1) then
