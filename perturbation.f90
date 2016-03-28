@@ -21,6 +21,7 @@ contains
 !================================================================
 
 subroutine perturbation(eigenvalue,num)
+    use ABop
     implicit none
 
     integer,intent(in) :: num
@@ -38,6 +39,10 @@ subroutine perturbation(eigenvalue,num)
  
     call basisindex(4*Lrealdimp,4*Rrealdimp,quantabigLp(1:4*Lrealdimp,1:2),quantabigRp(1:4*Rrealdimp,1:2),&
         ngoodstatesp,goodbasisp,goodbasiscolp(1:4*Rrealdimp+1))
+
+    if(opmethod=="comple") then
+        call Complement(operamatbig1p,bigcolindex1p,bigrowindex1p,Lrealdimp,Rrealdimp,subMp)
+    end if
 
     ! Get the diagonal element in the 4Mp*4Mp basis
     call GetHdiagp
@@ -67,6 +72,9 @@ subroutine perturbation(eigenvalue,num)
             endtime=MPI_WTIME()
             call master_print_message(endtime-starttime,"3rd Perturbation TIME:")
         end if
+    end if
+    if(opmethod=="comple") then 
+        call deallocate_Complement
     end if
 
     if(myid==0) then
@@ -248,7 +256,6 @@ subroutine GetH0lr1
     end if
     
     if(opmethod=="comple") then
-        call Complement(operamatbig1p,bigcolindex1p,bigrowindex1p,Lrealdimp,Rrealdimp,subMp)
 
         ! calculate sigma(i<inner space) Hji'*Ci0
         call op(ngoodstatesp,nstate,H0k,H0kout,&
@@ -257,7 +264,6 @@ subroutine GetH0lr1
                 Hbigp,Hbigcolindexp,Hbigrowindexp,&
                 quantabigLp,quantabigRp,goodbasisp,goodbasiscolp)
         
-        call deallocate_Complement
     else if(opmethod=="direct") then
         call opdirect(ngoodstatesp,nstate,H0k,H0kout,&
                 Lrealdimp,Rrealdimp,subMp,ngoodstatesp,&
@@ -756,13 +762,11 @@ subroutine CorrectEOrder3(eigenvalue,num)
     
     ! calculate A=Hji'*(H0k'/E0k)
     if(opmethod=="comple") then
-        call Complement(operamatbig1p,bigcolindex1p,bigrowindex1p,Lrealdimp,Rrealdimp,subMp)
         call op(ngoodstatesp,nstate,H0k,H0kout,&
                 Lrealdimp,Rrealdimp,subMp,ngoodstatesp,&
                 operamatbig1p,bigcolindex1p,bigrowindex1p,&
                 Hbigp,Hbigcolindexp,Hbigrowindexp,&
                 quantabigLp,quantabigRp,goodbasisp,goodbasiscolp)
-        call deallocate_Complement
     else if(opmethod=="direct") then
         call opdirect(ngoodstatesp,nstate,H0k,H0kout,&
                 Lrealdimp,Rrealdimp,subMp,ngoodstatesp,&

@@ -29,8 +29,9 @@ subroutine Complement(cap_big,cap_bigcol,cap_bigrow,iLrealdim,iRrealdim,isubM)
     real(kind=r8),intent(in) :: cap_big(:,:)
     integer(kind=i4),intent(in) :: cap_bigcol(:,:),cap_bigrow(:,:)
     integer :: ileft
+    
+    call allocate_Complement(iRrealdim,isubM)
     if(myid/=0) then
-        call allocate_Complement(iRrealdim,isubM)
         ! local process R space operator transfer to L space
         call Comp_LocalOpera(cap_big,cap_bigcol,cap_bigrow,iLrealdim,iRrealdim)
     end if
@@ -521,11 +522,9 @@ end subroutine EOpair
 subroutine deallocate_Complement
     implicit none
     
-    if(myid/=0) then
-        if(allocated(pppVCommat)) deallocate(pppVCommat,pppVComcol,pppVComrow)
-        if(allocated(hopCommat)) deallocate(hopCommat,hopComcol,hopComrow)
-        deallocate(pppVComid,hopComid,pppVComoperanum,hopComoperanum)
-    end if
+    if(allocated(pppVCommat)) deallocate(pppVCommat,pppVComcol,pppVComrow)
+    if(allocated(hopCommat)) deallocate(hopCommat,hopComcol,hopComrow)
+    deallocate(pppVComid,hopComid,pppVComoperanum,hopComoperanum)
     return
 end subroutine deallocate_Complement
 
@@ -592,29 +591,25 @@ cap_quantabigL,cap_quantabigR,cap_goodbasis,cap_goodbasiscol)
     integer :: ierr
 
 ! allocate workspace
-    ! store nosymmetry coeff
-    allocate(coeffnosymm(nosymmdim*smadim))
 
     ! set the sparse matrix dim
     LRoutnelement=CEILING(DBLE(16*isubM*isubM)/LRoutratio)
     npppVmidmat=CEILING(DBLE(16*isubM*isubM)/pppmatratio)
     nhopmidmat=CEILING(DBLE(16*isubM*isubM)/hopmatratio)
 
-    do ileft=1,nleft+1,1
-        if(myid==orbid1(ileft,1) .or. myid==0) then
-            if( .not. allocated(LRcoeffin)) then
-                ! transform the 1-array to 4M*4M form 
-                allocate(LRcoeffin(nosymmdim,smadim))   ! coeff to LR format
-                allocate(LRcoeffincol(nosymmdim,smadim))   
-                allocate(LRcoeffinrow(4*iLrealdim+1,smadim))   
-            end if
-            if( .not. allocated(LRcoeffout)) then
-                allocate(LRcoeffout(LRoutnelement,smadim))  ! newcoeff to LR format
-                allocate(LRcoeffoutcol(LRoutnelement,smadim))  
-                allocate(LRcoeffoutrow(4*iLrealdim+1,smadim)) 
-            end if
-        end if
-    end do
+    if(pppVComoperanum(myid)/=0 .or. hopComoperanum(myid)/=0 &
+        .or. myid==0) then
+            ! store nosymmetry coeff
+            allocate(coeffnosymm(nosymmdim*smadim))
+            
+            allocate(LRcoeffin(nosymmdim,smadim))   
+            allocate(LRcoeffincol(nosymmdim,smadim))   
+            allocate(LRcoeffinrow(4*iLrealdim+1,smadim))   
+            
+            allocate(LRcoeffout(LRoutnelement,smadim))  
+            allocate(LRcoeffoutcol(LRoutnelement,smadim))  
+            allocate(LRcoeffoutrow(4*iLrealdim+1,smadim)) 
+    end if
 
     ! unsymmetrize the coeff if needed
     if( myid==0 ) then
@@ -640,17 +635,12 @@ cap_quantabigL,cap_quantabigR,cap_goodbasis,cap_goodbasiscol)
 
     ! send coeffnosymm to L space process
     do iproc=1,nprocs-1,1
-        if(myid==0 .or. myid==iproc) then
-            do ileft=1,nleft+1,1
-                if(iproc==orbid1(ileft,1)) then
-                    if(myid==0) then
-                        call MPI_SEND(coeffnosymm,nosymmdim*smadim,MPI_real8,iproc,1,MPI_COMM_WORLD,ierr)
-                    else if(myid==iproc) then
-                        call MPI_RECV(coeffnosymm,nosymmdim*smadim,MPI_real8,0,1,MPI_COMM_WORLD,status,ierr)
-                    end if
-                    exit
-                end if
-            end do
+        if(pppVComoperanum(iproc)/=0 .or. hopComoperanum(iproc)/=0) then
+            if(myid==0) then
+                call MPI_SEND(coeffnosymm,nosymmdim*smadim,MPI_real8,iproc,1,MPI_COMM_WORLD,ierr)
+            else if(myid==iproc) then
+                call MPI_RECV(coeffnosymm,nosymmdim*smadim,MPI_real8,0,1,MPI_COMM_WORLD,status,ierr)
+            end if
         end if
     end do
 
@@ -745,8 +735,6 @@ cap_quantabigL,cap_quantabigR,cap_goodbasis,cap_goodbasiscol)
             write(*,*) "========================"
             stop
         end if
-    else
-        coeffnosymm=0.0D0   ! other process coeffnosymm does not sum up
     end if
     
     if(allocated(LRcoeffin)) deallocate(LRcoeffin,LRcoeffinrow,LRcoeffincol)
@@ -754,10 +742,20 @@ cap_quantabigL,cap_quantabigR,cap_goodbasis,cap_goodbasiscol)
     
     if(myid==0) then
         allocate(coeffnosymmreduce(nosymmdim*smadim))
+        call copy(coeffnosymm,coeffnosymmreduce)
     end if
 
-    call MPI_REDUCE(coeffnosymm,coeffnosymmreduce,nosymmdim*smadim,mpi_real8,MPI_SUM,0,MPI_COMM_WORLD,ierr)
-    
+    do iproc=1,nprocs-1,1
+        if(pppVComoperanum(iproc)/=0 .or. hopComoperanum(iproc)/=0) then
+            if(myid==iproc) then
+                call MPI_SEND(coeffnosymm,nosymmdim*smadim,mpi_real8,0,myid,MPI_COMM_WORLD,ierr)
+            else if(myid==0) then
+                call MPI_RECV(coeffnosymm,nosymmdim*smadim,mpi_real8,MPI_ANY_SOURCE,MPI_ANY_TAG,MPI_COMM_WORLD,status,ierr)
+                call dxpy(nosymmdim*smadim,coeffnosymm,1,coeffnosymmreduce,1)
+            end if
+        end if
+    end do
+            
     if(myid==0) then
         newcoeff=0.0D0
         if(logic_spinreversal/=0 .or. (logic_C2/=0 .and. nleft==nright)) then

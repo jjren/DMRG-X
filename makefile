@@ -6,8 +6,9 @@ JDLIB=./lib
 #MPILIB=/opt/intel/parallel_studio_xe_2016/impi/5.1.1.109/lib64
 MPILIB=
 MPIINC=
+BLASmodifiedLIB=./BLASmodified/
 
-FCCFLAG= -lmkl_blas95_lp64 -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core -lmkl_lapack95_lp64 -liomp5 -lpthread -lm
+FCCFLAG= -lmkl_blas95_lp64 -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core -lmkl_lapack95_lp64 -liomp5 -lpthread -lm 
 
 FC=mpiifort
 FCCOMPILEOPTS= -g -debug
@@ -20,7 +21,7 @@ FCCOMPILEOPTS= -g -debug
 %.o : %.f
 	$(FC) -c $(FCCOMPILEOPTS) -I/$(mklinc) -I/$(mklinc1) $<
 # 
-object = kinds_mod.o communicate.o exit_mod.o variables.o SpMatTrans.o basisindex.o checkinfo.o \
+object =$(BLASmodifiedLIB)/dxpy.o kinds_mod.o communicate.o exit_mod.o variables.o SpMatTrans.o basisindex.o checkinfo.o \
 	   ppp_term.o CreatFCIDUMP.o onesitematrix.o contructquanta.o mathlib.o module_sparse.o checkmem.o \
 	   symmetry.o system_big.o InitialGuess.o coefftosparse.o GetHDiag.o pre_perturbation.o\
 	   op.o davidson.o masterdiag.o  perturbation.o \
@@ -33,7 +34,7 @@ object = kinds_mod.o communicate.o exit_mod.o variables.o SpMatTrans.o basisinde
 	   transmoment.o bondord.o localspinnew.o analysis.o infinit_initmat.o count.o free_DMRG.o main.o  \
 
 DMRG-X : $(object)
-	$(FC) -o $@ $^ -L$(JDLIB) -ljadamilu -L$(MPILIB) -L$(MKLLIB) $(FCCFLAG)
+	$(FC) -o $@ $^ -L$(JDLIB) -ljadamilu -L$(MPILIB) -L$(MKLLIB) $(FCCFLAG) 
 
 clean:
 	rm -f *.o *.mod DMRG-X
