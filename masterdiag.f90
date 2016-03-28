@@ -6,6 +6,7 @@ module masterdiag
     use module_sparse
     use symmetry
     use mpi
+    use CoeffTrans
     implicit none
     private
 

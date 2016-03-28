@@ -14,7 +14,7 @@ Module Hamiltonian_mod
     use GetHdiag_mod
     use perturbation_mod
     use ABop
-
+    use CoeffTrans
     implicit none
     integer :: dimN
     real(kind=r8),allocatable :: HDIAG(:)
@@ -336,6 +336,9 @@ Subroutine Davidson_Wrapper(direction)
     end if
     
 ! Get the diagonal element of hamiltonian
+    if(opmethod=="comple") then
+        call Complement(operamatbig1,bigcolindex1,bigrowindex1,Lrealdim,Rrealdim,subM)
+    end if
     starttime=MPI_WTIME()
     if(logic_spinreversal/=0 .or. &
         (logic_C2/=0 .and. nleft==nright)) then
@@ -359,9 +362,6 @@ Subroutine Davidson_Wrapper(direction)
 !--------------------------------------------------------------------
 ! The core part of davidson diagnolization
     if(diagmethod=="D" .or. diagmethod=="Davidson") then
-        if(opmethod=="comple") then
-            call Complement(operamatbig1,bigcolindex1,bigrowindex1,Lrealdim,Rrealdim,subM)
-        end if
         if(myid==0) then
             call DVDSON(dimN,lim,HDIAG,ilow,ihigh,iselec &
                 ,niv,mblock,crite,critc,critr,ortho,maxiter,DavidWORK,&

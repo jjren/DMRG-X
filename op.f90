@@ -6,6 +6,7 @@ module ABop
     use module_sparse
     use checkmem_mod
     use ppp_term_mod
+    use CoeffTrans
     implicit none
     include "mkl_spblas.fi"
     

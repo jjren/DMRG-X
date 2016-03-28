@@ -1,3 +1,16 @@
+Module CoeffTrans
+    use kinds_mod
+    use communicate
+    implicit none
+    save
+    private
+
+    public :: coefftosparse,Dense16LRtoNgood
+
+contains
+!========================================================================
+!========================================================================
+
 subroutine coefftosparse(maxnelement,coeffmat,coeffmatcol,coeffmatrow,&
     nosymmdim,coeffnosymm,iLrealdim,iRrealdim,cap_goodbasis,cap_goodbasiscol)
 ! this subroutine is to transfer the fortran column major coeff mat
@@ -43,3 +56,25 @@ subroutine coefftosparse(maxnelement,coeffmat,coeffmatcol,coeffmatrow,&
     call CSCtoCSR('CR',4*iLrealdim,4*iRrealdim,coeffmat,coeffmatcol,cap_goodbasiscol,coeffmatrow)
 
 end subroutine coefftosparse
+
+!========================================================================
+!========================================================================
+
+subroutine Dense16LRtoNgood(iLrealdim,iRrealdim,nbasis,cap_goodbasis,LRcoeff,coeffnosymm)
+    implicit none
+    integer(kind=i4),intent(in) :: iLrealdim,iRrealdim,nbasis,cap_goodbasis(:,:)
+    real(kind=r8),intent(in) :: LRcoeff(:)
+    real(kind=r8),intent(out) :: coeffnosymm(:)
+    !local
+    integer :: ibasis
+
+    do ibasis=1,nbasis,1
+        coeffnosymm(ibasis)=LRcoeff((cap_goodbasis(ibasis,2)-1)*4*iLrealdim+cap_goodbasis(ibasis,1))
+    end do
+
+    return
+end subroutine Dense16LRtoNgood
+
+!========================================================================
+!========================================================================
+end Module CoeffTrans
