@@ -244,7 +244,7 @@ subroutine Comp_ExchangeOpera(cap_big,cap_bigcol,cap_bigrow,iLrealdim,iRrealdim)
             end if
         end do
 
-        call MPI_BARRIER(MPI_COMM_WORLD,ierr)
+      !  call MPI_BARRIER(MPI_COMM_WORLD,ierr)
     end do
 
     deallocate(uindex)

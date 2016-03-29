@@ -19,8 +19,10 @@ s 0
 1.0D-5   ! energythresh      
 0.0D0    ! hopthresh         
 JD       ! diagmethod   
+comple/direct ! op method
 (1)      ! exscheme
 (1 1)    ! average weight
 nbonds   ! bond number
 F        ! noise
 (0.3 0.2)! noise weight
+maxnbasis maxnbasisp  

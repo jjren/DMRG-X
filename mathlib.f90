@@ -342,9 +342,8 @@ subroutine CSCtoCSR(operation,nleadaft,nleadbef,Amat,Acolindex,Arowindex,Arowind
         stop
     end if
 
-    call copy(Cmat,Amat)
-    Acolindex=Ccolindex
-    Arowindexnew=Crowindex(1:nleadaft+1)
+    call CopySpAtoB(nleadaft,Cmat,Ccolindex,Crowindex,Amat,Acolindex,&
+            Arowindexnew,Crowindex(nleadaft+1)-1)
 
     deallocate(Browindex)
     deallocate(Crowindex)
@@ -402,19 +401,8 @@ subroutine SpMatAdd(Ancols,Anrows,Amat,Amatcol,Amatrow,&
     ! zero sparse matrix intialize
     Dmatrow=1
     
-    !do i=1,Anrows,1
-    !    Dmatcol(i)=i
-    !    Dmat(i)=1.0D0
-    !    Dmatrow(i+1)=i+1
-    !end do
-
     call mkl_dcsradd('N',0,0,Anrows,Ancols,Cmat,Cmatcol,Cmatrow,&
         0.0D0,Dmat,Dmatcol,Dmatrow,Amat,Amatcol,Amatrow,maxnelement,info) 
-    
-    !call mkl_dcsrmultcsr('N',0,8,Anrows,Anrows,Ancols, &
-    !    Dmat,Dmatcol,Dmatrow, &
-    !    Cmat,Cmatcol,Cmatrow, &
-    !    Amat,Amatcol,Amatrow,maxnelement,info)
     
     if(info/=0) then
         write(*,*) "==============================" 
@@ -423,10 +411,6 @@ subroutine SpMatAdd(Ancols,Anrows,Amat,Amatcol,Amatrow,&
         stop
     end if
     
-    !call copy(Cmat,Amat)
-    !Amatcol=Cmatcol
-    !Amatrow=Cmatrow
-
     deallocate(Cmat,Cmatcol,Cmatrow,Dmatrow)
 
     return
@@ -782,9 +766,11 @@ subroutine CopySpAtoB(nrow,Amat,Amatcol,Amatrow,Bmat,Bmatcol,Bmatrow,Bmaxnelemen
         write(*,*) "========================="
         stop
     end if
-
-    Bmatrow(1:nrow+1)=Amatrow(1:nrow+1)
-    Bmatcol(1:Amatrow(nrow+1)-1)=Bmatcol(1:Amatrow(nrow+1)-1)
+    
+    !Bmatrow(1:nrow+1)=Amatrow(1:nrow+1)
+    !Bmatcol(1:Amatrow(nrow+1)-1)=Bmatcol(1:Amatrow(nrow+1)-1)
+    call scopy(nrow+1,Amatrow,1,Bmatrow,1)
+    call scopy(Amatrow(nrow+1)-1,Amatcol,1,Bmatcol,1)
     call copy(Amat(1:Amatrow(nrow+1)-1),Bmat(1:Amatrow(nrow+1)-1))
 
 return

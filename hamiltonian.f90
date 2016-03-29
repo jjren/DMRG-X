@@ -18,6 +18,7 @@ Module Hamiltonian_mod
     implicit none
     integer :: dimN
     real(kind=r8),allocatable :: HDIAG(:)
+    real(kind=r8) :: shift
 
 contains
 !====================================================================
@@ -73,7 +74,7 @@ subroutine JacobiDavidson_Wrapper(direction)
                 NDX2         
     real(kind=r8) ::  Tol          , &
                 sigma        , &
-                shift        , &
+             !   shift        , &
                 mem          , &
                 droptol      , &
                 gap
@@ -97,7 +98,7 @@ subroutine JacobiDavidson_Wrapper(direction)
     IPRINT=6
     NINIT=nstate
     call GetDimSym
-    Leigenvector=dimN*(3*MADSPACE+NEIG+1)+3*MADSPACE**2+MAX(MADSPACE**2,NEIG)+100
+    Leigenvector=(dimN*(3*MADSPACE+NEIG+1)+3*MADSPACE**2+MAX(MADSPACE**2,NEIG))*2
 
     if(myid==0) then
         allocate(EIGS(nstate))
@@ -111,11 +112,12 @@ subroutine JacobiDavidson_Wrapper(direction)
         if(isweep/=0 .and. nelecs==realnelecs) then
             isearch=1
             sigma=dmrgenergy(1)
-            if(nstate/=1) then
-                shift=dmrgenergy(1)*2.0D0-dmrgenergy(2)
-            else 
-                shift=dmrgenergy(1)-1.0D0
-            end if
+        !    if(nstate/=1) then
+        !        shift=dmrgenergy(1)*2.0D0-dmrgenergy(2)
+        !    else 
+        !        shift=dmrgenergy(1)-1.0D0
+        !    end if
+            write(*,*) "use last step shift",shift
             EIGS(1:nstate)=dmrgenergy(1:nstate)
         else
             isearch=0
@@ -134,7 +136,9 @@ subroutine JacobiDavidson_Wrapper(direction)
 !   isweep==sweeps-2) then
 !       Tol=1.0D-4
 !   end if
-    if(isweep==0) then
+    if(isweep==0 .or. nelecs/=realnelecs) then
+        Tol=5.0D-2
+    else if(isweep==1) then
         Tol=5.0D-3
     else
         Tol=1.0D-4

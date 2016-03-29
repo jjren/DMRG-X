@@ -9,11 +9,12 @@ subroutine pre_perturbation(domain,matchar)
     use BLAS95
     use f95_precision
     use module_sparse
+    use mathlib
     implicit none
     
     character(len=1) :: domain
     character(len=3) :: matchar
-    integer :: orbstart,orbend,Hindex,operaindex,nonzero
+    integer :: orbstart,orbend,Hindex,operaindex
     integer :: dimsma,dimbig
     integer :: i,j
     
@@ -46,16 +47,14 @@ subroutine pre_perturbation(domain,matchar)
                 ! big matrix
                 if(matchar=="big") then
                     bigrowindex1p(:,operaindex)=1  ! initialize
-                    bigrowindex1p(1:dimbig+1,operaindex)=bigrowindex1(1:dimbig+1,operaindex)
-                    nonzero=bigrowindex1(dimbig+1,operaindex)-1
-                    bigcolindex1p(1:nonzero,operaindex)=bigcolindex1(1:nonzero,operaindex)
-                    call copy(operamatbig1(1:nonzero,operaindex),operamatbig1p(1:nonzero,operaindex))
+                    call CopySpAtoB(dimbig,operamatbig1(:,operaindex),bigcolindex1(:,operaindex),&
+                            bigrowindex1(:,operaindex),operamatbig1p(:,operaindex),&
+                            bigcolindex1p(:,operaindex),bigrowindex1p(:,operaindex),bigdim1p) 
                 else if(matchar=="sma") then
                     smarowindex1p(:,operaindex)=1
-                    smarowindex1p(1:dimsma+1,operaindex)=smarowindex1(1:dimsma+1,operaindex)
-                    nonzero=smarowindex1(dimsma+1,operaindex)-1
-                    smacolindex1p(1:nonzero,operaindex)=smacolindex1(1:nonzero,operaindex)
-                    call copy(operamatsma1(1:nonzero,operaindex),operamatsma1p(1:nonzero,operaindex))
+                    call CopySpAtoB(dimsma,operamatsma1(:,operaindex),smacolindex1(:,operaindex),&
+                            smarowindex1(:,operaindex),operamatsma1p(:,operaindex),&
+                            smacolindex1p(:,operaindex),smarowindex1p(:,operaindex),smadim1p) 
                 end if
             end do
         end if
@@ -65,16 +64,12 @@ subroutine pre_perturbation(domain,matchar)
     if(myid==0) then
         if(matchar=="big") then
             Hbigrowindexp(:,Hindex)=1
-            Hbigrowindexp(1:dimbig+1,Hindex)=Hbigrowindex(1:dimbig+1,Hindex)
-            nonzero=Hbigrowindex(dimbig+1,Hindex)-1
-            Hbigcolindexp(1:nonzero,Hindex)=Hbigcolindex(1:nonzero,Hindex)
-            call copy(Hbig(1:nonzero,Hindex),Hbigp(1:nonzero,Hindex))
+            call CopySpAtoB(dimbig,Hbig(:,Hindex),Hbigcolindex(:,Hindex),Hbigrowindex(:,Hindex),&
+                    Hbigp(:,Hindex),Hbigcolindexp(:,Hindex),Hbigrowindexp(:,Hindex),Hbigdimp)
         else if(matchar=="sma") then
             Hsmarowindexp(:,Hindex)=1
-            Hsmarowindexp(1:dimsma+1,Hindex)=Hsmarowindex(1:dimsma+1,Hindex)
-            nonzero=Hsmarowindex(dimsma+1,Hindex)-1
-            Hsmacolindexp(1:nonzero,Hindex)=Hsmacolindex(1:nonzero,Hindex)
-            call copy(Hsma(1:nonzero,Hindex),Hsmap(1:nonzero,Hindex))
+            call CopySpAtoB(dimsma,Hsma(:,Hindex),Hsmacolindex(:,Hindex),Hsmarowindex(:,Hindex),&
+                    Hsmap(:,Hindex),Hsmacolindexp(:,Hindex),Hsmarowindexp(:,Hindex),Hsmadimp)
         end if
     end if
 
@@ -82,18 +77,26 @@ subroutine pre_perturbation(domain,matchar)
     if(domain=='L') then
         if(matchar=="big") then
             quantabigLp=0
-            quantabigLp(1:dimbig,1:2)=quantabigL(1:dimbig,1:2)
+            do i=1,2,1
+                call scopy(dimbig,quantabigL(:,i),1,quantabigLp(:,i),1)
+            end do
         else if(matchar=="sma") then
             quantasmaLp=0
-            quantasmaLp(1:dimsma,1:2)=quantasmaL(1:dimsma,1:2)
+            do i=1,2,1
+                call scopy(dimsma,quantasmaL(:,i),1,quantasmaLp(:,i),1)
+            end do
         end if
     else if(domain=='R') then
         if(matchar=="big") then
             quantabigRp=0
-            quantabigRp(1:dimbig,1:2)=quantabigR(1:dimbig,1:2)
+            do i=1,2,1
+                call scopy(dimbig,quantabigR(:,i),1,quantabigRp(:,i),1)
+            end do
         else if(matchar=="sma") then
             quantasmaRp=0
-            quantasmaRp(1:dimsma,1:2)=quantasmaR(1:dimsma,1:2)
+            do i=1,2,1
+                call scopy(dimsma,quantasmaR(:,i),1,quantasmaRp(:,i),1)
+            end do
         end if
     end if
     
