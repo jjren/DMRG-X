@@ -67,6 +67,7 @@ bondorder=0
 localspin=0
 firstname="perturb"
 nstate=1
+echo $firstname
 cp -r backup "$firstname"
 cd $firstname
 sed -i '/^subM/c '"$subM"'' inp

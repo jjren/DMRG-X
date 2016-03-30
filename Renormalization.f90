@@ -299,6 +299,7 @@ bigLRdim,smaLRdim,dummyHsmadim,dummysmadim)
     use exit_mod
     use mathlib
     use mpi
+    use checkmem_mod
     implicit none
     include "mkl_spblas.fi"
 
@@ -325,7 +326,7 @@ bigLRdim,smaLRdim,dummyHsmadim,dummysmadim)
     character(len=1),allocatable :: packbuf(:)
     integer :: packsize
     integer :: position1
-    
+    real(kind=r8) :: tmpratio(1)
     
     if(domain=='L') then
         orbstart=1
@@ -390,8 +391,8 @@ bigLRdim,smaLRdim,dummyHsmadim,dummysmadim)
         nrows=4*bigLRdim
         call mkl_ddnscsr(job,nrows,smaLRdim,rotatematdens,nrows,rotatemat,rotcolindex,rotrowindex,info)
         if(info==0) then
-        !   call master_print_message(arraylength,"U/V maxnelement=")
-        !   call master_print_message(rotrowindex(nrows+1)-1,"U/V nonzero=")
+            tmpratio(1)=DBLE(rotrowindex(4*bigLRdim+1)-1)/DBLE(4*bigLRdim*smaLRdim)
+            call checkmem_OPmodMat("UVratio",tmpratio(1),1)
         else
             call master_print_message(info,"info/=0 dens to sparse in rotatebasis")
             stop

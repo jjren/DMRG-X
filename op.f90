@@ -30,6 +30,7 @@ subroutine Complement(cap_big,cap_bigcol,cap_bigrow,iLrealdim,iRrealdim,isubM)
     real(kind=r8),intent(in) :: cap_big(:,:)
     integer(kind=i4),intent(in) :: cap_bigcol(:,:),cap_bigrow(:,:)
     integer :: ileft
+    real(kind=r8) :: tmpratio(2)
     
     call allocate_Complement(iRrealdim,isubM)
     if(myid/=0) then
@@ -39,14 +40,18 @@ subroutine Complement(cap_big,cap_bigcol,cap_bigrow,iLrealdim,iRrealdim,isubM)
     ! different process R space operator transfer to L space
     call Comp_ExchangeOpera(cap_big,cap_bigcol,cap_bigrow,iLrealdim,iRrealdim)
     
-    !if(myid==1) then
-    !do ileft=1,nleft+1,1
-    !    if(myid==pppVComid(ileft,1)) then
-    !        write(*,*) ileft,pppVComrow(4*iRrealdim+1,1,pppVcomid(ileft,2))-1
-    !        write(*,*) pppVCommat(1:pppVComrow(4*iRrealdim+1,1,pppVcomid(ileft,2))-1,1,pppVcomid(ileft,2))
-    !    end if
-    !end do
-    !end if
+    if(myid/=0) then
+        do ileft=1,nleft+1,1
+            if(myid==pppVComid(ileft,1)) THEN
+                tmpratio(1)=DBLE(pppVComrow(4*iRrealdim+1,1,pppVComid(ileft,2)))/DBLE(16*isubM*isubM)
+                call checkmem_OPmodMat("pppVnelement",tmpratio,1)
+            end if
+            if(myid==hopComid(ileft,1)) THEN
+                tmpratio(1:2)=DBLE(hopComrow(4*iRrealdim+1,1:2,hopComid(ileft,2)))/DBLE(16*isubM*isubM)
+                call checkmem_OPmodMat("hopnelement",tmpratio,1)
+            end if
+        end do
+    end if
 
     return
 end subroutine Complement
@@ -383,7 +388,7 @@ subroutine EOpair(cterm,proc1,proc2,count1,index1,count2,index2,preintegral,link
     integer :: ierr
 
     if(scheme==1) then
-        recvmatdim=bigdim1
+        recvmatdim=CEILING(DBLE(16*iRrealdim*iRrealdim)/bigratio1)
     else if(scheme==2) then
         recvmatdim=Comdim
     end if
@@ -462,7 +467,6 @@ subroutine EOpair(cterm,proc1,proc2,count1,index1,count2,index2,preintegral,link
                     end if
                     call SpMatPack(cap_big(:,operaindex),cap_bigcol(:,operaindex),&
                             cap_bigrow(:,operaindex),4*iRrealdim,position1,packbuf,packsize)
-                   ! write(*,*) myid,position1
                 end do     
                 call MPI_SEND(packbuf,position1,MPI_PACKED,proc1,index2(icount2),MPI_COMM_WORLD,ierr)
             end do
@@ -476,8 +480,6 @@ subroutine EOpair(cterm,proc1,proc2,count1,index1,count2,index2,preintegral,link
                 bufrow=1
                 do icount2=1,count2,1
                     if(linkinfo(index1(icount1),index2(icount2))==1) then
-                       ! write(*,*) "hah"
-                       ! write(*,*) index1(icount1),index2(icount2)
                         do ispin=1,nspin,1
                             if(cterm=="pppV") then
                                 operaindex=orbid1(index2(icount2),2)*3
@@ -504,7 +506,6 @@ subroutine EOpair(cterm,proc1,proc2,count1,index1,count2,index2,preintegral,link
                     call SpMatPack(bufmat(:,ispin),bufcol(:,ispin),&
                         bufrow(:,ispin),4*iRrealdim,position1,packbuf,packsize)
                 end do     
-                !write(*,*) myid,position1
                 call MPI_ISEND(packbuf,position1,MPI_PACKED,proc1,index1(icount1),MPI_COMM_WORLD,sendrequest,ierr)
             end do
             call MPI_WAIT(sendrequest,status,ierr)
@@ -578,7 +579,7 @@ cap_quantabigL,cap_quantabigR,cap_goodbasis,cap_goodbasiscol)
         buffmatcol(:),buffmatrow(:)
 
     integer(kind=i4) :: LRoutnelement,&
-        npppVbuf,npppVmidmat,nhopbuf,nhopmidmat
+       npppVmidmat,nhopmidmat
     
     integer :: m,ie,il,ir,istate,ibasis,ispin,ileft,iright,iproc,iside,iirecv
     integer :: info
@@ -595,8 +596,8 @@ cap_quantabigL,cap_quantabigR,cap_goodbasis,cap_goodbasiscol)
 
     ! set the sparse matrix dim
     LRoutnelement=CEILING(DBLE(16*isubM*isubM)/LRoutratio)
-    npppVmidmat=CEILING(DBLE(16*isubM*isubM)/pppmatratio)
-    nhopmidmat=CEILING(DBLE(16*isubM*isubM)/hopmatratio)
+    npppVmidmat=CEILING(DBLE(16*isubM*isubM)/pppVmidratio)
+    nhopmidmat=CEILING(DBLE(16*isubM*isubM)/hopmidratio)
 
     if(pppVComoperanum(myid)/=0 .or. hopComoperanum(myid)/=0 &
         .or. myid==0) then
@@ -715,7 +716,7 @@ cap_quantabigL,cap_quantabigR,cap_goodbasis,cap_goodbasiscol)
         
         do istate=1,smadim,1
             tmpratio(1)=DBLE(LRcoeffoutrow(4*iLrealdim+1,istate))/DBLE(16*isubM*isubM)
-           ! call checkmem_OPmodMat("LRoutnelement",tmpratio(1),1)
+            call checkmem_OPmodMat("LRoutnelement",tmpratio(1),1)
         end do
 
         m=0
@@ -803,6 +804,7 @@ subroutine ContractLR(cterm,LRcoeffin,LRcoeffincol,LRcoeffinrow,&
         midmatcol(:),midmatrow(:)
     character(len=1) :: trans
     integer :: ie,operaindex,info
+    real(kind=r8) :: tmpratio(1)
 
     do ileft=1,nleft+1,1
         if(myid==Comid(ileft,1)) then
@@ -841,9 +843,12 @@ subroutine ContractLR(cterm,LRcoeffin,LRcoeffincol,LRcoeffinrow,&
                             midmat,midmatcol,midmatrow,midmaxnelement)
                 end if
                 
-                ! tmpratio(1)=DBLE(midmatrow(4*iLrealdim+1))/DBLE(16*isubM*isubM)
-                ! call checkmem_OPmodMat("hopnelement",tmpratio(1:4),4)
-                
+                tmpratio(1)=DBLE(midmatrow(4*iLrealdim+1))/DBLE(16*isubM*isubM)
+                if(cterm=="pppV") then
+                    call checkmem_OPmodMat("pppVmidmat",tmpratio(1),1)
+                else if(cterm=="hop") then   
+                    call checkmem_OPmodMat("hopmidmat",tmpratio(1),1)
+                end if
 
                 if(cterm=="pppV") then
                     trans="N"
@@ -948,8 +953,7 @@ cap_quantabigL,cap_quantabigR,cap_goodbasis,cap_goodbasiscol)
         buffmatcol(:),buffmatrow(:),&
         midmatcol(:),midmatrow(:)
 
-    integer(kind=i4) :: pppVnelement,hopnelement,LRoutnelement,&
-        nrecv,npppVbuf,npppVmidmat,nhopbuf,nhopmidmat
+    integer(kind=i4) :: LRoutnelement,nrecv,npppVmidmat,nhopmidmat
 
     character(len=1),allocatable :: hoppackbuf(:),pppVpackbuf(:)
     integer :: position1,pppVpacksize,hoppacksize
@@ -960,7 +964,7 @@ cap_quantabigL,cap_quantabigR,cap_goodbasis,cap_goodbasiscol)
     
     logical :: ifhop
     
-    real(kind=r8) :: tmpratio(4)
+    real(kind=r8) :: tmpratio(2)
     ! MPI flag
     integer :: status(MPI_STATUS_SIZE),pppVrecvrequest,hoprecvrequest
     integer :: ierr
@@ -971,13 +975,15 @@ cap_quantabigL,cap_quantabigR,cap_goodbasis,cap_goodbasiscol)
     allocate(coeffnosymm(nosymmdim*smadim))
 
     ! set the sparse matrix dim
+    ! store the sum pppVmat
     pppVnelement=CEILING(DBLE(16*isubM*isubM)/pppmatratio)
+    ! store the sum hopmat
     hopnelement=CEILING(DBLE(16*isubM*isubM)/hopmatratio)
     LRoutnelement=CEILING(DBLE(16*isubM*isubM)/LRoutratio)
-    npppVbuf=CEILING(DBLE(16*isubM*isubM)/pppmatratio)
-    npppVmidmat=CEILING(DBLE(16*isubM*isubM)/pppmatratio)
-    nhopbuf=CEILING(DBLE(16*isubM*isubM)/hopmatratio)
-    nhopmidmat=CEILING(DBLE(16*isubM*isubM)/hopmatratio)
+    
+    ! midmat of pppVmat*coeffin
+    npppVmidmat=CEILING(DBLE(16*isubM*isubM)/pppVmidratio)
+    nhopmidmat=CEILING(DBLE(16*isubM*isubM)/hopmidratio)
 
     if(myid/=0) then
         do ileft=1,nleft+1,1
@@ -1166,8 +1172,8 @@ cap_quantabigL,cap_quantabigR,cap_goodbasis,cap_goodbasiscol)
                          MPI_ANY_SOURCE,MPI_ANY_TAG,MPI_COMM_WORLD,pppVrecvrequest,ierr)
                 end if
                 
-                allocate(pppVbufmat(npppVbuf))
-                allocate(pppVbufcol(npppVbuf))
+                allocate(pppVbufmat(pppVnelement))
+                allocate(pppVbufcol(pppVnelement))
                 allocate(pppVbufrow(4*iRrealdim+1))
 
                 do iirecv=1,nrecv,1
@@ -1192,6 +1198,8 @@ cap_quantabigL,cap_quantabigR,cap_goodbasis,cap_goodbasiscol)
                         'N',1.0D0,4*iRrealdim,4*iRrealdim,&
                         pppVbufmat,pppVbufcol,pppVbufrow,pppVnelement)
                 end do
+                tmpratio(1)=DBLE(pppVmatrow(4*iRrealdim+1))/DBLE(16*isubM*isubM)
+                call checkmem_OPmodMat("pppVnelement",tmpratio(1),1)
 
                 deallocate(pppVbufmat,pppVbufcol,pppVbufrow)
                 
@@ -1203,11 +1211,6 @@ cap_quantabigL,cap_quantabigR,cap_goodbasis,cap_goodbasiscol)
                 allocate(buffmatcol(LRoutnelement))
                 allocate(buffmatrow(4*iLrealdim+1))
                 
-                !if(myid==1) then
-                !write(*,*) ileft,pppVmatrow(4*iRrealdim+1)-1
-                !write(*,*) pppVmat(1:pppVmatrow(4*iRrealdim+1)-1)
-                !end if
-
                 do istate=1,smadim,1
                     ! do sum_{iright \in Rspace} pppV(ileft,iright)*pppVmatbuf_iright_rr*Crr
                     call mkl_dcsrmultcsr('N',0,8,4*iLrealdim,4*iRrealdim,4*iRrealdim, &
@@ -1217,7 +1220,7 @@ cap_quantabigL,cap_quantabigR,cap_goodbasis,cap_goodbasiscol)
                     call checkinfo(info)
 
                     tmpratio(1)=DBLE(midmatrow(4*iLrealdim+1))/DBLE(16*isubM*isubM)
-                    !call checkmem_OPmodMat("pppVnelement",tmpratio(1),1)
+                    call checkmem_OPmodMat("pppVmidmat",tmpratio(1),1)
 
                     operaindex=orbid1(ileft,2)*3
 
@@ -1310,9 +1313,10 @@ cap_quantabigL,cap_quantabigR,cap_goodbasis,cap_goodbasiscol)
                         MPI_ANY_SOURCE,MPI_ANY_TAG,MPI_COMM_WORLD,hoprecvrequest,ierr)
                 end if
 
-                allocate(hopbufmat(nhopbuf,2))
-                allocate(hopbufcol(nhopbuf,2))
+                allocate(hopbufmat(hopnelement,2))
+                allocate(hopbufcol(hopnelement,2))
                 allocate(hopbufrow(4*iRrealdim+1,2))
+                
                 
 
                 do iirecv=1,nrecv,1
@@ -1338,6 +1342,9 @@ cap_quantabigL,cap_quantabigR,cap_goodbasis,cap_goodbasiscol)
                             hopbufmat(1,ispin),hopbufcol(1,ispin),hopbufrow(1,ispin),hopnelement)
                     end do
                 end do
+
+                tmpratio(1:2)=DBLE(hopmatrow(4*iRrealdim+1,1:2))/DBLE(16*isubM*isubM)
+                call checkmem_OPmodMat("hopnelement",tmpratio,2)
 
                 deallocate(hopbufmat,hopbufcol,hopbufrow)
 
@@ -1376,7 +1383,7 @@ cap_quantabigL,cap_quantabigR,cap_goodbasis,cap_goodbasiscol)
                                     midmat,midmatcol,midmatrow,nhopmidmat)
                         end if
                         tmpratio(1)=DBLE(midmatrow(4*iLrealdim+1))/DBLE(16*isubM*isubM)
-                        ! call checkmem_OPmodMat("hopnelement",tmpratio(1:4),4)
+                        call checkmem_OPmodMat("hopmidmat",tmpratio(1),1)
 
                         do il=1,4*iLrealdim,1
                         do ie=midmatrow(il),midmatrow(il+1)-1,1  ! ie=ielement
@@ -1442,27 +1449,16 @@ cap_quantabigL,cap_quantabigR,cap_goodbasis,cap_goodbasiscol)
         
         do istate=1,smadim,1
             tmpratio(1)=DBLE(LRcoeffoutrow(4*iLrealdim+1,istate))/DBLE(16*isubM*isubM)
-           ! call checkmem_OPmodMat("LRoutnelement",tmpratio(1),1)
+            call checkmem_OPmodMat("LRoutnelement",tmpratio(1),1)
         end do
 
-        !m=0
-        !do istate=1,smadim,1
-        !do ir=1,4*iRrealdim,1
-        !do il=1,4*iLrealdim,1
-        !    if((cap_quantabigL(il,1)+cap_quantabigR(ir,1)==nelecs) .and. &
-        !        cap_quantabigL(il,2)+cap_quantabigR(ir,2)==totalSz) then
-        !        m=m+1
-        !        call SpMatIJ(4*iLrealdim,il,ir,LRcoeffout(:,istate),LRcoeffoutcol(:,istate),LRcoeffoutrow(:,istate),coeffnosymm(m))
-        !    end if
-        !end do
-        !end do
-        !end do
-        
         m=0
         do istate=1,smadim,1
         do ibasis=1,nosymmdim,1
             m=m+1
-            call SpMatIJ(4*iLrealdim,cap_goodbasis(ibasis,1),cap_goodbasis(ibasis,2),LRcoeffout(:,istate),LRcoeffoutcol(:,istate),LRcoeffoutrow(:,istate),coeffnosymm(m))
+            call SpMatIJ(4*iLrealdim,cap_goodbasis(ibasis,1),&
+                cap_goodbasis(ibasis,2),LRcoeffout(:,istate),&
+                LRcoeffoutcol(:,istate),LRcoeffoutrow(:,istate),coeffnosymm(m))
         end do
         end do
             

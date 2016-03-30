@@ -232,7 +232,7 @@ subroutine JacobiDavidson_Wrapper(direction)
     end if
     
     if(ifopenperturbation==.true.) then
-        call perturbation(EIGS,nstate)
+        call perturbation(EIGS,nstate,direction)
     end if
     
 
@@ -455,9 +455,9 @@ Subroutine Davidson_Wrapper(direction)
 
     if(ifopenperturbation==.true.) then
         if(myid==0) then
-            call perturbation(DavidWORK(IHIGH*dimN+1:IHIGH*dimN+nstate),nstate)
+            call perturbation(DavidWORK(IHIGH*dimN+1:IHIGH*dimN+nstate),nstate,direction)
         else
-            call perturbation(DavidWORK,nstate)
+            call perturbation(DavidWORK,nstate,direction)
         end if
     end if
     

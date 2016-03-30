@@ -40,6 +40,7 @@ do
             cat out | grep -A10 "energy converged!" >> ../standard.out
             cat out | grep -A10 "maxiter reached!" >> ../standard.out
             cat out | grep  "RUNTIME" >> ../standard.out
+            cat out | grep -A21 "transmoment" >> ../standard.out
             printf '\n\n\n' >> ../standard.out
             
             cd ..

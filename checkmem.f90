@@ -7,7 +7,7 @@ module checkmem_mod
     integer(kind=i4),allocatable :: noperamatbig1(:,:),noperamatsma1(:,:),noperamatbig2(:,:,:),noperamatsma2(:,:,:),&
         noperamatbig3(:,:,:),noperamatsma3(:,:,:),nHbig(:),nHsma(:),ncoeffIF(:),&
         noperamatbig1p(:,:),noperamatsma1p(:,:),nHbigp(:),nHsmap(:),ncoeffIFp(:)
-    real(kind=r8) :: pppratiomax,hopratiomax,LRoutratiomax
+    real(kind=r8) :: pppratiomax,hopratiomax,LRoutratiomax,pppVmidmax,hopmidmax,UVocc
 
     contains
 
@@ -116,11 +116,18 @@ subroutine checkmem_OPmodMat(char1,ratioin,n)
     
     if(char1=="hopnelement") then
         call OPmodMat_inner(hopratiomax,ratioin,n)
-    else if(char1=="pppnelement") then
+    else if(char1=="pppVnelement") then
         call OPmodMat_inner(pppratiomax,ratioin,n)
     else if(char1=="LRoutnelement") then
+        ! max is the occupation percentage
         call OPmodMat_inner(LRoutratiomax,ratioin,n)
-    else
+    else if(char1=="pppVmidmat") then
+        call OPmodMat_inner(pppVmidmax,ratioin,n)
+    else if(char1=="hopmidmat") then
+        call OPmodMat_inner(hopmidmax,ratioin,n)
+    else if(char1=="UVratio") then
+        call OPmodMat_inner(UVocc,ratioin,n)
+    else 
         write(*,*) "OPmodMat wrong!",char1
         stop
     end if
@@ -209,12 +216,15 @@ subroutine checkmem_output
     USE MPI
     implicit none
     integer :: i,iorb,jorb
-    real(kind=r8) :: pppratiomax0,hopratiomax0,LRoutratiomax0
+    real(kind=r8) :: pppratiomax0,hopratiomax0,LRoutratiomax0,&
+            pppVmidmax0,hopmidmax0
     integer :: ierr
 
     call MPI_REDUCE(pppratiomax,pppratiomax0,1,MPI_REAL8,MPI_MAX,0,MPI_COMM_WORLD,ierr)
     call MPI_REDUCE(hopratiomax,hopratiomax0,1,MPI_REAL8,MPI_MAX,0,MPI_COMM_WORLD,ierr)
     call MPI_REDUCE(LRoutratiomax,LRoutratiomax0,1,MPI_REAL8,MPI_MAX,0,MPI_COMM_WORLD,ierr)
+    call MPI_REDUCE(pppVmidmax,pppVmidmax0,1,MPI_REAL8,MPI_MAX,0,MPI_COMM_WORLD,ierr)
+    call MPI_REDUCE(hopmidmax,hopmidmax0,1,MPI_REAL8,MPI_MAX,0,MPI_COMM_WORLD,ierr)
 
     if(myid==0) then
         open(unit=99,file="checkmem.out",status="replace")
@@ -223,6 +233,9 @@ subroutine checkmem_output
         write(99,*) "pppratiomax0=",1.0D0/pppratiomax0
         write(99,*) "hopratiomax0=",1.0D0/hopratiomax0
         write(99,*) "LRoutratiomax0=",1.0D0/LRoutratiomax0
+        write(99,*) "pppVmidmax0=",1.0D0/pppVmidmax0
+        write(99,*) "hopmidmax0=",1.0D0/hopmidmax0
+        write(99,*) "UVratio=",1.0D0/UVocc
 
         write(99,*) "bigrowindex1"
         write(99,*) "bigdim1=",bigdim1

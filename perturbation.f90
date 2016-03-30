@@ -20,11 +20,12 @@ contains
 !================================================================
 !================================================================
 
-subroutine perturbation(eigenvalue,num)
+subroutine perturbation(eigenvalue,num,direction)
     use ABop
     implicit none
 
     integer,intent(in) :: num
+    character(len=1),intent(in) :: direction
     real(kind=r8) :: eigenvalue(:)
     integer :: istate
     real(kind=r8) :: starttime,endtime
@@ -46,9 +47,8 @@ subroutine perturbation(eigenvalue,num)
 
     ! Get the diagonal element in the 4Mp*4Mp basis
     call GetHdiagp
-
-!   call PerturbationSpaceDvD
     
+
     call CopyCoeff2Coeffp
     
     if(myid==0) then
@@ -73,9 +73,6 @@ subroutine perturbation(eigenvalue,num)
             call master_print_message(endtime-starttime,"3rd Perturbation TIME:")
         end if
     end if
-    if(opmethod=="comple") then 
-        call deallocate_Complement
-    end if
 
     if(myid==0) then
         do istate=1,nstate,1
@@ -90,6 +87,15 @@ subroutine perturbation(eigenvalue,num)
                 write(*,*) "3rd Order:",correctenergy3(istate),eigenvalue(istate)
             end if
         end do
+    end if
+    
+    ! in the middle of every sweep do Perturbation space Diagnolization
+    if(nleft==(norbs-1)/2 .and. direction=="l") then
+        call PerturbationSpaceDvD(eigenvalue)
+    end if
+    
+    if(opmethod=="comple") then 
+        call deallocate_Complement
     end if
 
     if(ifopenperturbation==.true.) then
@@ -583,13 +589,15 @@ end subroutine GetHmat
 !=============================================================================
 !=============================================================================
 
-subroutine PerturbationSpaceDvD
+subroutine PerturbationSpaceDvD(EIGS)
     use InitialGuess
     use ABop
     implicit none
     
+    real(kind=r8),intent(inout) :: EIGS(:)
+
     ! local
-    real(kind=r8),allocatable :: EIGS(:),RES(:),eigenvector(:)
+    real(kind=r8),allocatable :: RES(:),eigenvector(:)
     integer ::        dimN         , &
                 NEIG         , &  ! number of eigenstate
                 MADSPACE     , &  ! subspace dimension
@@ -610,7 +618,7 @@ subroutine PerturbationSpaceDvD
                 droptol      , &
                 gap
     integer :: error,ierr
-    integer :: i
+    integer :: i,istate,ibasis
     real(kind=r8) :: starttime,endtime
     
 
@@ -632,7 +640,6 @@ subroutine PerturbationSpaceDvD
     Leigenvector=dimN*(3*MADSPACE+NEIG+1)+3*MADSPACE**2+MAX(MADSPACE**2,NEIG)+100
 
     if(myid==0) then
-        allocate(EIGS(nstate))
         allocate(RES(nstate))
         allocate(eigenvector(Leigenvector))
     else
@@ -642,31 +649,21 @@ subroutine PerturbationSpaceDvD
     if(myid==0) then
         if(isweep/=0 .and. nelecs==realnelecs) then
             isearch=1
-            sigma=dmrgenergy(1)
+            sigma=EIGS(1)
             if(nstate/=1) then
-                shift=dmrgenergy(1)*2.0D0-dmrgenergy(2)
+                shift=EIGS(1)*2.0D0-EIGS(2)
             else 
-                shift=dmrgenergy(1)-1.0D0
+                shift=EIGS(1)-1.0D0
             end if
-            EIGS(1:nstate)=dmrgenergy(1:nstate)
         else
             isearch=0
             EIGS(1:nstate)=0.0D0
         end if
     end if
         
-    ! in the initial few sweeps
-!   if(1.0D-3*(1.0D-1)**isweep>1.1D-6) then
-!       Tol=1.0D-4*(1.0D-1)**isweep
-!   else
-!       Tol=1.0D-6
-!   end if
-!   ! in the last 3 sweeps
-!   if(isweep==sweeps .or. isweep==sweeps-1 .or. &
-!   isweep==sweeps-2) then
-!       Tol=1.0D-4
-!   end if
-    if(isweep==0) then
+    if(isweep==0 .or. nelecs/=realnelecs) then
+        Tol=5.0D-2
+    else if(isweep==1) then
         Tol=5.0D-3
     else
         Tol=1.0D-4
@@ -697,11 +694,21 @@ subroutine PerturbationSpaceDvD
         if(IJOB/=1) then
             exit
         else
-            call op(dimN,1,eigenvector(NDX1),eigenvector(NDX2),&
-                Lrealdimp,Rrealdimp,subMp,ngoodstatesp,&
-                operamatbig1p,bigcolindex1p,bigrowindex1p,&
-                Hbigp,Hbigcolindexp,Hbigrowindexp,&
-                quantabigLp,quantabigRp,goodbasisp,goodbasiscolp)
+            if(opmethod=="comple") then
+                call op(dimN,1,eigenvector(NDX1),eigenvector(NDX2),&
+                    Lrealdimp,Rrealdimp,subMp,ngoodstatesp,&
+                    operamatbig1p,bigcolindex1p,bigrowindex1p,&
+                    Hbigp,Hbigcolindexp,Hbigrowindexp,&
+                    quantabigLp,quantabigRp,goodbasisp,goodbasiscolp)
+            else if(opmethod=="direct") then
+                call opdirect(dimN,1,eigenvector(NDX1),eigenvector(NDX2),&
+                    Lrealdimp,Rrealdimp,subMp,ngoodstatesp,&
+                    operamatbig1p,bigcolindex1p,bigrowindex1p,&
+                    Hbigp,Hbigcolindexp,Hbigrowindexp,&
+                    quantabigLp,quantabigRp,goodbasisp,goodbasiscolp)
+            else
+                stop
+            end if
         end if
     end do
 
@@ -717,11 +724,19 @@ subroutine PerturbationSpaceDvD
     end if
     
     if(myid==0) then
+        ! in the perturbation space diagonalization update the coeffIFp
+        do istate=1,nstate,1
+            call copy(eigenvector((istate-1)*ngoodstatesp+1:istate*ngoodstatesp),coeffIFp(:,istate))
+        end do
+        do ibasis=1,ngoodstatesp,1
+            coeffIFrowindexp(ibasis)=goodbasisp(ibasis,1)
+            coeffIFcolindexp(ibasis)=goodbasisp(ibasis,2)
+        end do
         call DPJDCLEANUP
-        deallocate(EIGS,RES)
+        deallocate(RES)
     end if
     deallocate(eigenvector)
-
+    
     return
 end subroutine PerturbationSpaceDvD
 

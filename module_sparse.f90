@@ -74,8 +74,11 @@ module module_sparse
     coeffIFdimp
 
     ! sparse parameter
-    real(kind=r8),public :: pppmatratio,hopmatratio,LRoutratio,UVmatratio,coeffIFratio
-    real(kind=r8),public :: bigratio1,smaratio1,bigratio2,smaratio2,bigratio3,smaratio3,Hbigratio,Hsmaratio  ! sparse radio
+    real(kind=r8),public :: &
+        pppmatratio,hopmatratio,LRoutratio,UVmatratio,&
+        coeffIFratio,bigratio1,smaratio1,bigratio2,&
+        smaratio2,bigratio3,smaratio3,Hbigratio,&
+        Hsmaratio,pppVmidratio,hopmidratio  ! sparse radio
     
     integer,allocatable,public :: operanum1(:),operanum2(:),operanum3(:)
     ! store the number of operators on every process
@@ -248,7 +251,7 @@ subroutine sparse_default
 ! set the default ratio according to the subM
     use MPI
     implicit none
-    integer,parameter :: nratio=13
+    integer,parameter :: nratio=15
     real(kind=r8) :: sparseratio(nratio)
     integer :: ierr
     integer :: i
@@ -272,10 +275,12 @@ subroutine sparse_default
     Hbigratio    = sparseratio(7)            
     Hsmaratio    = sparseratio(8)             
     pppmatratio  = sparseratio(9)            
-    hopmatratio  = sparseratio(10)             
-    LRoutratio   = sparseratio(11)             
-    UVmatratio   = sparseratio(12)           
-    coeffIFratio = sparseratio(13)
+    pppVmidratio = sparseratio(10)            
+    hopmatratio  = sparseratio(11)             
+    hopmidratio  = sparseratio(12)             
+    LRoutratio   = sparseratio(13)             
+    UVmatratio   = sparseratio(14)           
+    coeffIFratio = sparseratio(15)
 
     if(myid==0) then
         write(*,*) "bigratio1=",    bigratio1
@@ -287,7 +292,8 @@ subroutine sparse_default
         write(*,*) "Hbigratio=",    Hbigratio
         write(*,*) "Hsmaratio=",    Hsmaratio
         write(*,*) "pppmatratio=",  pppmatratio
-        write(*,*) "hopmatratio=",  hopmatratio
+        write(*,*) "pppVmidratio=",  pppVmidratio
+        write(*,*) "hopmidratio=",  hopmidratio
         write(*,*) "LRoutratio=" ,  LRoutratio
         write(*,*) "UVmatratio=" ,  UVmatratio
         write(*,*) "coeffIFratio=", coeffIFratio
