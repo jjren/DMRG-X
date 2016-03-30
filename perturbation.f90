@@ -728,10 +728,9 @@ subroutine PerturbationSpaceDvD(EIGS)
         do istate=1,nstate,1
             call copy(eigenvector((istate-1)*ngoodstatesp+1:istate*ngoodstatesp),coeffIFp(:,istate))
         end do
-        do ibasis=1,ngoodstatesp,1
-            coeffIFrowindexp(ibasis)=goodbasisp(ibasis,1)
-            coeffIFcolindexp(ibasis)=goodbasisp(ibasis,2)
-        end do
+        call scopy(ngoodstatesp,goodbasisp(1,1),1,coeffIFrowindexp(1),1)
+        call scopy(ngoodstatesp,goodbasisp(1,2),1,coeffIFcolindexp(1),1)
+        
         call DPJDCLEANUP
         deallocate(RES)
     end if
