@@ -64,7 +64,7 @@ subroutine perturbation(eigenvalue,num,direction)
         endtime=MPI_WTIME()
         call master_print_message(endtime-starttime,"2nd Perturbation TIME:")
         
-        if(ifperturbation3==.true. .and. nleft==(norbs-1)/2) then
+        if(ifperturbation3==.true. .and. nleft==(norbs-1)/2 .and. direction=="l") then
             ! since 3rd perturbation energy is not related to the wavefunction;
             ! so it can be done only in the middle of each sweep
             starttime=MPI_WTIME()
@@ -90,7 +90,7 @@ subroutine perturbation(eigenvalue,num,direction)
     end if
     
     ! in the middle of every sweep do Perturbation space Diagnolization
-    if(nleft==(norbs-1)/2 .and. direction=="l") then
+    if(nleft==(norbs-1)/2 .and. direction=="l" .and. Ifperturbation3==.false.) then
         call PerturbationSpaceDvD(eigenvalue)
     end if
     
