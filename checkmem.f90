@@ -241,42 +241,52 @@ subroutine checkmem_output
         write(99,*) "bigdim1=",bigdim1
         do i=1,norbs,1
             write(99,*) i,noperamatbig1(i,1:3)
+            write(99,*) i,DBLE(16*subM*subM)/DBLE(noperamatbig1(i,1:3))
         end do
         write(99,*) "smarowindex1"
         write(99,*) "smadim1=",smadim1
         do i=1,norbs,1
             write(99,*) i,noperamatsma1(i,1:3)
+            write(99,*) i,DBLE(subM*subM)/DBLE(noperamatsma1(i,1:3))
         end do
         write(99,*) "coeffIF"
         write(99,*) "coeffIFdim",coeffIFdim
         write(99,*) ncoeffIF(:)
+        write(99,*) DBLE(16*subM*subM)/DBLE(ncoeffIF(:))
         write(99,*) "Hbig"
         write(99,*) "Hbigdim=",Hbigdim
         write(99,*) nHbig(:)
+        write(99,*) DBLE(16*subM*subM)/DBLE(nHbig(:))
         write(99,*) "Hsma"
         write(99,*) "Hsmadim=",Hsmadim
         write(99,*) nHsma(:)
+        write(99,*) DBLE(subM*subM)/DBLE(nHsma(:))
 
         if(logic_perturbation==1) then
             write(99,*) "operamatbig1p"
             write(99,*) "bigdim1p=",bigdim1p
             do i=1,norbs,1
                 write(99,*) noperamatbig1p(i,1:3)
+                write(99,*) DBLE(16*subMp*subMp)/DBLE(noperamatbig1p(i,1:3))
             end do
             write(99,*) "smarowindex1p"
             write(99,*) "smadim1p=",smadim1p
             do i=1,norbs,1
                 write(99,*) noperamatsma1p(i,1:3)
+                write(99,*) DBLE(subMp*subMp)/DBLE(noperamatsma1p(i,1:3))
             end do
             write(99,*) "coeffIFp"
             write(99,*) "coeffIFdimp",coeffIFdimp
             write(99,*) ncoeffIFp(:)
+            write(99,*) DBLE(16*subMp*subMp)/DBLE(ncoeffIFp(:))
             write(99,*) "Hbigp"
             write(99,*) "Hbigdimp=",Hbigdimp
             write(99,*) nHbigp(:)
+            write(99,*) DBLE(16*subMp*subMp)/DBLE(nHbigp(:))
             write(99,*) "Hsmap"
             write(99,*) "Hsmadimp=",Hsmadimp
             write(99,*) nHsmap(:)
+            write(99,*) DBLE(subMp*subMp)/DBLE(nHsmap(:))
         end if
     
         if(logic_bondorder/=0) then
@@ -286,6 +296,7 @@ subroutine checkmem_output
             do jorb=1,iorb,1
                 if(noperamatbig2(iorb,jorb,1)/=0 .or. noperamatbig2(iorb,jorb,1)/=0) then
                     write(99,*) iorb,jorb,noperamatbig2(iorb,jorb,1:2)
+                    write(99,*) iorb,jorb,DBLE(16*subM*subM)/DBLE(noperamatbig2(iorb,jorb,1:2))
                 end if
             end do
             end do
@@ -294,6 +305,7 @@ subroutine checkmem_output
             do jorb=1,iorb,1
                 if(noperamatsma2(iorb,jorb,1)/=0 .or. noperamatsma2(iorb,jorb,1)/=0) then
                     write(99,*) iorb,jorb,noperamatsma2(iorb,jorb,1:2)
+                    write(99,*) iorb,jorb,DBLE(subM*subM)/DBLE(noperamatsma2(iorb,jorb,1:2))
                 end if
             end do
             end do
@@ -306,6 +318,7 @@ subroutine checkmem_output
             do jorb=1,iorb,1
                 if(noperamatbig3(iorb,jorb,1)/=0 .or. noperamatbig3(iorb,jorb,1)/=0) then
                     write(99,*) iorb,jorb,noperamatbig3(iorb,jorb,1:2)
+                    write(99,*) iorb,jorb,DBLE(16*subM*subM)/DBLE(noperamatbig3(iorb,jorb,1:2))
                 end if
             end do
             end do
@@ -313,7 +326,7 @@ subroutine checkmem_output
             do iorb=1,norbs,1
             do jorb=1,iorb,1
                 if(noperamatsma3(iorb,jorb,1)/=0 .or. noperamatsma3(iorb,jorb,1)/=0) then
-                    write(99,*) iorb,jorb,noperamatsma3(iorb,jorb,1:2)
+                    write(99,*) iorb,jorb,DBLE(subM*subM)/DBLE(noperamatsma3(iorb,jorb,1:2))
                 end if
             end do
             end do
