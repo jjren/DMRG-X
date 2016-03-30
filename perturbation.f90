@@ -14,7 +14,7 @@ module perturbation_mod
     real(kind=r8),allocatable ::  Hdiagp(:),correctenergy2(:),correctenergy3(:),&
                     H0lr(:,:)
     integer :: ngoodstatesp
-    logical :: Ifperturbation3
+    logical :: Ifperturbation3,IfperturbationDVD
 
 contains
 !================================================================
@@ -82,7 +82,7 @@ subroutine perturbation(eigenvalue,num,direction)
             eigenvalue(istate)=correctenergy2(istate)+eigenvalue(istate)
             write(*,*) "2nd Order:",correctenergy2(istate),eigenvalue(istate)
             
-            if(Ifperturbation3==.true. .and. nleft==(norbs-1)/2) then
+            if(Ifperturbation3==.true. .and. nleft==(norbs-1)/2 .and. direction=="l") then
                 eigenvalue(istate)=correctenergy3(istate)+eigenvalue(istate)
                 write(*,*) "3rd Order:",correctenergy3(istate),eigenvalue(istate)
             end if
@@ -90,8 +90,11 @@ subroutine perturbation(eigenvalue,num,direction)
     end if
     
     ! in the middle of every sweep do Perturbation space Diagnolization
-    if(nleft==(norbs-1)/2 .and. direction=="l" .and. Ifperturbation3==.false.) then
+    if(nleft==(norbs-1)/2 .and. direction=="l" .and. IfperturbationDVD==.true.) then
+        starttime=MPI_WTIME()
         call PerturbationSpaceDvD(eigenvalue)
+        endtime=MPI_WTIME()
+        call master_print_message(endtime-starttime,"Perturbation Space DVD TIME:")
     end if
     
     if(opmethod=="comple") then 

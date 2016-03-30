@@ -34,6 +34,7 @@ Subroutine Renormalization(direction)
     integer :: error,ierr
     integer :: iLrealdim,iRrealdim,isubM
     real(kind=r8),allocatable :: LRcoeff(:,:)
+    integer :: isvd
 
     call master_print_message("enter Renormalization subroutine")
 
@@ -87,6 +88,10 @@ Subroutine Renormalization(direction)
                 ! my new exScheme
                 call ExScheme2
             end if
+            write(*,*) "singular value:"
+            do isvd=1,5,1
+                write(*,*) singularvalue(isvd)
+            end do
             
             ! store the wavefunction
             call StoreWaveFunction

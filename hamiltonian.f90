@@ -80,7 +80,6 @@ subroutine JacobiDavidson_Wrapper(direction)
                 gap
     integer :: error,ierr
     integer :: i
-    real(kind=r8) :: starttime,endtime
     
 
 !--------------------------------------------------------------------
@@ -158,7 +157,6 @@ subroutine JacobiDavidson_Wrapper(direction)
     end if
 
     ! Get the diagonal element of hamiltonian
-    starttime=MPI_WTIME()
     if(opmethod=="comple") then
         call Complement(operamatbig1,bigcolindex1,bigrowindex1,Lrealdim,Rrealdim,subM)
     end if
@@ -172,8 +170,6 @@ subroutine JacobiDavidson_Wrapper(direction)
         goodbasis,&
         .false.)
     end if
-    endtime=MPI_WTIME()
-    call master_print_message(endtime-starttime,"HDIAGTIME:")
 
     ! Get the Initialcoeff Guess
     if(myid==0) then
@@ -343,7 +339,6 @@ Subroutine Davidson_Wrapper(direction)
     if(opmethod=="comple") then
         call Complement(operamatbig1,bigcolindex1,bigrowindex1,Lrealdim,Rrealdim,subM)
     end if
-    starttime=MPI_WTIME()
     if(logic_spinreversal/=0 .or. &
         (logic_C2/=0 .and. nleft==nright)) then
         call SymmHDiag(HDIAG)
@@ -353,10 +348,7 @@ Subroutine Davidson_Wrapper(direction)
         Hbig,Hbigcolindex,Hbigrowindex,&
         goodbasis,&
         .false.)
-    !   write(*,*) HDIAG
     end if
-    endtime=MPI_WTIME()
-    call master_print_message(endtime-starttime,"HDIAGTIME:")
 
 ! Get the Initialcoeff Guess
     if(myid==0) then

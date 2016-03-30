@@ -36,8 +36,10 @@ cap_goodbasis,ifperturbation)
     
     ! local
     integer :: iLrealdim,iRrealdim,ierr
+    real(kind=r8) :: starttime,endtime
     
     call master_print_message("enter in GetHDiag subroutine")
+    starttime=MPI_WTIME()
     
     if(myid==0) Hdiagnosymm=0.0D0
 
@@ -65,6 +67,8 @@ cap_goodbasis,ifperturbation)
         call Direct_HdiagNosymm(iLrealdim,iRrealdim,nbasis,&
                 cap_big,cap_bigcol,cap_bigrow,cap_goodbasis,Hdiagnosymm)
     end if
+    endtime=MPI_WTIME()
+    call master_print_message(endtime-starttime,"HDIAGTIME:")
     return
 
 end subroutine GetHDiag
