@@ -162,7 +162,11 @@ subroutine CopyCoeff2Coeffp
             firstindex=goodbasiscolp(coeffIFcolindexp(i))
             lastindex=goodbasiscolp(coeffIFcolindexp(i)+1)-1
             num=lastindex-firstindex+1
-            call Searchdivide(num,goodbasisp(firstindex:lastindex,1),rowindex,basisindex1)
+            call BinarySearch(num,goodbasisp(firstindex:lastindex,1),rowindex,basisindex1)
+            if(basisindex1==0) then
+                write(*,*) "basisindex1==0" 
+                stop
+            end if
             basisindex1=basisindex1+firstindex-1
             do istate=1,nstate,1
                 CoeffIFp(basisindex1,istate)=CoeffIF(i,istate)
@@ -684,7 +688,13 @@ subroutine PerturbationSpaceDvD(EIGS)
 
     ! Get the Initialcoeff Guess
     if(myid==0) then
-        call InitialStarter('i',dimN,NINIT,eigenvector)
+        ! call InitialStarter('i',dimN,NINIT,eigenvector)
+        ! from the first order corrected wavefunction
+        NINIT=nstate
+        do istate=1,nstate,1
+            call copy(coeffIFp(1:ngoodstatesp,istate),&
+                eigenvector((istate-1)*ngoodstatesp+1:istate*ngoodstatesp))
+        end do
     end if
 
     if(myid/=0) then  ! these parameter nouse in slaver process

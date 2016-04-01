@@ -192,7 +192,7 @@ end subroutine diagsyev
 !=============================================
 !=============================================
 
-subroutine spmatrotatebasis(Uncols,Unrows,Umat,Ucolindex,Urowindex,&
+subroutine SpMatRotateBasis(Uncols,Unrows,Umat,Ucolindex,Urowindex,&
                     Oncols,Onrows,Omat,Ocolindex,Orowindex,&
                     Anrows,Amat,Acolindex,Arowindex,maxnelement)
 ! this subroutine is to adapted operator matrix to new basis
@@ -272,7 +272,7 @@ subroutine spmatrotatebasis(Uncols,Unrows,Umat,Ucolindex,Urowindex,&
     deallocate(bufrowindex)
 return
 
-end subroutine spmatrotatebasis
+end subroutine SpMatRotateBasis
 
 !=============================================
 !=============================================
@@ -376,10 +376,6 @@ subroutine SpMatAdd(Ancols,Anrows,Amat,Amatcol,Amatrow,&
     real(kind=r8) :: Dmat(1)
     integer(kind=i4) :: Dmatcol(1)
     
-    !real(kind=r8) :: Dmat(Anrows)
-    !integer(kind=i4) :: Dmatcol(Anrows)
-    !integer :: i
-
     allocate(Cmat(maxnelement),stat=error)
     if(error/=0) stop
     allocate(Cmatcol(maxnelement),stat=error)
@@ -430,51 +426,16 @@ subroutine SpMatIJ(Anrows,irow,icol,Amat,Amatcol,Amatrow,output)
     real(kind=i8) :: output
     ! local
     integer :: i,j
-    logical :: iffind
-    integer :: testindex,firstindex,lastindex
+    integer :: num,index1
 
-    !iffind=.false.
-    !do i=Amatrow(irow),Amatrow(irow+1)-1,1
-    !    if(Amatcol(i)<icol) then
-    !        cycle
-    !    else if(Amatcol(i)==icol) then
-    !        output=Amat(i)
-    !        iffind=.true.
-    !        exit
-    !    else if(Amatcol(i)>icol) then
-    !        exit
-    !    end if
-    !end do
-    !if(iffind==.false.) then
-    !    output=0.0D0
-    !end if
+    num=Amatrow(irow+1)-Amatrow(irow)
     output=0.0D0
-    firstindex=Amatrow(irow)
-    lastindex=Amatrow(irow+1)-1
 
-    if(lastindex>=firstindex) then
-        if(Amatcol(lastindex)<=icol .or. Amatcol(firstindex)>=icol) then
-            if(Amatcol(firstindex)==icol) then
-                output=Amat(firstindex)
-            else if(Amatcol(lastindex)==icol) then
-                output=Amat(lastindex)
-            end if
-        else
-            testindex=(firstindex+lastindex)/2
-            do while(testindex/=firstindex)
-                if(Amatcol(testindex)<icol) then
-                    firstindex=testindex
-                else if(Amatcol(testindex)>icol) then
-                    lastindex=testindex
-                else if(Amatcol(testindex)==icol) then
-                    output=Amat(testindex)
-                    exit
-                end if
-                testindex=(firstindex+lastindex)/2
-            end do
-        end if
+    call BinarySearch(num,Amatcol(Amatrow(irow)),icol,index1)
+    if(index1/=0) then
+        output=Amat(index1+Amatrow(irow)-1)
     end if
-
+    
     return
 
 end subroutine SpMatIJ
@@ -698,7 +659,7 @@ end subroutine SpMMtrace
 !=============================================
 !=============================================
 
-subroutine GetSpmat1Vec(dim1,index1,first,last,Amat,Acol,Arow,direction,vecdim,vector)
+subroutine GetSpMat1Vec(dim1,index1,first,last,Amat,Acol,Arow,direction,vecdim,vector)
 ! this subroutine get the one row or one column of a sparse matrix
 ! dim1 :: the dimensiton of matrix A
 ! index1 :: the specific col/row index
@@ -779,16 +740,20 @@ end subroutine CopySpAtoB
 !=============================================
 !=============================================
 
-subroutine Searchdivide(num,keyvalue,targetvalue,index1)
+subroutine BinarySearch(num,keyvalue,targetvalue,index1)
     implicit none
     integer,intent(in) :: num,keyvalue(num),targetvalue
     integer,intent(out) :: index1
     ! local
     integer :: firstindex,lastindex,testindex
 
+    index1=0
+    if(num<=0 .or. &
+        keyvalue(1)>targetvalue .or. &
+        keyvalue(num)<targetvalue) return
+    
     firstindex=1
     lastindex=num
-    index1=0
 
     if(keyvalue(firstindex)==targetvalue) then
         index1=firstindex
@@ -809,13 +774,9 @@ subroutine Searchdivide(num,keyvalue,targetvalue,index1)
         testindex=(firstindex+lastindex)/2
     end do
     
-    if(index1==0) then
-        write(*,*) "Searchdivide index=0"
-        stop
-    end if
     return
 
-end subroutine Searchdivide
+end subroutine BinarySearch
 
 !=============================================
 !=============================================
