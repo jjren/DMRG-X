@@ -6,8 +6,9 @@ module checkmem_mod
 
     integer(kind=i4),allocatable :: noperamatbig1(:,:),noperamatsma1(:,:),noperamatbig2(:,:,:),noperamatsma2(:,:,:),&
         noperamatbig3(:,:,:),noperamatsma3(:,:,:),nHbig(:),nHsma(:),ncoeffIF(:),&
-        noperamatbig1p(:,:),noperamatsma1p(:,:),nHbigp(:),nHsmap(:),ncoeffIFp(:)
-    real(kind=r8) :: pppratiomax,hopratiomax,LRoutratiomax,pppVmidmax,hopmidmax,UVocc
+        noperamatbig1p(:,:),noperamatsma1p(:,:),nHbigp(:),nHsmap(:)
+    real(kind=r8) :: pppratiomax,hopratiomax,pppratiopmax,hopratiopmax,LRoutratiomax,pppVmidmax,hopmidmax,UVocc
+    integer(kind=i4) :: ncoeffIFp
 
     contains
 
@@ -114,12 +115,16 @@ subroutine checkmem_OPmodMat(char1,ratioin,n)
     integer,intent(in) :: n
     real(kind=r8),intent(in) :: ratioin(n)
     
+        ! max is the occupation percentage
     if(char1=="hopnelement") then
         call OPmodMat_inner(hopratiomax,ratioin,n)
     else if(char1=="pppVnelement") then
         call OPmodMat_inner(pppratiomax,ratioin,n)
+    else if(char1=="hopnelementp") then
+        call OPmodMat_inner(hopratiopmax,ratioin,n)
+    else if(char1=="pppVnelementp") then
+        call OPmodMat_inner(pppratiopmax,ratioin,n)
     else if(char1=="LRoutnelement") then
-        ! max is the occupation percentage
         call OPmodMat_inner(LRoutratiomax,ratioin,n)
     else if(char1=="pppVmidmat") then
         call OPmodMat_inner(pppVmidmax,ratioin,n)
@@ -177,6 +182,7 @@ end subroutine checkmem
 
 subroutine checkmem_operamat
     implicit none
+    integer :: istate
 
     if(myid==0) then
         call check2d_master(Hbigrowindex,4*subM,2,nHbig)
@@ -185,8 +191,11 @@ subroutine checkmem_operamat
         if(logic_perturbation==1) then
             call check2d_master(Hbigrowindexp,4*subMp,2,nHbigp)
             call check2d_master(Hsmarowindexp,subMp,2,nHsmap)
-            !call check2d_master(coeffIFrowindexp,4*subMp,C2state,ncoeffIFp)
-            ncoeffIFp=coeffIFplast
+            do istate=1,nstate,1
+                if(ncoeffIFp<coeffIFplast) then
+                    ncoeffIFp=coeffIFplast
+                end if
+            end do
         end if
     end if
 
@@ -216,12 +225,15 @@ subroutine checkmem_output
     USE MPI
     implicit none
     integer :: i,iorb,jorb
-    real(kind=r8) :: pppratiomax0,hopratiomax0,LRoutratiomax0,&
+    real(kind=r8) :: pppratiomax0,hopratiomax0,&
+            pppratiopmax0,hopratiopmax0,LRoutratiomax0,&
             pppVmidmax0,hopmidmax0
     integer :: ierr
 
     call MPI_REDUCE(pppratiomax,pppratiomax0,1,MPI_REAL8,MPI_MAX,0,MPI_COMM_WORLD,ierr)
     call MPI_REDUCE(hopratiomax,hopratiomax0,1,MPI_REAL8,MPI_MAX,0,MPI_COMM_WORLD,ierr)
+    call MPI_REDUCE(pppratiopmax,pppratiopmax0,1,MPI_REAL8,MPI_MAX,0,MPI_COMM_WORLD,ierr)
+    call MPI_REDUCE(hopratiopmax,hopratiopmax0,1,MPI_REAL8,MPI_MAX,0,MPI_COMM_WORLD,ierr)
     call MPI_REDUCE(LRoutratiomax,LRoutratiomax0,1,MPI_REAL8,MPI_MAX,0,MPI_COMM_WORLD,ierr)
     call MPI_REDUCE(pppVmidmax,pppVmidmax0,1,MPI_REAL8,MPI_MAX,0,MPI_COMM_WORLD,ierr)
     call MPI_REDUCE(hopmidmax,hopmidmax0,1,MPI_REAL8,MPI_MAX,0,MPI_COMM_WORLD,ierr)
@@ -230,12 +242,14 @@ subroutine checkmem_output
         open(unit=99,file="checkmem.out",status="replace")
 
         write(99,*) "OP module"
-        write(99,*) "pppratiomax0=",1.0D0/pppratiomax0
-        write(99,*) "hopratiomax0=",1.0D0/hopratiomax0
-        write(99,*) "LRoutratiomax0=",1.0D0/LRoutratiomax0
-        write(99,*) "pppVmidmax0=",1.0D0/pppVmidmax0
-        write(99,*) "hopmidmax0=",1.0D0/hopmidmax0
+        write(99,*) "pppratiomax=",1.0D0/pppratiomax0
+        write(99,*) "hopratiomax=",1.0D0/hopratiomax0
+        write(99,*) "LRoutratiomax=",1.0D0/LRoutratiomax0
+        write(99,*) "pppVmidmax=",1.0D0/pppVmidmax0
+        write(99,*) "hopmidmax=",1.0D0/hopmidmax0
         write(99,*) "UVratio=",1.0D0/UVocc
+        write(99,*) "pppratiomaxp=",1.0D0/pppratiopmax0
+        write(99,*) "hopratiomaxp=",1.0D0/hopratiopmax0
 
         write(99,*) "bigrowindex1"
         write(99,*) "bigdim1=",bigdim1
@@ -277,8 +291,8 @@ subroutine checkmem_output
             end do
             write(99,*) "coeffIFp"
             write(99,*) "coeffIFdimp",coeffIFdimp
-            write(99,*) ncoeffIFp(:)
-            write(99,*) DBLE(16*subMp*subMp)/DBLE(ncoeffIFp(:))
+            write(99,*) ncoeffIFp
+            write(99,*) DBLE(16*subMp*subMp)/DBLE(ncoeffIFp)
             write(99,*) "Hbigp"
             write(99,*) "Hbigdimp=",Hbigdimp
             write(99,*) nHbigp(:)
@@ -372,7 +386,6 @@ subroutine Allocate_checkmem
             allocate(noperamatsma1p(norbs,3))
             allocate(nHbigp(2))
             allocate(nHsmap(2))
-            allocate(ncoeffIFp(C2state))
             noperamatbig1p=0
             noperamatsma1p=0
             nHbigp=0
@@ -401,7 +414,7 @@ subroutine Deallocate_checkmem
             deallocate(noperamatbig3,noperamatsma3)
         end if
         if(logic_perturbation==1) then
-            deallocate(noperamatbig1p,noperamatsma1p,nHbigp,nHsmap,ncoeffIFp)
+            deallocate(noperamatbig1p,noperamatsma1p,nHbigp,nHsmap)
         end if
     end if
     return

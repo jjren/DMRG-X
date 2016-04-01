@@ -158,7 +158,7 @@ subroutine JacobiDavidson_Wrapper(direction)
 
     ! Get the diagonal element of hamiltonian
     if(opmethod=="comple") then
-        call Complement(operamatbig1,bigcolindex1,bigrowindex1,Lrealdim,Rrealdim,subM)
+        call Complement(operamatbig1,bigcolindex1,bigrowindex1,Lrealdim,Rrealdim,subM,0)
     end if
     if(logic_spinreversal/=0 .or. &
         (logic_C2/=0 .and. nleft==nright)) then
@@ -337,7 +337,7 @@ Subroutine Davidson_Wrapper(direction)
     
 ! Get the diagonal element of hamiltonian
     if(opmethod=="comple") then
-        call Complement(operamatbig1,bigcolindex1,bigrowindex1,Lrealdim,Rrealdim,subM)
+        call Complement(operamatbig1,bigcolindex1,bigrowindex1,Lrealdim,Rrealdim,subM,0)
     end if
     if(logic_spinreversal/=0 .or. &
         (logic_C2/=0 .and. nleft==nright)) then

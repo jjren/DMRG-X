@@ -23,16 +23,18 @@ contains
 !============================================================================
 !============================================================================
 
-subroutine Complement(cap_big,cap_bigcol,cap_bigrow,iLrealdim,iRrealdim,isubM)
+subroutine Complement(cap_big,cap_bigcol,cap_bigrow,iLrealdim,iRrealdim,isubM,pertop)
 
     implicit none
-    integer,intent(in) :: iLrealdim,iRrealdim,isubM
+    integer,intent(in) :: iLrealdim,iRrealdim,isubM,pertop
     real(kind=r8),intent(in) :: cap_big(:,:)
     integer(kind=i4),intent(in) :: cap_bigcol(:,:),cap_bigrow(:,:)
+    
+    ! local
     integer :: ileft
     real(kind=r8) :: tmpratio(2)
     
-    call allocate_Complement(iRrealdim,isubM)
+    call allocate_Complement(iRrealdim,isubM,pertop)
     if(myid/=0) then
         ! local process R space operator transfer to L space
         call Comp_LocalOpera(cap_big,cap_bigcol,cap_bigrow,iLrealdim,iRrealdim)
@@ -44,11 +46,19 @@ subroutine Complement(cap_big,cap_bigcol,cap_bigrow,iLrealdim,iRrealdim,isubM)
         do ileft=1,nleft+1,1
             if(myid==pppVComid(ileft,1)) THEN
                 tmpratio(1)=DBLE(pppVComrow(4*iRrealdim+1,1,pppVComid(ileft,2)))/DBLE(16*isubM*isubM)
-                call checkmem_OPmodMat("pppVnelement",tmpratio,1)
+                if(pertop==1) then
+                    call checkmem_OPmodMat("pppVnelementp",tmpratio,1)
+                else if(pertop==0) then
+                    call checkmem_OPmodMat("pppVnelement",tmpratio,1)
+                end if
             end if
             if(myid==hopComid(ileft,1)) THEN
                 tmpratio(1:2)=DBLE(hopComrow(4*iRrealdim+1,1:2,hopComid(ileft,2)))/DBLE(16*isubM*isubM)
-                call checkmem_OPmodMat("hopnelement",tmpratio,1)
+                if(pertop==1) then
+                    call checkmem_OPmodMat("hopnelementp",tmpratio,2)
+                else
+                    call checkmem_OPmodMat("hopnelement",tmpratio,2)
+                end if
             end if
         end do
     end if
@@ -59,18 +69,23 @@ end subroutine Complement
 !============================================================================
 !============================================================================
 
-subroutine allocate_Complement(iRrealdim,isubM)
+subroutine allocate_Complement(iRrealdim,isubM,pertop)
 ! allocate the complementary operator memory
 ! and operator location
 
     implicit none
-    integer(kind=i4),intent(in) :: iRrealdim,isubM
+    integer(kind=i4),intent(in) :: iRrealdim,isubM,pertop
     ! local
     integer :: ileft,iright
-
-    pppVnelement=CEILING(DBLE(16*isubM*isubM)/pppmatratio)
-    hopnelement=CEILING(DBLE(16*isubM*isubM)/hopmatratio)
     
+    if(pertop==0) then
+        pppVnelement=CEILING(DBLE(16*isubM*isubM)/pppmatratio)
+        hopnelement=CEILING(DBLE(16*isubM*isubM)/hopmatratio)
+    else if(pertop==1) then
+        pppVnelement=CEILING(DBLE(16*isubM*isubM)/pppmatratiop)
+        hopnelement=CEILING(DBLE(16*isubM*isubM)/hopmatratiop)
+    end if
+
     allocate(pppVComid(nleft+1,2))
     pppVComid=0
     allocate(hopComid(nleft+1,2)) 
@@ -177,10 +192,6 @@ subroutine LOsingle(cterm,preintegral,linkinfo,&
                     stop
                 end if
                 Comoperaindex=Comid(ileft,2)
-                
-                !write(*,*) "cterm",cterm
-                !write(*,*) ileft,iright
-                !write(*,*) Comoperaindex
 
                 call SpMatAdd(4*iRrealdim,4*iRrealdim,Commat(:,ispin,Comoperaindex),&
                     Comcol(:,ispin,Comoperaindex),Comrow(:,ispin,Comoperaindex),&
@@ -388,7 +399,11 @@ subroutine EOpair(cterm,proc1,proc2,count1,index1,count2,index2,preintegral,link
     integer :: ierr
 
     if(scheme==1) then
-        recvmatdim=CEILING(DBLE(16*iRrealdim*iRrealdim)/bigratio1)
+        if(iLrealdim>subM .or. iRrealdim>subM) then
+            recvmatdim=bigdim1p
+        else
+            recvmatdim=bigdim1
+        end if
     else if(scheme==2) then
         recvmatdim=Comdim
     end if

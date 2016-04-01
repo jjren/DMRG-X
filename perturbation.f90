@@ -42,7 +42,7 @@ subroutine perturbation(eigenvalue,num,direction)
         ngoodstatesp,goodbasisp,goodbasiscolp(1:4*Rrealdimp+1))
 
     if(opmethod=="comple") then
-        call Complement(operamatbig1p,bigcolindex1p,bigrowindex1p,Lrealdimp,Rrealdimp,subMp)
+        call Complement(operamatbig1p,bigcolindex1p,bigrowindex1p,Lrealdimp,Rrealdimp,subMp,1)
     end if
 
     ! Get the diagonal element in the 4Mp*4Mp basis

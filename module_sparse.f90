@@ -78,8 +78,10 @@ module module_sparse
         pppmatratio,hopmatratio,LRoutratio,UVmatratio,&
         coeffIFratio,bigratio1,smaratio1,bigratio2,&
         smaratio2,bigratio3,smaratio3,Hbigratio,&
-        Hsmaratio,pppVmidratio,hopmidratio  ! sparse radio
-    
+        Hsmaratio,pppVmidratio,hopmidratio,&
+        bigratio1p,smaratio1p,Hbigratiop,Hsmaratiop,coeffIFratiop,& ! sparse radio
+        pppmatratiop,hopmatratiop
+
     integer,allocatable,public :: operanum1(:),operanum2(:),operanum3(:)
     ! store the number of operators on every process
     ! operanum1 is the max site operator every process have
@@ -113,11 +115,11 @@ subroutine AllocateArray
     coeffIFdim=CEILING(DBLE(16*subM*subM)/coeffIFratio)
     
     ! perturbation mode
-    bigdim1p=CEILING(DBLE(16*subMp*subMp)/bigratio1)
-    smadim1p=CEILING(DBLE(subMp*subMp)/smaratio1)
-    Hbigdimp=CEILING(DBLE(16*subMp*subMp)/Hbigratio)
-    Hsmadimp=CEILING(DBLE(subMp*subMp)/Hsmaratio)
-    coeffIFdimp=CEILING(DBLE(16*subMp*subMp)/coeffIFratio)
+    bigdim1p=CEILING(DBLE(16*subMp*subMp)/bigratio1p)
+    smadim1p=CEILING(DBLE(subMp*subMp)/smaratio1p)
+    Hbigdimp=CEILING(DBLE(16*subMp*subMp)/Hbigratiop)
+    Hsmadimp=CEILING(DBLE(subMp*subMp)/Hsmaratiop)
+    coeffIFdimp=CEILING(DBLE(16*subMp*subMp)/coeffIFratiop)
 
 ! allocate memory 
     if(myid/=0) then
@@ -251,7 +253,7 @@ subroutine sparse_default
 ! set the default ratio according to the subM
     use MPI
     implicit none
-    integer,parameter :: nratio=15
+    integer,parameter :: nratio=22
     real(kind=r8) :: sparseratio(nratio)
     integer :: ierr
     integer :: i
@@ -266,21 +268,29 @@ subroutine sparse_default
 
     call MPI_BCAST(sparseratio(1),nratio,MPI_REAL8,0,MPI_COMM_WORLD,ierr)
     
-    bigratio1    = sparseratio(1)   
-    smaratio1    = sparseratio(2)         
-    bigratio2    = sparseratio(3)         
-    smaratio2    = sparseratio(4)            
-    bigratio3    = sparseratio(5)          
-    smaratio3    = sparseratio(6)           
-    Hbigratio    = sparseratio(7)            
-    Hsmaratio    = sparseratio(8)             
-    pppmatratio  = sparseratio(9)            
-    pppVmidratio = sparseratio(10)            
-    hopmatratio  = sparseratio(11)             
-    hopmidratio  = sparseratio(12)             
-    LRoutratio   = sparseratio(13)             
-    UVmatratio   = sparseratio(14)           
-    coeffIFratio = sparseratio(15)
+    bigratio1       = sparseratio(1)   
+    smaratio1       = sparseratio(2)         
+    bigratio2       = sparseratio(3)         
+    smaratio2       = sparseratio(4)            
+    bigratio3       = sparseratio(5)          
+    smaratio3       = sparseratio(6)           
+    Hbigratio       = sparseratio(7)            
+    Hsmaratio       = sparseratio(8)             
+    pppmatratio     = sparseratio(9)            
+    pppVmidratio    = sparseratio(10)            
+    hopmatratio     = sparseratio(11)             
+    hopmidratio     = sparseratio(12)             
+    LRoutratio      = sparseratio(13)             
+    UVmatratio      = sparseratio(14)           
+    coeffIFratio    = sparseratio(15)
+    
+    bigratio1p      = sparseratio(16)   
+    smaratio1p      = sparseratio(17)         
+    Hbigratiop      = sparseratio(18)            
+    Hsmaratiop      = sparseratio(19)             
+    pppmatratiop    = sparseratio(20)            
+    hopmatratiop    = sparseratio(21)             
+    coeffIFratiop   = sparseratio(22)
 
     if(myid==0) then
         write(*,*) "bigratio1=",    bigratio1
@@ -298,6 +308,14 @@ subroutine sparse_default
         write(*,*) "LRoutratio=" ,  LRoutratio
         write(*,*) "UVmatratio=" ,  UVmatratio
         write(*,*) "coeffIFratio=", coeffIFratio
+        
+        write(*,*) "bigratio1p=",    bigratio1p
+        write(*,*) "smaratio1p=",    smaratio1p
+        write(*,*) "Hbigratiop=",    Hbigratiop
+        write(*,*) "Hsmaratiop=",    Hsmaratiop
+        write(*,*) "pppmatratiop=",  pppmatratiop
+        write(*,*) "hopmatratiop=",  hopmatratiop
+        write(*,*) "coeffIFratiop=", coeffIFratiop
     end if
 return
 
