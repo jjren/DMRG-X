@@ -66,6 +66,10 @@ Subroutine Finit_MPS
                 ! in the ifopenperturbation=.false. case
                 ! only the big matrix is copyed from subM space to subMp space
                 call pre_perturbation('L',"sma")
+                call basisindex(4*Lrealdimp,4*Rrealdimp,&
+                    quantabigLp(1:4*Lrealdimp,1:2),&
+                    quantabigRp(1:4*Rrealdimp,1:2),&
+                    ngoodstatesp,goodbasisp,goodbasiscolp(1:4*Rrealdimp+1))
                 call CopyCoeff2Coeffp
             end if
         end if

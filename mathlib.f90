@@ -778,4 +778,45 @@ end subroutine CopySpAtoB
 
 !=============================================
 !=============================================
+
+subroutine Searchdivide(num,keyvalue,targetvalue,index1)
+    implicit none
+    integer,intent(in) :: num,keyvalue(num),targetvalue
+    integer,intent(out) :: index1
+    ! local
+    integer :: firstindex,lastindex,testindex
+
+    firstindex=1
+    lastindex=num
+    index1=0
+
+    if(keyvalue(firstindex)==targetvalue) then
+        index1=firstindex
+    else if(keyvalue(lastindex)==targetvalue) then
+        index1=lastindex
+    end if
+
+    testindex=(firstindex+lastindex)/2
+    do while(testindex/=firstindex)
+        if(keyvalue(testindex)<targetvalue) then
+            firstindex=testindex
+        else if(keyvalue(testindex)>targetvalue) then
+            lastindex=testindex
+        else if(keyvalue(testindex)==targetvalue) then
+            index1=testindex
+            exit
+        end if
+        testindex=(firstindex+lastindex)/2
+    end do
+    
+    if(index1==0) then
+        write(*,*) "Searchdivide index=0"
+        stop
+    end if
+    return
+
+end subroutine Searchdivide
+
+!=============================================
+!=============================================
 end module MathLib

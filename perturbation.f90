@@ -48,7 +48,6 @@ subroutine perturbation(eigenvalue,num,direction)
     ! Get the diagonal element in the 4Mp*4Mp basis
     call GetHdiagp
     
-
     call CopyCoeff2Coeffp
     
     if(myid==0) then
@@ -133,30 +132,44 @@ subroutine CopyCoeff2Coeffp
     implicit none
     integer :: istate
     integer :: job(8),info,i
-    integer :: remainder
+    integer :: remainder,rowindex,basisindex1,num,firstindex,lastindex
     
-    job(1)=0
-    job(2)=1
-    job(3)=1
-    job(5)=coeffIFdim
-    job(6)=3
     
     if(myid==0) then
-        do istate=1,nstate,1
-            call mkl_dcsrcoo(job, 4*Lrealdim, CoeffIF(:,istate), CoeffIFcolindex(:,istate), CoeffIFrowindex(:,istate),&
-                CoeffIFplast , CoeffIfp(:,istate), CoeffIFrowindexp, CoeffIFcolindexp, info)
-            if(info/=0) then
-                call master_print_message(info,"in CopyCoeff2Coeffp info/=0")
-            end if
-        end do
+        job(1)=0
+        job(2)=1
+        job(3)=1
+        job(5)=coeffIFdim
+        job(6)=3
+        
+        coeffIFp(1:ngoodstatesp,1:nstate)=0.0D0
+        ! only get the coordinate structure
+        call mkl_dcsrcoo(job, 4*Lrealdim, CoeffIF(:,1), CoeffIFcolindex(:,1), CoeffIFrowindex(:,1),&
+            CoeffIFplast , CoeffIfp(:,1), CoeffIFrowindexp, CoeffIFcolindexp, info)
+        if(info/=0) then
+            call master_print_message(info,"in CopyCoeff2Coeffp info/=0")
+        end if
+        CoeffIfp(:,1)=0.0D0
+
         do i=1,CoeffIfplast,1
             remainder=mod(coeffIfrowindexp(i),Lrealdim)
             if(remainder==0) then
-                coeffIFrowindexp(i)=(coeffIfrowindexp(i)/Lrealdim-1)*Lrealdimp+Lrealdim
+                rowindex=(coeffIfrowindexp(i)/Lrealdim-1)*Lrealdimp+Lrealdim
             else
-                coeffIFrowindexp(i)=(coeffIfrowindexp(i)/Lrealdim)*Lrealdimp+remainder
+                rowindex=(coeffIfrowindexp(i)/Lrealdim)*Lrealdimp+remainder
             end if
+
+            firstindex=goodbasiscolp(coeffIFcolindexp(i))
+            lastindex=goodbasiscolp(coeffIFcolindexp(i)+1)-1
+            num=lastindex-firstindex+1
+            call Searchdivide(num,goodbasisp(firstindex:lastindex,1),rowindex,basisindex1)
+            basisindex1=basisindex1+firstindex-1
+            do istate=1,nstate,1
+                CoeffIFp(basisindex1,istate)=CoeffIF(i,istate)
+            end do
         end do
+        call scopy(ngoodstatesp,goodbasisp(1,1),1,coeffIFrowindexp(1),1)
+        call scopy(ngoodstatesp,goodbasisp(1,2),1,coeffIFcolindexp(1),1)
     end if
 return
 end subroutine CopyCoeff2Coeffp
@@ -182,20 +195,18 @@ subroutine correct_coeff(eigenvalue,num)
 
     if(myid==0) then
         do ibasis=1,ngoodstatesp,1
-                remainder=mod(goodbasisp(ibasis,1),Lrealdimp)
-                if(remainder==0) remainder=Lrealdimp
-                if(goodbasisp(ibasis,2)<=4*Rrealdim .and. remainder<=Lrealdim) then
-                    cycle
-                else
-                    coeffIFplast=coeffIFplast+1
-                    CoeffIFcolindexp(coeffIFplast)=goodbasisp(ibasis,2)
-                    CoeffIFrowindexp(coeffIFplast)=goodbasisp(ibasis,1)
-                    do istate=1,nstate,1
-                        CoeffIFp(coeffIFplast,istate)=H0lr(ibasis,istate)/(eigenvalue(istate)-Hdiagp(ibasis))
-                        correctenergy2(istate)=correctenergy2(istate)+H0lr(ibasis,istate)*&
-                            H0lr(ibasis,istate)/(eigenvalue(istate)-Hdiagp(ibasis))
-                    end do
-                end if
+            remainder=mod(goodbasisp(ibasis,1),Lrealdimp)
+            if(remainder==0) remainder=Lrealdimp
+            if(goodbasisp(ibasis,2)<=4*Rrealdim .and. remainder<=Lrealdim) then
+                cycle
+            else
+                coeffIFplast=coeffIFplast+1
+                do istate=1,nstate,1
+                    CoeffIFp(ibasis,istate)=H0lr(ibasis,istate)/(eigenvalue(istate)-Hdiagp(ibasis))
+                    correctenergy2(istate)=correctenergy2(istate)+H0lr(ibasis,istate)*&
+                        H0lr(ibasis,istate)/(eigenvalue(istate)-Hdiagp(ibasis))
+                end do
+            end if
         end do
 
         do istate=1,nstate,1
@@ -596,9 +607,7 @@ subroutine PerturbationSpaceDvD(EIGS)
     use InitialGuess
     use ABop
     implicit none
-    
     real(kind=r8),intent(inout) :: EIGS(:)
-
     ! local
     real(kind=r8),allocatable :: RES(:),eigenvector(:)
     integer ::        dimN         , &
@@ -622,7 +631,7 @@ subroutine PerturbationSpaceDvD(EIGS)
                 gap
     integer :: error,ierr
     integer :: i,istate,ibasis
-    real(kind=r8) :: starttime,endtime
+    real(kind=r8) :: starttime,endtime,overlap
     
 
 !--------------------------------------------------------------------
@@ -728,11 +737,15 @@ subroutine PerturbationSpaceDvD(EIGS)
     
     if(myid==0) then
         ! in the perturbation space diagonalization update the coeffIFp
+        write(*,*) "overlap with first order perturabtion wavefunction"
         do istate=1,nstate,1
+            overlap = dot(eigenvector((istate-1)*ngoodstatesp+1:istate*ngoodstatesp),&
+                coeffIFp(1:ngoodstatesp,istate))
+           !overlap = dsdot(ngoodstatesp,eigenvector((istate-1)*ngoodstatesp+1:istate*ngoodstatesp),1,&
+           !     coeffIFp(1:ngoodstatesp,istate),1)
+            write(*,*) overlap
             call copy(eigenvector((istate-1)*ngoodstatesp+1:istate*ngoodstatesp),coeffIFp(:,istate))
         end do
-        call scopy(ngoodstatesp,goodbasisp(1,1),1,coeffIFrowindexp(1),1)
-        call scopy(ngoodstatesp,goodbasisp(1,2),1,coeffIFcolindexp(1),1)
         
         call DPJDCLEANUP
         deallocate(RES)

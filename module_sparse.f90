@@ -293,6 +293,7 @@ subroutine sparse_default
         write(*,*) "Hsmaratio=",    Hsmaratio
         write(*,*) "pppmatratio=",  pppmatratio
         write(*,*) "pppVmidratio=",  pppVmidratio
+        write(*,*) "hopmatratio=",  hopmatratio
         write(*,*) "hopmidratio=",  hopmidratio
         write(*,*) "LRoutratio=" ,  LRoutratio
         write(*,*) "UVmatratio=" ,  UVmatratio
