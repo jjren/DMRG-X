@@ -472,7 +472,7 @@ subroutine Calc_Localspin_link
                             coeffIF(:,j),coeffIFcolindex(:,j),coeffIFrowindex(:,j), &
                             Ropmat(:,1),Ropmatcol(:,1),Ropmatrow(:,1), &
                             midmat,midmatcol,midmatrow,midnelement,info)
-                    call checkinfo(info)
+                    call checkinfo(info,"lospi1")
                 
                     ! OLL'*(OC)L'R
                     operaindex3=orbid3(l,l,2)-1
@@ -480,20 +480,20 @@ subroutine Calc_Localspin_link
                             operamatbig3(:,operaindex3),bigcolindex3(:,operaindex3),bigrowindex3(:,operaindex3), &
                             midmat,midmatcol,midmatrow,&
                             Spaddmat,Spaddcolindex,Spaddrowindex,midnelement,info)
-                    call checkinfo(info)
+                    call checkinfo(info,"lospi2")
 
                 ! (niup-nidown)*(njup-njdown)
                     call mkl_dcsrmultcsr('N',0,8,4*subM,4*subM,4*subM, &
                             coeffIF(:,j),coeffIFcolindex(:,j),coeffIFrowindex(:,j), &
                             Ropmat(:,2),Ropmatcol(:,2),Ropmatrow(:,2), &
                             midmat,midmatcol,midmatrow,midnelement,info)
-                    call checkinfo(info)
+                    call checkinfo(info,"lospi3")
                     operaindex2=orbid2(l,l,2)*2
                     call mkl_dcsrmultcsr('N',0,8,4*subM,4*subM,4*subM, &
                             operamatbig2(:,operaindex2),bigcolindex2(:,operaindex2),bigrowindex2(:,operaindex2), &
                             midmat,midmatcol,midmatrow,&
                             midmat2,midmatcol2,midmatrow2,midnelement,info)
-                    call checkinfo(info)
+                    call checkinfo(info,"lospi4")
 
                 ! add the two conponent
                 !   call SpMatAdd(4*subM,4*subM,Spaddmat,Spaddcolindex,Spaddrowindex,'N',0.25D0,&

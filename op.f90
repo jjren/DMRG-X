@@ -693,13 +693,13 @@ cap_quantabigL,cap_quantabigR,cap_goodbasis,cap_goodbasiscol)
                         cap_Hbig(:,1),cap_Hbigcol(:,1),cap_Hbigrow(:,1), &
                         LRcoeffin(:,istate),LRcoeffincol(:,istate),LRcoeffinrow(:,istate), &
                         buffmat,buffmatcol,buffmatrow,LRoutnelement,info)
-                    call checkinfo(info)
+                    call checkinfo(info,"LRout1")
                 else ! 1*HR
                     call mkl_dcsrmultcsr('N',0,8,4*iLrealdim,4*iRrealdim,4*iRrealdim, &
                         LRcoeffin(:,istate),LRcoeffincol(:,istate),LRcoeffinrow(:,istate), &
                         cap_Hbig(:,2),cap_Hbigcol(:,2),cap_Hbigrow(:,2), &
                         buffmat,buffmatcol,buffmatrow,LRoutnelement,info)
-                    call checkinfo(info)
+                    call checkinfo(info,"LRout2")
                 end if
                 ! add LRcoeffout and bufmat
                 call SpMatAdd(4*iRrealdim,4*iLrealdim,LRcoeffout(:,istate),LRcoeffoutcol(:,istate),LRcoeffoutrow(:,istate),&
@@ -849,7 +849,7 @@ subroutine ContractLR(cterm,LRcoeffin,LRcoeffincol,LRcoeffinrow,&
                         Commat(:,ispin,Comid(ileft,2)),Comcol(:,ispin,Comid(ileft,2)),&
                         Comrow(:,ispin,Comid(ileft,2)), &
                         midmat,midmatcol,midmatrow,midmaxnelement,info)
-                    call checkinfo(info)
+                    call checkinfo(info,"opmat1")
                 else
                     call SpMMtoSp('N','T',4*iLrealdim,4*iRrealdim,4*iRrealdim,4*iRrealdim,4*iLrealdim,&
                             LRcoeffin(:,istate),LRcoeffincol(:,istate),LRcoeffinrow(:,istate), &
@@ -891,7 +891,7 @@ subroutine ContractLR(cterm,LRcoeffin,LRcoeffincol,LRcoeffinrow,&
                     cap_big(:,operaindex),cap_bigcol(:,operaindex),cap_bigrow(:,operaindex), &
                     midmat,midmatcol,midmatrow, &
                     buffmat,buffmatcol,buffmatrow,LRoutmaxnelement,info)
-                call checkinfo(info)
+                call checkinfo(info,"LRout3")
                 
                 ! add LRcoeffout and buffmat
                 call SpMatAdd(4*iRrealdim,4*iLrealdim,LRcoeffout(:,istate),LRcoeffoutcol(:,istate),LRcoeffoutrow(:,istate),&
@@ -1128,13 +1128,13 @@ cap_quantabigL,cap_quantabigR,cap_goodbasis,cap_goodbasiscol)
                         cap_Hbig(:,1),cap_Hbigcol(:,1),cap_Hbigrow(:,1), &
                         LRcoeffin(:,istate),LRcoeffincol(:,istate),LRcoeffinrow(:,istate), &
                         buffmat,buffmatcol,buffmatrow,LRoutnelement,info)
-                    call checkinfo(info)
+                    call checkinfo(info,"LRout4")
                 else ! 1*HR
                     call mkl_dcsrmultcsr('N',0,8,4*iLrealdim,4*iRrealdim,4*iRrealdim, &
                         LRcoeffin(:,istate),LRcoeffincol(:,istate),LRcoeffinrow(:,istate), &
                         cap_Hbig(:,2),cap_Hbigcol(:,2),cap_Hbigrow(:,2), &
                         buffmat,buffmatcol,buffmatrow,LRoutnelement,info)
-                    call checkinfo(info)
+                    call checkinfo(info,"LRout5")
                 end if
                 ! add LRcoeffout and bufmat
                 call SpMatAdd(4*iRrealdim,4*iLrealdim,LRcoeffout(:,istate),LRcoeffoutcol(:,istate),LRcoeffoutrow(:,istate),&
@@ -1232,7 +1232,7 @@ cap_quantabigL,cap_quantabigR,cap_goodbasis,cap_goodbasiscol)
                         LRcoeffin(:,istate),LRcoeffincol(:,istate),LRcoeffinrow(:,istate), &
                         pppVmat,pppVmatcol,pppVmatrow, &
                         midmat,midmatcol,midmatrow,npppVmidmat,info)
-                    call checkinfo(info)
+                    call checkinfo(info,"pppmid")
 
                     tmpratio(1)=DBLE(midmatrow(4*iLrealdim+1))/DBLE(16*isubM*isubM)
                     call checkmem_OPmodMat("pppVmidmat",tmpratio(1),1)
@@ -1244,7 +1244,7 @@ cap_quantabigL,cap_quantabigR,cap_goodbasis,cap_goodbasiscol)
                         cap_big(:,operaindex),cap_bigcol(:,operaindex),cap_bigrow(:,operaindex), &
                         midmat,midmatcol,midmatrow, &
                         buffmat,buffmatcol,buffmatrow,LRoutnelement,info)
-                    call checkinfo(info)
+                    call checkinfo(info,"LRout6")
 
                     ! add LRcoeffout and buffmat
                     call SpMatAdd(4*iRrealdim,4*iLrealdim,LRcoeffout(:,istate),LRcoeffoutcol(:,istate),LRcoeffoutrow(:,istate),&
@@ -1390,7 +1390,7 @@ cap_quantabigL,cap_quantabigR,cap_goodbasis,cap_goodbasiscol)
                                     LRcoeffin(:,istate),LRcoeffincol(:,istate),LRcoeffinrow(:,istate), &
                                     hopmat(1,ispin),hopmatcol(1,ispin),hopmatrow(1,ispin), &
                                     midmat,midmatcol,midmatrow,nhopmidmat,info)
-                            call checkinfo(info)
+                            call checkinfo(info,"hopmid")
                         else
                             call  SpMMtoSp('N','T',4*iLrealdim,4*iRrealdim,4*iRrealdim,4*iRrealdim,4*iLrealdim,&
                                     LRcoeffin(:,istate),LRcoeffincol(:,istate),LRcoeffinrow(:,istate), &
@@ -1416,13 +1416,13 @@ cap_quantabigL,cap_quantabigR,cap_goodbasis,cap_goodbasiscol)
                                 cap_big(:,operaindex-3+ispin),cap_bigcol(:,operaindex-3+ispin),cap_bigrow(:,operaindex-3+ispin), &
                                 midmat,midmatcol,midmatrow, &
                                 buffmat,buffmatcol,buffmatrow,LRoutnelement,info)
-                            call checkinfo(info)
+                            call checkinfo(info,"LRout7")
                         else
                             call mkl_dcsrmultcsr('T',0,8,4*iLrealdim,4*iLrealdim,4*iRrealdim, &
                                 cap_big(:,operaindex-5+ispin),cap_bigcol(:,operaindex-5+ispin),cap_bigrow(:,operaindex-5+ispin), &
                                 midmat,midmatcol,midmatrow, &
                                 buffmat,buffmatcol,buffmatrow,LRoutnelement,info)
-                            call checkinfo(info)
+                            call checkinfo(info,"LRout8")
                         end if
 
                         call SpMatAdd(4*iRrealdim,4*iLrealdim,LRcoeffout(:,istate),LRcoeffoutcol(:,istate),LRcoeffoutrow(:,istate),&

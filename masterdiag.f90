@@ -99,13 +99,13 @@ subroutine masterop(bigdim,smadim,coeff,newcoeff)
                     Hbig(:,1),Hbigcolindex(:,1),Hbigrowindex(:,1), &
                     LRcoeffin(:,i),LRcoeffincol(:,i),LRcoeffinrow(:,i), &
                     buffmat,buffmatcol,buffmatrow,LRoutnelement,info)
-                call checkinfo(info)
+                call checkinfo(info,"madia1")
             else ! 1*HR
                 call mkl_dcsrmultcsr('N',0,8,4*Lrealdim,4*Rrealdim,4*Rrealdim, &
                     LRcoeffin(:,i),LRcoeffincol(:,i),LRcoeffinrow(:,i), &
                     Hbig(:,2),Hbigcolindex(:,2),Hbigrowindex(:,2), &
                     buffmat,buffmatcol,buffmatrow,LRoutnelement,info)
-                call checkinfo(info)
+                call checkinfo(info,"madia2")
             end if
             ! add LRcoeffout and bufmat
             call SpMatAdd(4*Rrealdim,4*Lrealdim,LRcoeffout(:,i),LRcoeffoutcol(:,i),LRcoeffoutrow(:,i),&
@@ -121,7 +121,7 @@ subroutine masterop(bigdim,smadim,coeff,newcoeff)
                 LRcoeffin(:,j),LRcoeffincol(:,j),LRcoeffinrow(:,j), &
                 moperamatbig1(:,i*3),mbigcolindex1(:,i*3),mbigrowindex1(:,i*3), &
                 pppVmat,pppVmatcol,pppVmatrow,pppnelement,info)
-            call checkinfo(info)
+            call checkinfo(info,"madia3")
 
             do l=1,nleft+1,1
                 ! buffmat is to save the intermediate matrix
@@ -129,7 +129,7 @@ subroutine masterop(bigdim,smadim,coeff,newcoeff)
                     moperamatbig1(:,l*3),mbigcolindex1(:,l*3),mbigrowindex1(:,l*3), &
                     pppVmat,pppVmatcol,pppVmatrow, &
                     buffmat,buffmatcol,buffmatrow,LRoutnelement,info)
-                call checkinfo(info)
+                call checkinfo(info,"madia4")
                 ! add LRcoeffout and buffmat
                 call SpMatAdd(4*Rrealdim,4*Lrealdim,LRcoeffout(:,j),LRcoeffoutcol(:,j),LRcoeffoutrow(:,j),&
                 'N',pppV(i,l),4*Rrealdim,4*Lrealdim,buffmat,buffmatcol,buffmatrow,LRoutnelement)
@@ -174,7 +174,7 @@ subroutine masterop(bigdim,smadim,coeff,newcoeff)
                             LRcoeffin(:,j),LRcoeffincol(:,j),LRcoeffinrow(:,j), &
                             moperamatbig1(:,(i-1)*3+k),mbigcolindex1(:,i*3-3+k),mbigrowindex1(:,i*3-3+k), &
                             hopmat,hopmatcol,hopmatrow,hopnelement,info)
-                    call checkinfo(info)
+                    call checkinfo(info,"madia5")
                     do l1=1,4*Lrealdim,1
                     do l2=hopmatrow(l1),hopmatrow(l1+1)-1,1
                         hopmat(l2)=hopmat(l2)*phase(l1,1)
@@ -201,13 +201,13 @@ subroutine masterop(bigdim,smadim,coeff,newcoeff)
                             moperamatbig1(:,l*3-3+k),mbigcolindex1(:,l*3-3+k),mbigrowindex1(:,l*3-3+k), &
                             hopmat,hopmatcol,hopmatrow, &
                             buffmat,buffmatcol,buffmatrow,LRoutnelement,info)
-                        call checkinfo(info)
+                        call checkinfo(info,"madia6")
                     else
                         call mkl_dcsrmultcsr('T',0,8,4*Lrealdim,4*Lrealdim,4*Rrealdim, &
                             moperamatbig1(:,l*3-5+k),mbigcolindex1(:,l*3-5+k),mbigrowindex1(:,l*3-5+k), &
                             hopmat,hopmatcol,hopmatrow, &
                             buffmat,buffmatcol,buffmatrow,LRoutnelement,info)
-                        call checkinfo(info)
+                        call checkinfo(info,"madia7")
                     end if
                     call SpMatAdd(4*Rrealdim,4*Lrealdim,LRcoeffout(:,j),LRcoeffoutcol(:,j),LRcoeffoutrow(:,j),&
                     'N',t(i,l),4*Rrealdim,4*Lrealdim,buffmat,buffmatcol,buffmatrow,LRoutnelement)

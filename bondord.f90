@@ -606,7 +606,7 @@ subroutine Calc_BOmat_link
                                 coeffIF(:,j),coeffIFcolindex(:,j),coeffIFrowindex(:,j), &
                                 hopmat(:,k),hopmatcol(:,k),hopmatrow(:,k), &
                                 midmat,midmatcol,midmatrow,midnelement,info)
-                        call checkinfo(info)
+                        call checkinfo(info,"BOhop1")
 
                         ! add phase
                         do p=1,4*subM,1
@@ -620,7 +620,7 @@ subroutine Calc_BOmat_link
                                 operamatbig1(:,operaindex*3-3+k),bigcolindex1(:,operaindex*3-3+k),bigrowindex1(:,operaindex*3-3+k), &
                                 midmat,midmatcol,midmatrow,&
                                 midmat2,midmatcol2,midmatrow2,midnelement,info)
-                        call checkinfo(info)
+                        call checkinfo(info,"BOhop2")
 
                         !=========================================================================
                         ! calculate transition density matrix
