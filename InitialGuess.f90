@@ -124,11 +124,11 @@ end subroutine InitialStarter
 
     reclength=2*subMp*subMp+2
 
-    inquire(file="wavefunction.tmp",exist=alive)
+    inquire(file="wavefunction.out",exist=alive)
     if(alive) then
-        open(unit=105,file="wavefunction.tmp",access="Direct",form="unformatted",recl=reclength,status="old")
+        open(unit=105,file="wavefunction.out",access="Direct",form="unformatted",recl=reclength,status="old")
     else
-        write(*,*) "wavefunction.tmp doesn't exist"
+        write(*,*) "wavefunction.out doesn't exist"
         stop
     end if
     if(direction=='l' .and. nleft>exactsite) then
@@ -300,11 +300,11 @@ end subroutine InitialStarter
 
     reclength=2*subMp*subMp+2
 
-    inquire(file="wavefunction.tmp",exist=alive)
+    inquire(file="wavefunction.out",exist=alive)
     if(alive) then
-        open(unit=105,file="wavefunction.tmp",access="Direct",form="unformatted",recl=reclength,status="old")
+        open(unit=105,file="wavefunction.out",access="Direct",form="unformatted",recl=reclength,status="old")
     else
-        write(*,*) "wavefunction.tmp doesn't exist"
+        write(*,*) "wavefunction.out doesn't exist"
         stop
     end if
 
@@ -515,11 +515,11 @@ subroutine Perturbation_Init(initcoeff,lvector,direction)
     
     reclength=2*subMp*subMp+2
 
-    inquire(file="wavefunction.tmp",exist=alive)
+    inquire(file="wavefunction.out",exist=alive)
     if(alive) then
-        open(unit=105,file="wavefunction.tmp",access="Direct",form="unformatted",recl=reclength,status="old")
+        open(unit=105,file="wavefunction.out",access="Direct",form="unformatted",recl=reclength,status="old")
     else
-        write(*,*) "wavefunction.tmp doesn't exist"
+        write(*,*) "wavefunction.out doesn't exist"
         stop
     end if
 

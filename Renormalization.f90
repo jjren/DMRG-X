@@ -270,12 +270,12 @@ subroutine StoreWaveFunction
         iRrealdim=Rrealdim
     end if
     
-    ! wavefunction.tmp
-    inquire(file="wavefunction.tmp",exist=alive)
+    ! wavefunction.out
+    inquire(file="wavefunction.out",exist=alive)
     if(alive) then
-        open(unit=105,file="wavefunction.tmp",access="Direct",form="unformatted",recl=reclength,status="old")
+        open(unit=105,file="wavefunction.out",access="Direct",form="unformatted",recl=reclength,status="old")
     else
-        open(unit=105,file="wavefunction.tmp",access="Direct",form="unformatted",recl=reclength,status="replace")
+        open(unit=105,file="wavefunction.out",access="Direct",form="unformatted",recl=reclength,status="replace")
     end if
 
     ! singularvalue.tmp

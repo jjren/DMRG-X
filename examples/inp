@@ -8,7 +8,7 @@ s 0
 1 OK     ! logic_PPP  PPPpot 
 1        ! logic_MeanField   
 1        ! logic_spinreversal
-0        ! logic_C2          
+0  mix/independent      ! logic_C2/C2method         
 0        ! logic_tree        
 0 T T    ! logic_perturbation Ifperturbation3 IfperturbationDVD
 0        ! logic_bondorder   
