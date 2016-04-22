@@ -35,7 +35,7 @@ Subroutine Renormalization(direction)
     integer :: iLrealdim,iRrealdim,isubM
     real(kind=r8),allocatable :: LRcoeff(:,:)
     integer :: isvd
-
+    real(kind=r8),allocatable :: localweight(:)
     call master_print_message("enter Renormalization subroutine")
 
     if(ifopenperturbation==.true.) then
@@ -65,7 +65,7 @@ Subroutine Renormalization(direction)
             allocate(rightv(rsvddim,4*iRrealdim))
             
             ! get rotate matrix leftu/rightv and singularvalue
-            if(nstate==1 .or. exscheme==4 ) then
+            if(nstate==1 .or. exscheme==4) then
                 ! the index 1 can be changed!
                 if(ifopenperturbation==.false.) then
                     call splitsvd_direct(iLrealdim,iRrealdim,LRcoeff,lsvddim,rsvddim,svdvaluedim,leftu,rightv,singularvalue,&
@@ -82,8 +82,16 @@ Subroutine Renormalization(direction)
                     end if
                 end if
             else if(exscheme==1) then
-                call splitsvd('L',iLrealdim,1,nstate)
-                call splitsvd('R',iRrealdim,1,nstate)
+                if(C2method=="mix" .and. nleft==nright .and. direction/="i") then
+                    allocate(localweight(C2state))
+                    localweight=1.0D0/C2state
+                    call splitsvd('L',iLrealdim,1,C2state,localweight)
+                    call splitsvd('R',iRrealdim,1,C2state,localweight)
+                    deallocate(localweight)
+                else 
+                    call splitsvd('L',iLrealdim,1,nstate,nweight)
+                    call splitsvd('R',iRrealdim,1,nstate,nweight)
+                end if
             else if(exscheme==2) then
                 ! my new exScheme
                 call ExScheme2
@@ -595,7 +603,7 @@ end subroutine DirectCopy
 !===================================================
 !===================================================
 
-subroutine splitsvd(domain,dim1,statebegin,stateend)
+subroutine splitsvd(domain,dim1,statebegin,stateend,iweight)
 ! this subroutine is used to split the reduced density matrix
 ! to different subspace according to good quantum number
 ! and diagonalizaiton it to get the renormalized vector
@@ -611,6 +619,7 @@ subroutine splitsvd(domain,dim1,statebegin,stateend)
     
     character(len=1) :: domain
     integer :: dim1,statebegin,stateend
+    real(kind=r8),intent(in) :: iweight(stateend-statebegin+1)
     ! statebegin is the index of the begin state
     ! stateend is the index of the end state
 
@@ -695,7 +704,7 @@ subroutine splitsvd(domain,dim1,statebegin,stateend)
         end if
         
         if(exscheme==1) then  ! state-average method
-            coeffwork=coeffwork+coeffbuf*nweight(i)
+            coeffwork=coeffwork+coeffbuf*iweight(i)
         else  
             coeffwork=coeffbuf
         end if

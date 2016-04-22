@@ -61,7 +61,7 @@ Subroutine ReadInput
     read(10,*) logic_PPP,PPPpot      ! if do PPP model logic_PPP=1 and PPP potential model
     read(10,*) logic_MeanField       ! if do meanfield SCF calculation
     read(10,*) logic_spinreversal    ! if do spin reversal logic_spinreversal=+-1 
-    read(10,*) logic_C2              ! if do C2 symmetry or the same mirror reflection and center reflection
+    read(10,*) logic_C2,C2method     ! if do C2 symmetry or the same mirror reflection and center reflection
     read(10,*) logic_tree            ! if do tree tensor algorithm logic_tree=1
     read(10,*) logic_perturbation,Ifperturbation3,IfperturbationDVD    ! if do perturbation algorithm
     read(10,*) logic_bondorder       ! if calculate bond order
@@ -231,6 +231,7 @@ Subroutine ReadInput
         call MPI_PACK(logic_meanfield,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
         call MPI_PACK(logic_spinreversal,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
         call MPI_PACK(logic_C2,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
+        call MPI_PACK(C2method,20,MPI_CHARACTER,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
         call MPI_PACK(logic_tree,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
         call MPI_PACK(logic_perturbation,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
         call MPI_PACK(Ifperturbation3,1,MPI_LOGICAL,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
@@ -281,6 +282,7 @@ Subroutine ReadInput
         call MPI_UNPACK(packbuf,packsize,position1,logic_meanfield,1,MPI_integer4,MPI_COMM_WORLD,ierr)
         call MPI_UNPACK(packbuf,packsize,position1,logic_spinreversal,1,MPI_integer4,MPI_COMM_WORLD,ierr)
         call MPI_UNPACK(packbuf,packsize,position1,logic_C2,1,MPI_integer4,MPI_COMM_WORLD,ierr)
+        call MPI_UNPACK(packbuf,packsize,position1,C2method,20,MPI_CHARACTER,MPI_COMM_WORLD,ierr)
         call MPI_UNPACK(packbuf,packsize,position1,logic_tree,1,MPI_integer4,MPI_COMM_WORLD,ierr)
         call MPI_UNPACK(packbuf,packsize,position1,logic_perturbation,1,MPI_integer4,MPI_COMM_WORLD,ierr)
         call MPI_UNPACK(packbuf,packsize,position1,Ifperturbation3,1,MPI_LOGICAL,MPI_COMM_WORLD,ierr)
@@ -348,6 +350,7 @@ Subroutine ReadInput
         write(*,*) "logic_MeanField=",logic_meanfield
         write(*,*) "logic_spinreversal=",logic_spinreversal
         write(*,*) "logic_C2=",logic_C2
+        write(*,*) "C2method=",C2method
         write(*,*) "logic_tree=",logic_tree
         write(*,*) "logic_pertubation=",logic_perturbation
         write(*,*) "If 3rd order pertubation=",Ifperturbation3

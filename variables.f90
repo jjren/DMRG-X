@@ -47,9 +47,10 @@ module variables
     logic_localspin         ! if calculate local spin
     integer(kind=i4),allocatable :: treelink(:,:)  ! treelink information
 
-    character(len=20) :: diagmethod  ,&  ! the diagonalization method
-                         PPPpot    ,&    ! PPP potential model
-                         opmethod        ! HC method
+    character(len=20) :: diagmethod  ,&    ! the diagonalization method
+                         PPPpot      ,&    ! PPP potential model
+                         opmethod    ,&    ! HC method
+                         C2method          ! C2 method mix/independent
 !=========================================================
     
     ! loadbalance part
