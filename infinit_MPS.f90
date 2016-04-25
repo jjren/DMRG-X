@@ -85,6 +85,7 @@ subroutine Infinit_MPS
                 nelecs=nelecs+1
             end if
         end if
+            nelecs=realnelecs
         call master_print_message(nelecs,"nelecs=")
         
         nleft=isystem
@@ -119,12 +120,12 @@ subroutine Infinit_MPS
             t(norbs-nright,nleft+1)=-1.0D0
         end if
 !====================L space=================================
-    ! sigmaL subspace operator matrix
-        call ConstructOnesiteMatrix(nleft+1)
     ! L subspace initial
         if(nleft==1) then
             call Infinit_InitMat('L')
         end if
+    ! sigmaL subspace operator matrix
+        call ConstructOnesiteMatrix(nleft+1)
     ! construct the L+sigmaL subspace operator matrix
         call System_Big('L',operamatsma1,smacolindex1,smarowindex1,&
             operamatbig1,bigcolindex1,bigrowindex1,&
