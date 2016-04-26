@@ -85,7 +85,6 @@ subroutine Infinit_MPS
                 nelecs=nelecs+1
             end if
         end if
-            nelecs=realnelecs
         call master_print_message(nelecs,"nelecs=")
         
         nleft=isystem
