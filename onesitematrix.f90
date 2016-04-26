@@ -37,6 +37,7 @@ subroutine ConstructOnesiteMatrix(orbindex)
     integer :: i
     ! orbindex is the orbital index
     ! this is the new site index maybe nleft+1 or nright-1
+    real(kind=r8) :: zero
 
     call master_print_message("enter subroutine onesitematrix")
     
@@ -67,15 +68,41 @@ subroutine ConstructOnesiteMatrix(orbindex)
     osmrowindex(5,2)=3
 
     ! x=3 means occpuation operator-nulcearQ
-    onesitemat(1,3)=-nuclQ(orbindex)
-    onesitemat(2,3)=1.0D0-nuclQ(orbindex)
-    onesitemat(3,3)=1.0D0-nuclQ(orbindex)
-    onesitemat(4,3)=2.0D0-nuclQ(orbindex)
-    do i=1,4,1
-        osmcolindex(i,3)=i
-        osmrowindex(i,3)=i
-    end do
-    osmrowindex(5,3)=5
+    ! save memory
+    zero=1.0D-2
+    if(abs(nuclQ(orbindex)-2.0D0) < zero) then
+        onesitemat(1,3)=-2.0D0
+        onesitemat(2,3)=-1.0D0
+        onesitemat(3,3)=-1.0D0
+        osmcolindex(1,3)=1
+        osmcolindex(2,3)=2
+        osmcolindex(3,3)=3
+        osmrowindex(1,3)=1
+        osmrowindex(2,3)=2
+        osmrowindex(3,3)=3
+        osmrowindex(4,3)=4
+        osmrowindex(5,3)=4
+    else if( abs(nuclQ(orbindex)-1.0D0) < zero ) then
+        onesitemat(1,3)=-1.0D0
+        onesitemat(2,3)=1.0D0
+        osmcolindex(1,3)=1
+        osmcolindex(2,3)=4
+        osmrowindex(1,3)=1
+        osmrowindex(2,3)=2
+        osmrowindex(3,3)=2
+        osmrowindex(4,3)=2
+        osmrowindex(5,3)=3
+    else
+        onesitemat(1,3)=-nuclQ(orbindex)
+        onesitemat(2,3)=1.0D0-nuclQ(orbindex)
+        onesitemat(3,3)=1.0D0-nuclQ(orbindex)
+        onesitemat(4,3)=2.0D0-nuclQ(orbindex)
+        do i=1,4,1
+            osmcolindex(i,3)=i
+            osmrowindex(i,3)=i
+        end do
+        osmrowindex(5,3)=5
+    end if
 
     ! x=4 means a up
     onesitemat(1,4)=1.0D0
