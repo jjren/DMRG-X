@@ -101,7 +101,7 @@ subroutine BondOrder
         end do
         close(399)
 
-        if(logic_bondorder==2) then  ! need the Opdm as basis
+        if(logic_bondorder==2 .and. mod(nelecs,2)==0) then  ! need the Opdm as basis
             ! transform the one partical reduced matrix to MO basis
             call transDMAO2MO
             ! transform it to the natural orbital basis
