@@ -2,7 +2,7 @@ Program Tool_1dchain
 ! creat the 1d polyene chain
 ! the default angle is 120
     implicit none
-    real(kind=8) :: bondlength,delta,deltalength,hubbardU,t
+    real(kind=8) :: bondlength,delta,deltalength,hubbardUD,hubabrdUA,t
     integer(kind=4) :: nsite
     real(kind=8),allocatable :: coord(:,:)
     real(kind=8) :: t1,t2,singlelength,doublelength,ts,td,dist1,dist3,siteenergyD,siteenergyA
@@ -24,8 +24,10 @@ Program Tool_1dchain
     read(*,*) siteenergyA
     write(*,*) "hopping integral:"
     read(*,*) t
-    write(*,*) "hubbardU"
-    read(*,*) hubbardU
+    write(*,*) "hubbardU D"
+    read(*,*) hubbardUD
+    write(*,*) "hubbardU A"
+    read(*,*) hubbardUA
 
 
     allocate(coord(3,nsite))
@@ -75,7 +77,11 @@ Program Tool_1dchain
         end if
     end do
     do i=1,nsite,1
-        write(13,*) hubbardU
+        if(mod(i,2)==1) then
+            write(13,*) hubbardUD
+        else
+            write(13,*) hubbardUA
+        end if
     end do
 
     close(13)
