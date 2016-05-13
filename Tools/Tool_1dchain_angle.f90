@@ -2,10 +2,10 @@ Program Tool_1dchain
 ! creat the 1d polyene chain
 ! the default angle is 120
     implicit none
-    real(kind=8) :: bondlength,delta,deltalength,hubbardU,t
+    real(kind=8) :: angle,bondlength,delta,deltalength,hubbardU,t
     integer(kind=4) :: nsite
     real(kind=8),allocatable :: coord(:,:)
-    real(kind=8) :: t1,t2,singlelength,doublelength,ts,td,dist1,dist3,siteenergyD,siteenergyA
+    real(kind=8) :: t1,t2,singlelength,doublelength,ts,td,dist1,dist2,dist3
     integer :: i
 
     !write(*,*) "input angle:"
@@ -18,23 +18,19 @@ Program Tool_1dchain
     read(*,*) delta
     write(*,*) "nsite:"
     read(*,*) nsite
-    write(*,*) "D siteenergy"
-    read(*,*) siteenergyD
-    write(*,*) "A siteenergy"
-    read(*,*) siteenergyA
     write(*,*) "hopping integral:"
     read(*,*) t
     write(*,*) "hubbardU"
     read(*,*) hubbardU
-
 
     allocate(coord(3,nsite))
 
     singlelength=bondlength+deltalength
     doublelength=bondlength-deltalength
 
-    dist1=doublelength+singlelength
-    dist3=doublelength
+    dist1=sqrt(singlelength**2+doublelength**2+2.0D0*singlelength*doublelength*0.5D0)
+    dist2=singlelength*doublelength*sqrt(3.0D0)/2.0D0/dist1
+    dist3=sqrt(doublelength**2-dist2**2)
     ! coordinate
     coord(1:3,1)=0.0D0
     do i=2,nsite,1
@@ -44,7 +40,7 @@ Program Tool_1dchain
             coord(3,i)=0.0D0
         else
             coord(1,i)=coord(1,i-1)+dist3
-            coord(2,i)=0.0D0
+            coord(2,i)=dist2
             coord(3,i)=0.0D0
         end if
     end do
@@ -68,11 +64,7 @@ Program Tool_1dchain
         end if
     end do
     do i=1,nsite,1
-        if(mod(i,2)==1) then
-            write(13,*) siteenergyD
-        else
-            write(13,*) siteenergyA
-        end if
+        write(13,*) 0.0D0
     end do
     do i=1,nsite,1
         write(13,*) hubbardU
