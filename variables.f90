@@ -49,8 +49,8 @@ module variables
     IfpeierlsD    , &
     logic_corrfunc , &
     logic_perturbation   ! if do perturbation in sweep
-    logical :: IfOpenperturbation   ! control the perturbation
-    
+    logical :: IfOpenperturbation  , & ! control the perturbation
+               IfMeanFieldPeierls
     integer(kind=i4),allocatable :: treelink(:,:)  ! treelink information
 
     character(len=20) :: diagmethod  ,&    ! the diagonalization method

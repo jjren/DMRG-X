@@ -13,7 +13,7 @@ s 0
 1.0 1.0  ! hopalpha,springK  
 5        ! lnpeierlsloops
 0.1      ! peierlsconvergethresh
-1        ! logic_MeanField   
+1  T     ! logic_MeanField  IfMeanfieldPeierls   
 1        ! logic_spinreversal
 0  mix/independent      ! logic_C2/C2method         
 0        ! logic_tree        

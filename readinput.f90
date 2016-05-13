@@ -68,7 +68,7 @@ Subroutine ReadInput
         read(10,*) peierlsconvergethresh
         allocate(pppw(norbs,norbs))
     end if
-    read(10,*) logic_MeanField       ! if do meanfield SCF calculation
+    read(10,*) logic_MeanField , IfMeanFieldPeierls       ! if do meanfield SCF calculation
     read(10,*) logic_spinreversal    ! if do spin reversal logic_spinreversal=+-1 
     read(10,*) logic_C2,C2method     ! if do C2 symmetry or the same mirror reflection and center reflection
     read(10,*) logic_tree            ! if do tree tensor algorithm logic_tree=1
@@ -225,6 +225,7 @@ Subroutine ReadInput
             call MPI_PACK(peierlsconvergethresh,1,MPI_REAL8,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
         end if
         call MPI_PACK(logic_meanfield,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
+        call MPI_PACK(IfMeanfieldPeierls,1,MPI_LOGICAL,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
         call MPI_PACK(logic_spinreversal,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
         call MPI_PACK(logic_C2,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
         call MPI_PACK(C2method,20,MPI_CHARACTER,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
@@ -288,6 +289,7 @@ Subroutine ReadInput
             call MPI_UNPACK(packbuf,packsize,position1,peierlsconvergethresh,1,MPI_REAL8,MPI_COMM_WORLD,ierr)
         end if
         call MPI_UNPACK(packbuf,packsize,position1,logic_meanfield,1,MPI_integer4,MPI_COMM_WORLD,ierr)
+        call MPI_UNPACK(packbuf,packsize,position1,IfMeanfieldPeierls,1,MPI_LOGICAL,MPI_COMM_WORLD,ierr)
         call MPI_UNPACK(packbuf,packsize,position1,logic_spinreversal,1,MPI_integer4,MPI_COMM_WORLD,ierr)
         call MPI_UNPACK(packbuf,packsize,position1,logic_C2,1,MPI_integer4,MPI_COMM_WORLD,ierr)
         call MPI_UNPACK(packbuf,packsize,position1,C2method,20,MPI_CHARACTER,MPI_COMM_WORLD,ierr)
@@ -368,6 +370,7 @@ Subroutine ReadInput
             write(*,*) "peierlsconvergethresh=",peierlsconvergethresh
         end if
         write(*,*) "logic_MeanField=",logic_meanfield
+        write(*,*) "Ifmeanfieldpeierls=",Ifmeanfieldpeierls
         write(*,*) "logic_spinreversal=",logic_spinreversal
         write(*,*) "logic_C2=",logic_C2
         write(*,*) "C2method=",C2method

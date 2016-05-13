@@ -41,18 +41,18 @@ subroutine SCF_driver
     integer :: iloop
     logical :: ifpeierlsconverge
 
-    if(logic_peierls==1) then
+    if(logic_peierls==1 .and. ifmeanfieldpeierls==.true.) then
         maxpeierlsloop=200
     else
         maxpeierlsloop=1
     end if
     
     do iloop=1,maxpeierlsloop,1
-        if(logic_peierls==1) then
+        if(logic_peierls==1 .and. ifmeanfieldpeierls==.true.) then
             call Peierls_init('SCF')
         end if
         call SCFMain
-        if(logic_peierls==1) then
+        if(logic_peierls==1 .and. ifmeanfieldpeierls==.true. ) then
             call SYSTEM("cp mean_bomat.out bondord.out")
             call Peierls_driver(ifpeierlsconverge)
             if(ifpeierlsconverge==.true.) then
@@ -61,7 +61,7 @@ subroutine SCF_driver
             end if
         end if
     end do
-    if(logic_peierls==1 .and. ifpeierlsconverge==.false.) then
+    if(logic_peierls==1 .and. ifmeanfieldpeierls==.true. .and. ifpeierlsconverge==.false.) then
         write(*,*) "SCF Peierls do not converge!"
     end if
 
