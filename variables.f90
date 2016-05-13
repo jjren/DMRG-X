@@ -44,7 +44,13 @@ module variables
     logic_C2          , &   ! if use C2 like symmetry :: +1 A ;-1 B ; 0 none
     logic_C2real     , &    ! the real logic_C2
     logic_bondorder  , &    ! if calculate bond order
-    logic_localspin         ! if calculate local spin
+    logic_localspin  , &       ! if calculate local spin
+    logic_peierls, &
+    IfpeierlsD    , &
+    logic_corrfunc , &
+    logic_perturbation   ! if do perturbation in sweep
+    logical :: IfOpenperturbation   ! control the perturbation
+    
     integer(kind=i4),allocatable :: treelink(:,:)  ! treelink information
 
     character(len=20) :: diagmethod  ,&    ! the diagonalization method
@@ -68,7 +74,9 @@ module variables
     subMp, &                             ! the perturbation space M
     sweeps , &                           ! finite DMRG sweeps
     exactsite , &                        ! the number of exact discrible sites
-    isweep                               ! the at present isweep
+    isweep  ,&                             ! the at present isweep
+    corrfunclstate ,&
+    corrfuncrstate 
     real(kind=r8) :: energythresh,&        ! energy convegence threshold in the middle of every sweep
                      hopthresh
     real(kind=r8),allocatable :: sweepenergy(:,:)  ! store every sweep energy in the middle
@@ -77,8 +85,6 @@ module variables
     integer(kind=i4) :: nleft,nright        ! L/R space site number L+sigmaL+sigmaR+R
     integer(kind=i4) :: ngoodstates         ! the number of basis fullfill the good quantum number
 
-    logical :: IfOpenperturbation   ! control the perturbation
-    integer :: logic_perturbation   ! if do perturbation in sweep
 !=========================================================
 
     ! Hamiltonian part
@@ -86,7 +92,8 @@ module variables
     t(:,:) , &                    ! transfer integral in PPP/one electron integral  
     v(:,:,:,:) , &                ! two electron integral full Quantum Chemistry
     hubbardU(:) , &               ! hubbard term
-    pppV(:,:)                     ! PPP term
+    pppV(:,:)   , &               ! PPP term
+    pppw(:,:)                     ! first order of ppp term
     integer(kind=i4),allocatable :: &
     quantasmaL(:,:) , &           ! L space good quantum number (N and Sz)in M basis
     quantasmaR(:,:) , &           ! R space good quantum number (N and Sz)in M basis
@@ -115,8 +122,9 @@ module variables
 
     ! constant
     real(kind=r8),parameter :: relazero=1.0D-8   ! relative zero
-    real(kind=r8),parameter :: eAtodebye=4.8032038D0,AutoAngstrom=0.5217721092D0
-
+    real(kind=r8),parameter :: eAtodebye=4.8032038D0 , &
+                               AutoAngstrom=0.5217721092D0 ,&
+                               PI = 3.1415926
 !============================================================
 
 end Module variables

@@ -9,17 +9,16 @@ Subroutine ReadInput
     use noise_mod,only : Ifnoise,noiseweight
     use perturbation_mod,only : Ifperturbation3,IfperturbationDVD
     use basisindex_mod,only : nmaxgoodbasis,nmaxgoodbasisp
+    use Peierls_mod,only : peierlsstate,hopalpha,springK,npeierlsloops,peierlsconvergethresh
     implicit none
 
     integer :: i,j,error,ierr 
-    integer :: link1,link2           ! link1 and link2 is the bondlink atom information
     integer :: junk_natoms           ! to compare if the natoms is right
     character(len=2) :: symbol       ! the element symbol not used
 
     character(len=1),allocatable :: packbuf(:)  
     integer :: position1
     integer :: packsize       
-    real(kind=r8) :: dummyt           ! transfer integral intermediate variable
 
     if(myid==0) then
     call master_print_message("enter in readinput subroutine")
@@ -59,6 +58,16 @@ Subroutine ReadInput
     read(10,*) ncharges              ! how many extra charges +1 means add 1 electron
     read(10,*) totalsz               ! total Sz of the system
     read(10,*) logic_PPP,PPPpot      ! if do PPP model logic_PPP=1 and PPP potential model
+    read(10,*) logic_corrfunc,corrfunclstate,corrfuncrstate          ! if calculate correlation function    
+    read(10,*) logic_peierls         ! if do PPP-Peierls or hubbard-Peierls model 
+    if(logic_peierls==1) then
+        read(10,*) peierlsstate
+        read(10,*) IfpeierlsD
+        read(10,*) hopalpha,springK  ! electron phonon coupling alpha and spring strength K
+        read(10,*) npeierlsloops
+        read(10,*) peierlsconvergethresh
+        allocate(pppw(norbs,norbs))
+    end if
     read(10,*) logic_MeanField       ! if do meanfield SCF calculation
     read(10,*) logic_spinreversal    ! if do spin reversal logic_spinreversal=+-1 
     read(10,*) logic_C2,C2method     ! if do C2 symmetry or the same mirror reflection and center reflection
@@ -85,7 +94,7 @@ Subroutine ReadInput
         C2state=2*nstate
     end if
     allocate(dmrgenergy(C2state))
-! 
+    
     allocate(nweight(nstate),stat=error)
     if(error/=0) stop
     nweight=1.0D0         !default value
@@ -152,8 +161,6 @@ Subroutine ReadInput
         close(12)
 !   end if
 
-! integral of the system
-    open(unit=14,file="integral.inp",status="old")
     if(natoms/=norbs) then
         call master_print_message("!Use PPP model, the norbs/=natoms failed!")
         stop
@@ -162,33 +169,10 @@ Subroutine ReadInput
     if(error/=0) stop
     allocate(t(norbs,norbs),stat=error)
     if(error/=0) stop
-! be careful about the structure of the integral formatted
-    t=0.0D0
-    bondlink=0
-    do i=1,nbonds,1
-        read(14,*) link1,link2,dummyt
-        if(abs(dummyt)>hopthresh) then
-            bondlink(link1,link2)=1  ! if linked , bondlink=1
-            bondlink(link2,link1)=1
-            t(link1,link2)=dummyt
-            t(link2,link1)=dummyt
-        end if
-    end do
 
-    do i=1,norbs,1
-        bondlink(i,i)=2    ! bondlink=2 means that it is the site energy
-        read(14,*) t(i,i)  ! t(i,i) is the site energy
-    end do
-    
-    hubbardU=0.0D0
-    do i=1,norbs,1
-        read(14,*) hubbardU(i)  ! read in every hubbard U
-    end do
-    
-!   write(*,*) "--------------------------------------------------"
-!   write(*,*) "in the QC-DMRG case readin the FCIDUMP integrals"
-!   write(*,*) "--------------------------------------------------"
-    
+    ! integral of the system
+    call ReadIntegral
+
     if(logic_tree==1) then
         open(unit=16,file="tree.inp",status="old")
         allocate(treelink(blocks+1,norbs),stat=error)
@@ -228,6 +212,18 @@ Subroutine ReadInput
         call MPI_PACK(totalSz,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
         call MPI_PACK(logic_PPP,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
         call MPI_PACK(PPPpot,20,MPI_CHARACTER,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
+        call MPI_PACK(logic_corrfunc,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
+        call MPI_PACK(corrfunclstate,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
+        call MPI_PACK(corrfuncrstate,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
+        call MPI_PACK(logic_Peierls,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
+        if(logic_Peierls==1) then
+            call MPI_PACK(peierlsstate,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
+            call MPI_PACK(IfpeierlsD,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
+            call MPI_PACK(hopalpha,1,MPI_REAL8,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
+            call MPI_PACK(springK,1,MPI_REAL8,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
+            call MPI_PACK(npeierlsloops,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
+            call MPI_PACK(peierlsconvergethresh,1,MPI_REAL8,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
+        end if
         call MPI_PACK(logic_meanfield,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
         call MPI_PACK(logic_spinreversal,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
         call MPI_PACK(logic_C2,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
@@ -279,6 +275,18 @@ Subroutine ReadInput
         call MPI_UNPACK(packbuf,packsize,position1,totalSz,1,MPI_integer4,MPI_COMM_WORLD,ierr)
         call MPI_UNPACK(packbuf,packsize,position1,logic_PPP,1,MPI_integer4,MPI_COMM_WORLD,ierr)
         call MPI_UNPACK(packbuf,packsize,position1,PPPpot,20,MPI_CHARACTER,MPI_COMM_WORLD,ierr)
+        call MPI_UNPACK(packbuf,packsize,position1,logic_corrfunc,1,MPI_integer4,MPI_COMM_WORLD,ierr)
+        call MPI_UNPACK(packbuf,packsize,position1,corrfunclstate,1,MPI_integer4,MPI_COMM_WORLD,ierr)
+        call MPI_UNPACK(packbuf,packsize,position1,corrfuncrstate,1,MPI_integer4,MPI_COMM_WORLD,ierr)
+        call MPI_UNPACK(packbuf,packsize,position1,logic_Peierls,1,MPI_integer4,MPI_COMM_WORLD,ierr)
+        if(logic_peierls==1) then
+            call MPI_UNPACK(packbuf,packsize,position1,peierlsstate,1,MPI_integer4,MPI_COMM_WORLD,ierr)
+            call MPI_UNPACK(packbuf,packsize,position1,IfpeierlsD,1,MPI_integer4,MPI_COMM_WORLD,ierr)
+            call MPI_UNPACK(packbuf,packsize,position1,hopalpha,1,MPI_REAL8,MPI_COMM_WORLD,ierr)
+            call MPI_UNPACK(packbuf,packsize,position1,springK,1,MPI_REAL8,MPI_COMM_WORLD,ierr)
+            call MPI_UNPACK(packbuf,packsize,position1,npeierlsloops,1,MPI_integer4,MPI_COMM_WORLD,ierr)
+            call MPI_UNPACK(packbuf,packsize,position1,peierlsconvergethresh,1,MPI_REAL8,MPI_COMM_WORLD,ierr)
+        end if
         call MPI_UNPACK(packbuf,packsize,position1,logic_meanfield,1,MPI_integer4,MPI_COMM_WORLD,ierr)
         call MPI_UNPACK(packbuf,packsize,position1,logic_spinreversal,1,MPI_integer4,MPI_COMM_WORLD,ierr)
         call MPI_UNPACK(packbuf,packsize,position1,logic_C2,1,MPI_integer4,MPI_COMM_WORLD,ierr)
@@ -330,7 +338,7 @@ Subroutine ReadInput
     pppVlink=0
     pppV=0.0D0
     call PPP_term
-    
+
     ! realnelecs is the real electrons in the system 
     realnelecs=nelecs+ncharges
     logic_C2real=logic_C2
@@ -347,6 +355,18 @@ Subroutine ReadInput
         write(*,*) "totalSz=",totalsz
         write(*,*) "logic_PPP=",logic_PPP
         write(*,*) "PPPpot=",PPPpot
+        write(*,*) "logic_corrfunc=",logic_corrfunc
+        write(*,*) "corrfunclstate=",corrfunclstate
+        write(*,*) "corrfuncrstate=",corrfuncrstate
+        write(*,*) "logic_Peierls=",logic_Peierls
+        if(logic_Peierls==1) then
+            write(*,*) "peierlsstate=",peierlsstate
+            write(*,*) "IfpeierlsD=",IfpeierlsD
+            write(*,*) "hopalpha=",hopalpha
+            write(*,*) "springK=",springK
+            write(*,*) "npeierlsloops=",npeierlsloops
+            write(*,*) "peierlsconvergethresh=",peierlsconvergethresh
+        end if
         write(*,*) "logic_MeanField=",logic_meanfield
         write(*,*) "logic_spinreversal=",logic_spinreversal
         write(*,*) "logic_C2=",logic_C2

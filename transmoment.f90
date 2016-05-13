@@ -59,6 +59,10 @@ subroutine transmoment
         end do
     end if
 
+    if(myid==0) then
+        deallocate(moment)
+    end if
+
 return
 end subroutine transmoment
 
@@ -148,8 +152,8 @@ subroutine transmoment_subspace(domain)
                     else if(domain=='R') then
                         trans='N'
                     end if
-                    call SpMMtrace(trans,4*subM,coeffIF(:,j),coeffIFcolindex(:,j),coeffIFrowindex(:,j),&
-                            midmat,midcolindex,midrowindex,imoment(j,istate))
+                    call SpMMtrace(trans,4*subM,4*subM,coeffIF(:,j),coeffIFcolindex(:,j),coeffIFrowindex(:,j),&
+                            4*subM,4*subM,midmat,midcolindex,midrowindex,imoment(j,istate))
                 end do
             end do
             
@@ -172,6 +176,7 @@ subroutine transmoment_subspace(domain)
     if(myid/=0) then
         deallocate(midmat,midcolindex,midrowindex)
     end if
+    deallocate(imoment)
 return
 end subroutine transmoment_subspace
 

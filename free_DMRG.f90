@@ -9,8 +9,9 @@ subroutine Free_DMRG
     call Deallocate_basisindex
     call Deallocate_checkmem
     call Deallocate_sparsemat
-    
-    deallocate(pppV,pppVlink)
+    call Deallocate_loadbalance
     return
 
 end subroutine Free_DMRG
+
+

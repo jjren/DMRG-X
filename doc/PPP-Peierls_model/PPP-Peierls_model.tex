@@ -1,0 +1,131 @@
+\documentclass[a4paper,11pt]{article}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{mathtools}
+\usepackage[cdot,amssymb]{SIunits}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{verbatim}
+\usepackage{braket}
+
+\allowdisplaybreaks
+
+
+\author{Jiajun Ren \\ \href{mailto:renjj14@mails.tsinghua.edu.cn}{renjj14@mails.tsinghua.edu.cn}}
+\title{Pariser-Parr-Pople-Peierls Model}
+
+
+\begin{document}
+	% generate the title
+	\maketitle
+    The PPP model
+    \begin{align}
+        \hat{H} & = \sum_{{i}\sigma} \varepsilon_i a_{i\sigma}^\dagger a_{i\sigma}
+        +  \sum_{\{ij\}\sigma} t_{ij} a_{i\sigma}^\dagger a_{j\sigma} \nonumber \\
+        & + \sum_{i} U_i n_{i\uparrow} n_{i\downarrow}  
+            + \sum_{i<j} V_{ij} (n_i-Z_i) (n_j-Z_j)
+    \end{align}
+    The longe range potential $V_{ij}$ is calculated with Ohno-Klopper analytical formula:
+    \begin{gather}
+        \overline{U}=(U_i+U_j)/2 \\
+        V_{ij}= \frac{U}{\sqrt{1+U^2 R_{ij}^2/14.397^2}}
+    \end{gather}
+
+    The Peierls model only consider the nearest neighour hopping affected by
+    linear electron-phonon interaction
+
+    \begin{gather}
+        t_{i,i+1}=t_{i,i+1}^0+\alpha \Delta_i \\
+        \Delta_i=(u_{i+1}-u_i)
+    \end{gather}
+    when $\Delta_i>0$, the bond length increase, so the $|t_{ij}|$ decrease, $t$
+    is negative. So, $\alpha>0$.
+
+    Nuclear interaction because of phonon (dynamic) 
+    \begin{gather}
+        H_{nn}^{'}= \frac{1}{2} K \sum_{i} \Delta_i^2
+    \end{gather}
+
+    The static nuclear interaction is included in the PPP term $ V_{ij} Z_i Z_j $
+    
+    The electron-electron interaction changed because of phonon
+    \begin{align}
+        V_{i,i+1} & =V_{i,i+1}^0+ %
+        (\frac{\partial{V_{i,i+1}}}{\partial{R_{i,i+1}}})_{R_{i,i+1}=R_0} %
+        \Delta_i \\ \nonumber
+        &  = V_{i,i+1}^0-\frac{RU^3/14.397^2}{(1+U^2R^2/14.397^2)^{3/2}} \Delta_i
+    \end{align}
+    The first order term is defined as $W_{ij}$
+    \begin{gather}
+        H_{ee}^{'}=-\sum_{i} W_{i,i+1} \Delta_i (n_i-Z_i) (n_i+1-Z_i+1)
+    \end{gather}
+    There are two components, one is on-site energy, another is electron
+    electron energy, and the other is nuclear nuclear energy.  The nuclear
+    nuclear part vanish if the system is equal and the length is fixed. It
+    should vanish in principle, because the $1/2K \Delta_i^2$ exist. This term
+    is linear term if not vanish, the physical meaning?
+ 
+    All the nuclear interaction changed because of the pi electrons. nothing
+    about the $\sigma$ electrons.
+
+    The phonon effect on site energy is included in the PPP term.
+
+    Then, the PPPP model is
+    \begin{align}
+        \hat{H} & = \hat{H}_0 %
+        +  \sum_{\{i\}\sigma} \alpha \Delta_i a_{i\sigma}^\dagger a_{i+1\sigma} %
+        + \textrm{conjugated} \nonumber \\
+        &  - \sum_{i} W_{i,i+1} \Delta_i (n_i-Z_i) (n_{i+1}-Z_{i+1}) \nonumber \\
+        &  +\frac{1}{2} K \sum_{i} \Delta_i^2
+    \end{align}
+
+    The model is different from optimization in ab initio calculation. Because
+    it include electron-phone coupling, it is dynamic not static optimization.
+
+    There is a boudary condition that the displacement total effect is 0.
+    \begin{gather}
+        \sum_{i} \Delta_i=0 \label{eq:boundary_condition}
+    \end{gather}
+    Then
+    \begin{align}
+        L & = E-\eta\sum_{i} \Delta_i \nonumber \\
+          & = E_0 +  \sum_{\{i \in bond \}\sigma} \alpha \Delta_i \langle %
+        \hat{T}_i \rangle \\ \nonumber
+        &  - \sum_{i \in bond } W_{i} \Delta_i  \langle \hat{D}_i \rangle \nonumber \\
+        &  +\frac{1}{2} K \sum_{i} \Delta_i^2 -\eta\sum_{i} \Delta_i \nonumber
+    \end{align}
+    define
+    \begin{gather}
+        \langle \hat{T}_i \rangle = \langle a_{i\sigma}^\dagger a_{i+1\sigma} + \textrm{conjugated} \rangle\\
+        \langle \hat{D}_i \rangle = \langle (n_i-Z_i) (n_{i+1}-Z_{i+1}) \rangle
+    \end{gather}
+
+    \begin{gather}
+        \frac{\partial{L}}{\Delta_i}= \alpha \langle \hat{T}_i \rangle - W_i %
+        \langle \hat{D}_i \rangle + K \Delta_i -\eta = 0 \label{eq:peierls_sc} 
+    \end{gather}
+    sum Eq.\eqref{eq:peierls_sc} and use the boundary condition
+    Eq.\eqref{eq:boundary_condition}
+    \begin{gather}
+        \eta=\frac{1}{N} \sum_{i \in \textrm{bond} }( \alpha \langle \hat{T}_i \rangle - W_i \langle %
+        \hat{D}_i \rangle )
+    \end{gather}
+    Then
+    \begin{gather}
+        \Delta_i = \frac {- \alpha \langle \hat{T}_i \rangle + W_i \langle %
+        \hat{D}_i \rangle +\eta} {K} \label{eq:delta_i}
+    \end{gather} 
+
+    self consistent calculation
+    Since the eigenfunction depends on $\Delta_i$, we need guess a initial
+    $\Delta_i$ and update it with Eq.\eqref{eq:delta_i} until the energy or
+    $\Delta_i$ is not changed. $\Delta_i$ as the criterion is better.
+    
+    The updated integral should base on the original integral not the last
+    updated step. Since we want to get the eigenfunction of the whole
+    hamiltnian and the delta on this wavefunction and original hamiltonian.
+    
+
+    
+
+\end{document}

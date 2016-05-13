@@ -347,7 +347,7 @@ subroutine Deallocate_sparsemat
             deallocate(operamatbig2,bigcolindex2,bigrowindex2,&
                         operamatsma2,smacolindex2,smarowindex2)
         end if
-        if(logic_bondorder/=0) then
+        if(logic_localspin/=0) then
             deallocate(operamatbig3,bigcolindex3,bigrowindex3,&
                         operamatsma3,smacolindex3,smarowindex3)
         end if

@@ -223,9 +223,9 @@ subroutine Calc_Localspin_subspace(domain)
                     coeffIF(:,istate),coeffIFcolindex(:,istate),coeffIFrowindexdummy(:,istate),&
                     midmat,midcolindex,midrowindex,nmid)
                 ! trace(CLR*QLR)
-                call SpMMtrace('T',4*subM,&
+                call SpMMtrace('T',4*subM,4*subM,&
                     coeffIF(:,istate),coeffIFcolindex(:,istate),coeffIFrowindexdummy(:,istate),&
-                    midmat,midcolindex,midrowindex,ilocalspin(istate))
+                    4*subM,4*subM,midmat,midcolindex,midrowindex,ilocalspin(istate))
                 ilocalspin(istate)=0.75D0*ilocalspin(istate)
             end do
             call MPI_SEND(ilocalspin,nstate,mpi_real8,0,orbid3(i,i,2),MPI_COMM_WORLD,ierr)
@@ -265,9 +265,9 @@ subroutine Calc_Localspin_subspace(domain)
                     ! the same algorithm as bondorder matrix
                     do jstate=1,nstate,1
                         ! trace(CLR*QLR)
-                        call SpMMtrace('T',4*subM,&
+                        call SpMMtrace('T',4*subM,4*subM,&
                             coeffIF(:,jstate),coeffIFcolindex(:,jstate),coeffIFrowindexdummy(:,jstate),&
-                            midmat,midcolindex,midrowindex,ispinspincorrelation(k,jstate,istate))
+                            4*subM,4*subM,midmat,midcolindex,midrowindex,ispinspincorrelation(k,jstate,istate))
                     end do
                 end do
             end do
@@ -500,12 +500,12 @@ subroutine Calc_Localspin_link
                 !           4*subM,4*subM,midmat2,midmatcol2,midmatrow2,midnelement)
                     do jstate=1,nstate,1
                     ! trace(CLR*OLR)
-                        call SpMMtrace('T',4*subM, & 
+                        call SpMMtrace('T',4*subM,4*subM, & 
                                 coeffIF(:,jstate),coeffIFcolindex(:,jstate),coeffIFrowindex(:,jstate), &
-                                Spaddmat,Spaddcolindex,Spaddrowindex,ispinspincorrelation(1,jstate,j))
-                        call SpMMtrace('T',4*subM, & 
+                                4*subM,4*subM,Spaddmat,Spaddcolindex,Spaddrowindex,ispinspincorrelation(1,jstate,j))
+                        call SpMMtrace('T',4*subM,4*subM, & 
                                 coeffIF(:,jstate),coeffIFcolindex(:,jstate),coeffIFrowindex(:,jstate), &
-                                midmat2,midmatcol2,midmatrow2,ispinspincorrelation(2,jstate,j))
+                               4*subM,4*subM, midmat2,midmatcol2,midmatrow2,ispinspincorrelation(2,jstate,j))
                     end do
                 end do
                 call MPI_SEND(ispinspincorrelation,2*nstate*nstate,mpi_real8,0,orbid3(l,l,2),MPI_COMM_WORLD,ierr)

@@ -1,6 +1,7 @@
 Module PPP_term_mod
 !this module can include many potential terms like ohno potential
-    use variables, only : hubbardU,coord,pppV,norbs,logic_PPP,PPPpot
+    use variables, only : hubbardU,coord,pppV,norbs,logic_PPP,PPPpot,&
+        logic_Peierls,IfpeierlsD,pppw
     use communicate
     use kinds_mod
     
@@ -68,7 +69,7 @@ subroutine Ohno_Potential
 
     implicit none
     ! local
-    real(kind=r8) :: distance,U  ! distance is atom-atom distance**2
+    real(kind=r8) :: distance,U,midtmp  ! distance is atom-atom distance**2
     integer :: i,j,k
     
     call master_print_message("enter in PPP_term subroutine!")
@@ -80,8 +81,13 @@ subroutine Ohno_Potential
                 distance=(coord(k,i)-coord(k,j))*(coord(k,i)-coord(k,j))+distance
             end do
             U=(hubbardU(i)+hubbardU(j))/2.0D0
-            pppV(i,j)=U/sqrt(1+U*U*distance/14.397D0/14.397D0)
+            midtmp=1.0D0+U*U*distance/14.397D0/14.397D0
+            pppV(i,j)=U/sqrt(midtmp)
             pppV(j,i)=pppV(i,j)
+            if(logic_Peierls==1 .and. ifpeierlsD==1) then
+                pppw(i,j)=(sqrt(distance)*(U**3)/14.397D0/14.397D0)/(midtmp**1.5D0)
+                pppw(j,i)=pppw(i,j)
+            end if
             pppVlink(i,j)=1
             pppVlink(j,i)=1
         end do

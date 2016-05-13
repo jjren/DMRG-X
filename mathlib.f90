@@ -602,53 +602,60 @@ end subroutine SpMMtoSptodens
 !=============================================
 !=============================================
 
-subroutine SpMMtrace(trans,dim1,Amat,Acolindex,Arowindex,Bmat,Bcolindex,Browindex,output)
+subroutine SpMMtrace(trans,Anrows,Ancols,Amat,Acolindex,Arowindex,Bnrows,Bncols,Bmat,Bcolindex,Browindex,output)
 ! this subroutine do square Matrix Matrix Product trace in CSR format
 ! if trans=='T' then Bmat need not transpose
 ! if trans=='N' then Bmat need tranpose
     implicit none
     
-    character(len=1) trans
-    integer :: dim1
-    integer(kind=i4) :: Arowindex(dim1+1),Browindex(dim1+1)
-    integer(kind=i4) :: Acolindex(Arowindex(dim1+1)-1),Bcolindex(Browindex(dim1+1)-1)
-    real(kind=r8) :: Amat(Arowindex(dim1+1)-1),Bmat(Browindex(dim1+1)-1)
+    character(len=1),intent(in) ::  trans
+    integer,intent(in) :: Anrows,Bnrows,Ancols,Bncols
+    integer(kind=i4),intent(in) :: Arowindex(Anrows+1),Browindex(Bnrows+1),&
+        Acolindex(Arowindex(Anrows+1)-1),Bcolindex(Browindex(Bnrows+1)-1)
+    real(kind=r8) :: Amat(Arowindex(Anrows+1)-1),Bmat(Browindex(Bnrows+1)-1)
     real(kind=r8) :: output
 
     ! local
     integer(kind=i4),allocatable :: Bcolindexdummy(:),Browindexdummy(:)
     real(kind=r8),allocatable :: Bmatdummy(:)
-    integer :: error,i,j,k
+    integer :: i,j,index1
+    real(kind=r8) :: dotout
 
-    allocate(Browindexdummy(dim1+1),stat=error)
-    if(error/=0) stop
-    allocate(Bcolindexdummy(Browindex(dim1+1)-1),stat=error)
-    if(error/=0) stop
-    allocate(Bmatdummy(Browindex(dim1+1)-1),stat=error)
-    if(error/=0) stop
+    if(trans=="T") then
+        if(Anrows/=Bnrows .or. Ancols/=Bncols) then
+            write(*,*) "Anrows/=Bnrows .or. Ancols/=Bncols",Anrows,Bnrows,Ancols,Bncols
+            stop
+        end if
+    else if(trans=="N") then
+        if(Anrows/=Bncols .or. Ancols/=Bnrows) then
+            write(*,*) "Anrows/=Bncols .or. Ancols/=Bnrows",Anrows,Bncols,Ancols,Bnrows
+            stop
+        end if
+    end if
+
+    allocate(Browindexdummy(Anrows+1))
+    allocate(Bcolindexdummy(Browindex(Bnrows+1)-1))
+    allocate(Bmatdummy(Browindex(Bnrows+1)-1))
     
     ! copy the Bmat to another workarray
-    Bcolindexdummy=Bcolindex
-    call copy(Bmat,Bmatdummy)
-
-    if(trans=='T') then
-        Browindexdummy=Browindex
-    else if(trans=='N') then
-        call CSCtoCSR('RC',dim1,dim1,Bmatdummy,Bcolindexdummy,Browindex,Browindexdummy)
+    call CopySpAtoB(Bnrows,Bmat,Bcolindex,Browindex,Bmatdummy,Bcolindexdummy,Browindexdummy,Browindex(Bnrows+1)-1)
+    
+    if(trans=='N') then
+        call CSCtoCSR('RC',Bncols,Bnrows,Bmatdummy,Bcolindexdummy,Browindex,Browindexdummy)
     end if
 
     output=0.0D0
-    do i=1,dim1,1
-        do j=Arowindex(i),Arowindex(i+1)-1,1
-            do k=Browindexdummy(i),Browindexdummy(i+1)-1,1
-                if(Bcolindexdummy(k)==Acolindex(j)) then
-                    output=output+Bmatdummy(k)*Amat(j)
-                    exit
-                else if(Bcolindexdummy(k)>Acolindex(j)) then
-                    exit
-                end if
-            end do
-        end do
+    do i=1,Anrows,1
+    !    do j=Arowindex(i),Arowindex(i+1)-1,1
+    !        call BinarySearch(Browindexdummy(i+1)-Browindexdummy(i),Bcolindexdummy(Browindexdummy(i)),Acolindex(j),index1)
+    !        if(index1/=0) then
+    !            output=output+Bmatdummy(index1+Browindexdummy(i)-1)*Amat(j)
+    !        end if
+    !    end do
+        call SpDotVec(Arowindex(i+1)-Arowindex(i),Amat(Arowindex(i)),Acolindex(Arowindex(i)),&
+                Browindexdummy(i+1)-Browindexdummy(i),Bmatdummy(Browindexdummy(i)),&
+                Bcolindexdummy(Browindexdummy(i)),dotout)
+        output=dotout+output
     end do
     
     deallocate(Bmatdummy,Bcolindexdummy,Browindexdummy)
@@ -777,6 +784,42 @@ subroutine BinarySearch(num,keyvalue,targetvalue,index1)
     return
 
 end subroutine BinarySearch
+
+!=============================================
+!=============================================
+
+subroutine SpDotVec(An,Avec,Acol,Bn,Bvec,Bcol,output)
+! calculate sparse vector dot product
+    implicit none
+    integer,intent(in) :: An,Bn
+    real(kind=r8),intent(in) :: Avec(An),Bvec(Bn)
+    integer(kind=i4),intent(in) :: Acol(An),Bcol(Bn)
+    real(kind=r8),intent(out) :: output
+
+    ! local
+    integer :: i,index1
+
+    output=0.0D0
+
+    if(An<=Bn) then
+        do i=1,An,1
+            call BinarySearch(Bn,Bcol,Acol(i),index1)
+            if(index1/=0) then
+                output=output+Bvec(index1)*Avec(i)
+            end if
+        end do
+    else
+        do i=1,Bn,1
+            call BinarySearch(An,Acol,Bcol(i),index1)
+            if(index1/=0) then
+                output=output+Avec(index1)*Bvec(i)
+            end if
+        end do
+    end if
+    
+    return
+
+end subroutine SpDotVec
 
 !=============================================
 !=============================================

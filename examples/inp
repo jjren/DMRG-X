@@ -6,6 +6,13 @@ s 0
 0        ! ncharges          
 0        ! totalsz           
 1 OK     ! logic_PPP  PPPpot 
+1  1  1  ! logic_corrfunc corrfunclstate corrfuncrstate
+1        ! logic_Peierls
+(1)      ! peierlsstate
+(1)      ! IfpeierlsD
+1.0 1.0  ! hopalpha,springK  
+5        ! lnpeierlsloops
+0.1      ! peierlsconvergethresh
 1        ! logic_MeanField   
 1        ! logic_spinreversal
 0  mix/independent      ! logic_C2/C2method         

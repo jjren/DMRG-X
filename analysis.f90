@@ -14,7 +14,7 @@ subroutine Analysis
     use module_sparse
     use blas95
     use f95_precision
-
+    use corrfunc_mod
     implicit none
     integer(kind=i4),allocatable :: midrowmat(:),midcolmat(:)
     integer :: i
@@ -45,12 +45,26 @@ subroutine Analysis
         call BondOrder
     end if
     
+    if(logic_corrfunc==1) then
+        call corrfunc_driver('l',corrfunclstate,corrfuncrstate)
+        call corrfunc_driver('r',corrfunclstate,corrfuncrstate)
+    end if
+
     if(nstate/=1) then
         call TransMoment
     end if
 
     if(logic_localspin==1) then
         call LocalSpin
+    end if
+
+    ! recover the input nstate
+    if(logic_C2/=0) then
+        nstate=nstate/2
+    end if
+
+    if(myid/=0) then
+        deallocate(coeffIF,coeffIFcolindex,coeffIFrowindex)
     end if
 
 return

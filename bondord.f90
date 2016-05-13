@@ -101,8 +101,9 @@ subroutine BondOrder
         end do
         close(399)
 
-        if(logic_bondorder==2 .and. mod(nelecs,2)==0) then  ! need the Opdm as basis
+        if(logic_bondorder==2 .and. mod(nelecs,2)==0 .and. logic_meanfield==1) then  ! need the Opdm as basis
             ! transform the one partical reduced matrix to MO basis
+            allocate(transDMMO(norbs,norbs,2,nstate,nstate))
             call transDMAO2MO
             ! transform it to the natural orbital basis
             call NatOrbAnalysis
@@ -111,7 +112,12 @@ subroutine BondOrder
                 call NatTraOrb
             end if
             call proxyNAC
+            deallocate(transDMMO)
         end if
+    end if
+
+    if(myid==0) then
+        deallocate(transDM0)
     end if
 return
 end subroutine BondOrder
@@ -153,19 +159,27 @@ end subroutine proxyNAC
 subroutine transDMAO2MO
 ! the transition density matrix or one partical density matrix from PPP-AO to MO
 ! MOij=CDC^+   C is MO*AO column format
-    use MeanField
     use BLAS95
     use F95_PRECISION
     implicit none
     integer :: i,j,k,l,istate2
-    real(kind=r8),allocatable :: midmat(:,:)
+    real(kind=r8),allocatable :: midmat(:,:),coeffC(:,:)
     real(kind=r8) tmp
+    integer :: itmp
 
-    allocate(transDMMO(norbs,norbs,2,nstate,nstate))
     allocate(midmat(norbs,norbs))
+    allocate(coeffC(norbs,norbs))
 
     ! transition density matrix
     call master_print_message("MO transition density matrix")
+    ! read MO coefficient
+    open(unit=157,file="MO.out",status="old")
+    do i=1,norbs,1
+        read(157,*) itmp,tmp
+        read(157,*) coeffC(:,i) 
+    end do
+    close(157)
+
     open(unit=151,file="MO-transOpdm.out",form="unformatted",status="replace")
     write(151) norbs,nstate
     do i=1,nstate,1
@@ -191,7 +205,7 @@ subroutine transDMAO2MO
     end do
     close(151)
 
-    deallocate(midmat)
+    deallocate(midmat,coeffC)
 return
 end subroutine transDMAO2MO
 
@@ -299,6 +313,7 @@ subroutine NatTraOrb
         write(150,*) leftu
         write(150,*) rightv
     end do
+    close(150)
     
     deallocate(Tai,leftu,rightv,ww,svdvalue)
 
@@ -387,9 +402,9 @@ subroutine Calc_BOmat_subspace(domain)
                     ! <ex|ai^+*aj|gs>=<gs|aj^+*ai|ex>
                     do istate2=1,nstate,1
                         ! trace(CLR*QLR) or trace(CRL*QRL)
-                        call SpMMtrace('T',4*subM,&
+                        call SpMMtrace('T',4*subM,4*subM,&
                             coeffIF(:,istate2),coeffIFcolindex(:,istate2),coeffIFrowindexdummy(:,istate2),&
-                            midmat,midcolindex,midrowindex,itransDM(k,istate2,istate))
+                            4*subM,4*subM,midmat,midcolindex,midrowindex,itransDM(k,istate2,istate))
                     end do
                     !=====================================================================================
                 end do
@@ -628,9 +643,9 @@ subroutine Calc_BOmat_link
                         ! <ex|aR^+*aL|gs>=<gs|aL^+*aR|ex>
                         do istate2=1,nstate,1
                             ! trace(CLR*OLR)
-                            call SpMMtrace('T',4*subM, & 
+                            call SpMMtrace('T',4*subM,4*subM, & 
                                     coeffIF(:,istate2),coeffIFcolindex(:,istate2),coeffIFrowindex(:,istate2), &
-                                    midmat2,midmatcol2,midmatrow2,itransDM(k,istate2,j))
+                                    4*subM,4*subM,midmat2,midmatcol2,midmatrow2,itransDM(k,istate2,j))
                         end do
                         !=========================================================================
                     end do

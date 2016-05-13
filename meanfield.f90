@@ -31,7 +31,45 @@ Module MeanField
     integer,allocatable :: nactmoa(:)
     integer ::  nmoa
     contains
+!=============================================================
+!=============================================================
 
+subroutine SCF_driver
+    use Peierls_mod
+    implicit none
+    integer :: maxpeierlsloop
+    integer :: iloop
+    logical :: ifpeierlsconverge
+
+    if(logic_peierls==1) then
+        maxpeierlsloop=200
+    else
+        maxpeierlsloop=1
+    end if
+    
+    do iloop=1,maxpeierlsloop,1
+        if(logic_peierls==1) then
+            call Peierls_init('SCF')
+        end if
+        call SCFMain
+        if(logic_peierls==1) then
+            call SYSTEM("cp mean_bomat.out bondord.out")
+            call Peierls_driver(ifpeierlsconverge)
+            if(ifpeierlsconverge==.true.) then
+                write(*,*) "SCF Peierls converge!"
+                exit
+            end if
+        end if
+    end do
+    if(logic_peierls==1 .and. ifpeierlsconverge==.false.) then
+        write(*,*) "SCF Peierls do not converge!"
+    end if
+
+    return
+end subroutine SCF_driver
+
+
+!=============================================================
 !=============================================================
 
 subroutine SCFMain
@@ -147,9 +185,10 @@ subroutine SCFMain
     call master_print_message(nuclrepulsion,"nuclrepulsion=")
     call master_print_message(HFenergy,"HFenergy=")
     
-!   call Motra
-    call Mean_BondOrd
+    call Mean_BondOrd("mean_bomat.out")
+    ! call Motra
     
+    call SCF_Deallocate_Space
     deallocate(workarray)
 
 return
@@ -529,27 +568,31 @@ end subroutine IntAOtoMO
 !=============================================================
 !=============================================================
 
-subroutine Mean_BondOrd
+subroutine Mean_BondOrd(filename)
 ! this subroutine calculate the mean field bond order matrix
     
     use blas95
     use f95_precision
     implicit none
 
+    character(len=*),intent(in) :: filename
+    
     real(kind=r8) :: mean_bomat(norbs,norbs)
     integer :: i,j
 
-    open(unit=1002,file="mean_bomat.out",status="replace")
+    open(unit=1002,file=trim(filename),status="replace")
+    write(1002,*) 1
     do i=1,norbs,1
     do j=i,norbs,1
-        if(bondlink(i,j)/=0) then
+        if(bondlink(i,j)==1) then
             mean_bomat(i,j)=dot(coeffC(i,1:nocc),coeffC(j,1:nocc))
-            mean_bomat(i,j)=mean_bomat(i,j)*2.0D0    ! up down spin
-            write(1002,*) i,j,mean_bomat(i,j)
+            ! up down spin
+            write(1002,*) i,j,mean_bomat(i,j),mean_bomat(i,j)
         end if
     end do
     end do
     close(1002)
+
 return
 end subroutine Mean_BondOrd
 

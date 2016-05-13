@@ -26,11 +26,11 @@ object = BLASmodified.o kinds_mod.o communicate.o exit_mod.o variables.o SpMatTr
 	   davidson.o masterdiag.o  perturbation.o \
 	   noise.o Renormalization.o splitsvd_direct.o\
 	   hamiltonian.o infinit_MPS.o  \
-	   loadbalance.o readinput.o store_operator.o   \
+	   loadbalance.o peierls.o readintegral.o readinput.o store_operator.o   \
 	   enviro_big.o finit_MPS.o checkmat.o sweep.o \
 	   selectstates.o excitedbasis.o \
 	   meanfield.o C2_copy.o\
-	   transmoment.o bondord.o localspin.o analysis.o infinit_initmat.o count.o free_DMRG.o main.o  \
+	   linkopexpec.o corrfunc.o bondord.o localspin.o transmoment.o analysis.o infinit_initmat.o free_DMRG.o free_program.o main.o  \
 
 DMRG-X : $(object)
 	$(FC) -o $@ $^ -L$(JDLIB) -ljadamilu -L$(MPILIB) -L$(MKLLIB) $(FCCFLAG) 
