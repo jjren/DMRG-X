@@ -2,7 +2,7 @@ Program Tool_1dchain
 ! creat the 1d polyene chain
 ! the default angle is 120
     implicit none
-    real(kind=8) :: bondlength,delta,deltalength,hubbardUD,hubabrdUA,t
+    real(kind=8) :: bondlength,delta,deltalength,hubbardUD,hubbardUA,t
     integer(kind=4) :: nsite
     real(kind=8),allocatable :: coord(:,:)
     real(kind=8) :: t1,t2,singlelength,doublelength,ts,td,dist1,dist3,siteenergyD,siteenergyA

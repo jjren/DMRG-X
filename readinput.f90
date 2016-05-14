@@ -189,7 +189,7 @@ Subroutine ReadInput
 !===================================================================================
 ! broadcast to other process
 
-    packsize=100000
+    packsize=10000000
     allocate(packbuf(packsize),stat=error)
     if(error/=0) stop
 

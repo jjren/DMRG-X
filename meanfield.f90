@@ -187,6 +187,7 @@ subroutine SCFMain
     
     call Mean_BondOrd("mean_bomat.out")
     ! call Motra
+    call Mean_LocalMagMoment
     
     call SCF_Deallocate_Space
     deallocate(workarray)
@@ -591,6 +592,12 @@ subroutine Mean_BondOrd(filename)
         end if
     end do
     end do
+    write(1002,*) 1
+    ! electron density
+    do i=1,norbs,1
+        mean_bomat(i,i)=dot(coeffC(i,1:nocc),coeffC(i,1:nocc))
+        write(1002,*) i,i,mean_bomat(i,i),mean_bomat(i,i)
+    end do
     close(1002)
 
 return
@@ -599,6 +606,28 @@ end subroutine Mean_BondOrd
 !=============================================================
 !=============================================================
 
+subroutine Mean_LocalMagMoment
+    use blas95
+    use f95_precision
+    implicit none
+    integer :: i
+    real(kind=r8) :: tmp
+
+    open(unit=1003,file="mean_LocalMagMoment.out",status="replace")
+    write(1003,*) 1
+    do i=1,norbs,1
+        tmp=dot(coeffC(i,1:nocc),coeffC(i,1:nocc))
+        tmp=2.0D0*tmp-2.0D0*tmp*tmp
+        write(1003,*) tmp
+    end do
+    close(1003)
+
+    return
+
+end subroutine Mean_LocalMagMoment
+
+!=============================================================
+!=============================================================
 subroutine transdipol
 ! this subroutine calculate the transition dipole moment between 
 ! different MO <MO1|r|MO2>, the reference point is the center of mass

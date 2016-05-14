@@ -88,6 +88,13 @@ subroutine  LocalSpin
             write(*,*) "Total Spin of State",k,"equals",totalspin(k)
             write(*,*) "Half Spin of State",k,"equals",halfspin(:,k)
         end do
+    
+        write(*,*) "localmagmoment"
+        do k=1,nstate,1
+        do i=1,norbs,1
+            write(*,*) localspin0(i,i,k)
+        end do
+        end do
 
         open(unit=170,file="localspin.out",form="unformatted",status="replace")
         write(170) norbs,nstate
