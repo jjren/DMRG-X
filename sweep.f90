@@ -10,7 +10,6 @@ subroutine Sweep(direction)
     use hamiltonian_mod
     use module_sparse
     use construct_system_big
-    use checkmat_mod
 
     implicit none
     
@@ -44,25 +43,7 @@ subroutine Sweep(direction)
     end if
 
     if(nsysorb/=exactsite) then
-    !   if(myid==0) then
-    !       write(*,*) Lrealdim,Lrealdimp
-    !       write(*,*)  "Hsma-Hsmap"
-    !       write(*,*) Hsmarowindex(Lrealdim+1,1)-1,Hsmarowindexp(Lrealdimp+1,1)-1
-    !       write(*,*) Hsma(:,1)-Hsmap(:,1)
-    !       write(*,*)  "Hbig-Hbigp"
-    !       write(*,*) Hbigrowindex(4*Lrealdim+1,1)-1,Hbigrowindexp(4*Lrealdimp+1,1)-1
-    !       write(*,*)  Hbig(:,1)-Hbigp(:,1)
-    !   end if
-    !   if(myid/=0) then
-    !       write(*,*) Lrealdim,Lrealdimp
-    !       write(*,*) "operabig"
-    !       write(*,*) smarowindex1(Lrealdim+1,1:3)-1,smarowindex1p(Lrealdimp+1,1:3)-1
-    !       write(*,*) operamatsma1(:,1:3)-operamatsma1p(:,1:3)
-    !   end if
         call ConstructOnesiteMatrix(orbnow)
-        
-!       call checkmat(Hsma,Hsmacolindex,Hsmarowindex,&
-!           operamatsma1,smacolindex1,smarowindex1,quantasmaL,quantasmaR,"sma",domain)
         
         call System_Big(domain,operamatsma1,smacolindex1,smarowindex1,&
             operamatbig1,bigcolindex1,bigrowindex1,&
@@ -78,15 +59,6 @@ subroutine Sweep(direction)
                 quantasmaLp,quantasmaRp,&
                 LRdimp,subMp,.true.)
         end if
-    !   if(myid==0) then
-    !       write(*,*) Lrealdim,Lrealdimp
-    !       write(*,*)  "Hsma-Hsmap"
-    !       write(*,*) Hsmarowindex(Lrealdim+1,1)-1,Hsmarowindexp(Lrealdimp+1,1)-1
-    !       write(*,*) Hsma(:,1)-Hsmap(:,1)
-    !       write(*,*)  "Hbig-Hbigp"
-    !       write(*,*) Hbigrowindex(4*Lrealdim+1,1)-1,Hbigrowindexp(4*Lrealdimp+1,1)-1
-    !       write(*,*)  Hbig(:,1)-Hbigp(:,1)
-    !   end if
         
         if(domain=='L') then
             call System_Constructquanta(domain,Lrealdim,quantabigL(1:4*Lrealdim,1:2),quantasmaL(1:Lrealdim,1:2))

@@ -27,7 +27,7 @@ object = BLASmodified.o kinds_mod.o communicate.o exit_mod.o variables.o SpMatTr
 	   noise.o Renormalization.o splitsvd_direct.o\
 	   hamiltonian.o infinit_MPS.o  \
 	   loadbalance.o peierls.o readintegral.o readinput.o store_operator.o   \
-	   enviro_big.o finit_MPS.o checkmat.o sweep.o \
+	   enviro_big.o finit_MPS.o sweep.o \
 	   selectstates.o excitedbasis.o \
 	   meanfield.o C2_copy.o\
 	   opexpec.o corrfunc.o bondord.o localspin.o transmoment.o analysis.o infinit_initmat.o free_DMRG.o free_program.o main.o  \
