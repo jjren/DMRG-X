@@ -1,30 +1,32 @@
-module LinkOpExpec_mod
+module OpExpec_mod
     use kinds_mod
     use communicate
+    use mathlib
+    USE MPI
     implicit none
 contains
 !================================================
 !================================================
 
-subroutine LinkOpExpec(expec0,ltrans,rtrans,lproc,rproc,leadproc,ileft,iright,&
+subroutine LinkOpExpec(expec0,ltrans,rtrans,lproc,rproc,leadproc,&
             iLrealdim,iRrealdim,isubM,lstate,rstate,loperaindex,roperaindex,&
             cap_big,cap_bigcol,cap_bigrow,cap_coeff,cap_coeffcol,cap_coeffrow,packratio,midratio,ifphase,phase)
 
-    USE MPI
     use SpMatTrans_mod
-    use mathlib
 ! this subroutine calculate the expectation value of opertors between L and R space
     implicit none
     
     character(len=1),intent(in) :: ltrans,rtrans
     integer(kind=i4),intent(in) :: lproc,rproc,leadproc,&
-        ileft,iright,iLrealdim,iRrealdim,isubM,&
+        iLrealdim,iRrealdim,isubM,&
         lstate,rstate,loperaindex,roperaindex
-    real(kind=r8),intent(in) :: midratio,packratio,expec0
+    real(kind=r8),intent(in) :: midratio,packratio
     real(kind=r8),intent(in) :: cap_big(:,:),cap_coeff(:,:),phase(:)
     integer(kind=i4),intent(in) :: cap_bigcol(:,:),cap_bigrow(:,:),&
                                 cap_coeffcol(:,:),cap_coeffrow(:,:)
-    logical :: ifphase
+    
+    logical,intent(in) :: ifphase
+    real(kind=r8),intent(out) :: expec0
 
     ! local
     real(kind=r8),allocatable :: midmat1(:),midmat2(:)
@@ -143,6 +145,68 @@ subroutine LinkOpExpec(expec0,ltrans,rtrans,lproc,rproc,leadproc,ileft,iright,&
     return
 
 end subroutine LinkOpExpec
+
 !================================================
 !================================================
-end module LinkOpExpec_mod
+
+subroutine SubSpaceOpExpec(expec0,iproc,domain,&
+            iLrealdim,iRrealdim,isubM,lstate,rstate,operaindex,&
+            cap_big,cap_bigcol,cap_bigrow,cap_coeff,cap_coeffcol,cap_coeffrow,midratio)
+
+! this subroutine calculate the expectation value of opertors in L/R space
+    implicit none
+    
+    character(len=1),intent(in) :: domain
+    integer(kind=i4),intent(in) :: iproc,&
+        iLrealdim,iRrealdim,isubM,&
+        lstate,rstate,operaindex
+    real(kind=r8),intent(in) :: midratio
+    real(kind=r8),intent(in) :: cap_big(:,:),cap_coeff(:,:)
+    integer(kind=i4),intent(in) :: cap_bigcol(:,:),cap_bigrow(:,:),&
+                                cap_coeffcol(:,:),cap_coeffrow(:,:)
+    real(kind=r8),intent(out) :: expec0
+    
+    ! local
+    real(kind=r8),allocatable :: midmat(:)
+    integer(kind=i4),allocatable :: midcol(:),midrow(:)
+    integer :: nmid
+    real(kind=r8) :: expec
+    ! MPI 
+    integer :: ierr,status(MPI_STATUS_SIZE)
+
+    nmid=CEILING(DBLE(16*isubM*isubM)/midratio)
+    
+    if(myid==iproc) then
+        
+        allocate(midmat(nmid))
+        allocate(midcol(nmid))
+        allocate(midrow(4*isubM+1))
+        
+        if(domain=="L") then
+            call SpMMtoSp('T','N',4*iLrealdim,4*iLrealdim,4*iLrealdim,4*iRrealdim,4*iRrealdim,&
+                    cap_big(:,operaindex),cap_bigcol(:,operaindex),cap_bigrow(:,operaindex),&
+                    cap_coeff(:,lstate),cap_coeffcol(:,lstate),cap_coeffrow(:,lstate),&
+                    midmat(:),midcol(:),midrow(:),nmid)
+        else if(domain=="R") then
+            call SpMMtoSp('N','N',4*iLrealdim,4*iRrealdim,4*iRrealdim,4*iRrealdim,4*iRrealdim,&
+                    cap_coeff(:,lstate),cap_coeffcol(:,lstate),cap_coeffrow(:,lstate),&
+                    cap_big(:,operaindex),cap_bigcol(:,operaindex),cap_bigrow(:,operaindex),&
+                    midmat(:),midcol(:),midrow(:),nmid)
+        end if
+        call SpMMtrace('T',4*iLrealdim,4*iRrealdim,midmat(:),midcol(:),midrow(:),&
+                4*iLrealdim,4*iRrealdim,&
+                cap_coeff(:,rstate),cap_coeffcol(:,rstate),cap_coeffrow(:,rstate),expec)
+        call MPI_SEND(expec,1,MPI_REAL8,0,0,MPI_COMM_WORLD,ierr)
+
+        deallocate(midmat,midcol,midrow)
+    else if(myid==0) then
+        call MPI_RECV(expec0,1,MPI_REAL8,iproc,0,MPI_COMM_WORLD,status,ierr)
+    end if
+
+    return
+    
+end subroutine SubSpaceOpExpec   
+    
+!================================================
+!================================================
+end module OpExpec_mod

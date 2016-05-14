@@ -30,7 +30,7 @@ object = BLASmodified.o kinds_mod.o communicate.o exit_mod.o variables.o SpMatTr
 	   enviro_big.o finit_MPS.o checkmat.o sweep.o \
 	   selectstates.o excitedbasis.o \
 	   meanfield.o C2_copy.o\
-	   linkopexpec.o corrfunc.o bondord.o localspin.o transmoment.o analysis.o infinit_initmat.o free_DMRG.o free_program.o main.o  \
+	   opexpec.o corrfunc.o bondord.o localspin.o transmoment.o analysis.o infinit_initmat.o free_DMRG.o free_program.o main.o  \
 
 DMRG-X : $(object)
 	$(FC) -o $@ $^ -L$(JDLIB) -ljadamilu -L$(MPILIB) -L$(MKLLIB) $(FCCFLAG) 

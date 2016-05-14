@@ -453,14 +453,20 @@ LRdim,isubM,ifperturbation)
             do j=1,2,1
                 operaindex2=(orbid2(orbadd,orbadd,2)-1)*2+j
                 bigrowindex2(:,operaindex2)=0
+                if(j==1) then
+                    onesitematindex=11
+                else if(j==2) then
+                    onesitematindex=8
+                end if
+                  
                 if(domain=='R' .and. logic_C2==0) then
                     ! in onesite matrix the niup/down index is 7/8
-                    call SparseDirectProduct(4,4,onesitemat(:,j+6),osmcolindex(:,j+6),osmrowindex(:,j+6),&
+                    call SparseDirectProduct(4,4,onesitemat(:,onesitematindex),osmcolindex(:,onesitematindex),osmrowindex(:,onesitematindex),&
                             LRdim,LRdim,IM,IMcolindex,IMrowindex,&
                             operamatbig2(:,operaindex2),bigcolindex2(:,operaindex2),bigrowindex2(:,operaindex2),bigdim2)
                 else
                     call SparseDirectProduct(LRdim,LRdim,IM,IMcolindex,IMrowindex,&
-                            4,4,onesitemat(:,j+6),osmcolindex(:,j+6),osmrowindex(:,j+6),&
+                            4,4,onesitemat(:,onesitematindex),osmcolindex(:,onesitematindex),osmrowindex(:,onesitematindex),&
                             operamatbig2(:,operaindex2),bigcolindex2(:,operaindex2),bigrowindex2(:,operaindex2),bigdim2)
                 end if
             end do

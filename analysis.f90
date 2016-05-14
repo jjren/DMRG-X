@@ -43,6 +43,8 @@ subroutine Analysis
 
     if(logic_bondorder/=0) then
         call BondOrder
+        call LocalMagMoment('L')
+        call LocalMagMoment('R')
     end if
     
     if(logic_corrfunc==1) then
@@ -50,9 +52,9 @@ subroutine Analysis
         call corrfunc_driver('r',corrfunclstate,corrfuncrstate)
     end if
 
-    if(logic_Peierls==1) then
-    !    call Polarization
-    end if
+    ! if(logic_Peierls==1) then
+    !     call Polarization
+    ! end if
 
     if(nstate/=1) then
         call TransMoment

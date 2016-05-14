@@ -39,7 +39,7 @@ subroutine SCF_driver
     implicit none
     integer :: maxpeierlsloop
     integer :: iloop
-    logical :: ifpeierlsconverge
+    logical :: ifpeierlsconverge,ifscfconverge
 
     if(logic_peierls==1 .and. ifmeanfieldpeierls==.true.) then
         maxpeierlsloop=200
@@ -51,14 +51,16 @@ subroutine SCF_driver
         if(logic_peierls==1 .and. ifmeanfieldpeierls==.true.) then
             call Peierls_init('SCF')
         end if
-        call SCFMain
-        if(logic_peierls==1 .and. ifmeanfieldpeierls==.true. ) then
+        call SCFMain(ifscfconverge)
+        if(logic_peierls==1 .and. ifmeanfieldpeierls==.true. .and. ifscfconverge==.true.) then
             call SYSTEM("cp mean_bomat.out bondord.out")
             call Peierls_driver(ifpeierlsconverge)
             if(ifpeierlsconverge==.true.) then
                 write(*,*) "SCF Peierls converge!"
                 exit
             end if
+        else
+            exit
         end if
     end do
     if(logic_peierls==1 .and. ifmeanfieldpeierls==.true. .and. ifpeierlsconverge==.false.) then
@@ -72,7 +74,7 @@ end subroutine SCF_driver
 !=============================================================
 !=============================================================
 
-subroutine SCFMain
+subroutine SCFMain(ifconverged)
 ! the main subrountine of SCF
     
     use mathlib
@@ -80,9 +82,10 @@ subroutine SCFMain
     use F95_precision
     implicit none
     
+    logical,intent(out) :: ifconverged
+    
     integer :: guessmode,scfmaxiter
     real(kind=r8) :: norm,threshold,HFenergy,nuclrepulsion
-    logical :: ifconverged
     integer :: i,j,k
     integer :: error
     real(kind=r8),allocatable :: workarray(:,:)

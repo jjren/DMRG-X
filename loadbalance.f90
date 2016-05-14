@@ -66,7 +66,7 @@ Subroutine LoadBalance
 
 !====================================================================
     ! bond order operator
-    ! (i,i) pair niup+nidown
+    ! (i,i) pair (niup-nidown)^2
     !            niup-nidown
     ! (i,j) pair ai^+up*ajup
     !            ai^+down*ajdown          

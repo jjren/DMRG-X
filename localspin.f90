@@ -92,7 +92,7 @@ subroutine  LocalSpin
         write(*,*) "localmagmoment"
         do k=1,nstate,1
         do i=1,norbs,1
-            write(*,*) localspin0(i,i,k)
+            write(*,*) localspin0(i,i,k)/3.0D0*4.0D0
         end do
         end do
 

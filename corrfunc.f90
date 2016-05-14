@@ -11,20 +11,23 @@ contains
 
 subroutine corrfunc_driver(direction,lstate,rstate)
     use module_sparse
-    use LinkOpExpec_mod
+    use OpExpec_mod
     USE MPI
     implicit none
     character(len=1),intent(in) :: direction
     integer :: lstate,rstate
     
     ! local
-    real(kind=r8),allocatable :: ddcorr(:,:),sscorr(:,:),bbcorr(:,:,:),phase(:)
+    real(kind=r8),allocatable :: ddcorr(:,:),sscorr(:,:),bbcorr(:,:,:),&
+        phase(:),transDM0(:,:,:,:,:)
     character(len=20) :: ddfile,ssfile,bbfile
     integer :: orbstart,orbend,orbadd,&
         ileft,iright,iLrealdim,iRrealdim,isubM,&
         rproc,lproc,leadproc,&
         loperaindex,roperaindex
-    integer :: i,ispin
+    integer :: i,ispin,istate,jstate
+    integer :: norbsdummy,nstatedummy
+    logical :: alive
     real(kind=r8) :: midratio
     integer :: ierr
 
@@ -54,7 +57,7 @@ subroutine corrfunc_driver(direction,lstate,rstate)
         orbadd=norbs-nright
     end if
     
-    midratio=1.0D0
+    midratio=LRoutratio
 
     allocate(phase(4*Lrealdim))
     do i=1,4*Lrealdim,1
@@ -75,10 +78,10 @@ subroutine corrfunc_driver(direction,lstate,rstate)
         iRrealdim=Rrealdim
         isubM=subM
 
-        lproc=orbid2(ileft,ileft,1)
-        rproc=orbid2(iright,iright,1)
-        loperaindex=orbid2(ileft,ileft,2)*2-1
-        roperaindex=orbid2(iright,iright,2)*2-1
+        lproc=orbid1(ileft,1)
+        rproc=orbid1(iright,1)
+        loperaindex=orbid1(ileft,2)*3
+        roperaindex=orbid1(iright,2)*3
         if(direction=="r") then
             leadproc=lproc
         else
@@ -87,9 +90,44 @@ subroutine corrfunc_driver(direction,lstate,rstate)
         
         if(myid==lproc .or. myid==rproc .or. myid==0) then
             call LinkOpExpec(ddcorr(ileft,iright),'N','N',lproc,rproc,leadproc,&
-                    ileft,iright,iLrealdim,iRrealdim,isubM,lstate,rstate,&
-                    loperaindex,roperaindex,operamatbig2,bigcolindex2,bigrowindex2,&
-                    coeffIF,coeffIfcolindex,coeffIFrowindex,bigratio2,midratio,.false.,phase)
+                    iLrealdim,iRrealdim,isubM,lstate,rstate,&
+                    loperaindex,roperaindex,operamatbig1,bigcolindex1,bigrowindex1,&
+                    coeffIF,coeffIfcolindex,coeffIFrowindex,bigratio1,midratio,.false.,phase)
+        
+            if(myid==0) then
+                allocate(transDM0(norbs,norbs,2,nstate,nstate))
+                inquire(file="AO-transOpdm.out",exist=alive)
+                if(alive) then
+                    open(unit=398,file="AO-transOpdm.out",form="unformatted",status="old")
+                    read(398) norbsdummy,nstatedummy
+                    if(norbsdummy/=norbs) then
+                        write(*,*) "norbsdummy/=norbs",norbsdummy,norbs
+                        stop
+                    end if
+                    if(nstatedummy/=nstate) then
+                        write(*,*) "nstatedummy/=nstate",nstatedummy,nstate
+                        stop
+                    end if
+                    do istate=1,nstate,1
+                    do jstate=istate,nstate,1
+                        read(398) transDM0(:,:,:,jstate,istate)
+                    end do
+                    end do
+                    close(398)
+                    ddcorr(ileft,iright)=ddcorr(ileft,iright) + &
+                            nuclQ(ileft) * &
+                            (transDM0(iright,iright,1,lstate,rstate)+transDM0(iright,iright,2,lstate,rstate)) + &
+                            nuclQ(iright) * &
+                            (transDM0(ileft,ileft,1,lstate,rstate)+transDM0(ileft,ileft,2,lstate,rstate)) 
+                    if(lstate==rstate) then
+                        ddcorr(ileft,iright)=ddcorr(ileft,iright) - nuclQ(ileft)*nuclQ(iright)
+                    end if
+                else
+                    write(*,*) "no AO-transOpdm.out exist!"
+                    stop
+                end if
+                deallocate(transDM0)
+            end if
         end if
 
         ! call MPI_BARRIER(MPI_COMM_WORLD,ierr)
@@ -107,7 +145,7 @@ subroutine corrfunc_driver(direction,lstate,rstate)
 
         if(myid==lproc .or. myid==rproc .or. myid==0) then
             call LinkOpExpec(sscorr(ileft,iright),'N','N',lproc,rproc,leadproc,&
-                    ileft,iright,iLrealdim,iRrealdim,isubM,lstate,rstate,&
+                    iLrealdim,iRrealdim,isubM,lstate,rstate,&
                     loperaindex,roperaindex,operamatbig2,bigcolindex2,bigrowindex2,&
                     coeffIF,coeffIfcolindex,coeffIFrowindex,bigratio2,midratio,.false.,phase)
         end if
@@ -127,7 +165,7 @@ subroutine corrfunc_driver(direction,lstate,rstate)
 
             if(myid==lproc .or. myid==rproc .or. myid==0) then
                 call LinkOpExpec(bbcorr(ileft,iright,ispin),'N','T',lproc,rproc,leadproc,&
-                        ileft,iright,iLrealdim,iRrealdim,isubM,lstate,rstate,&
+                        iLrealdim,iRrealdim,isubM,lstate,rstate,&
                         loperaindex,roperaindex,operamatbig1,bigcolindex1,bigrowindex1,&
                         coeffIF,coeffIfcolindex,coeffIFrowindex,bigratio1,midratio,.true.,phase)
             end if
