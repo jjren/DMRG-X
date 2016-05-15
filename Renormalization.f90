@@ -433,7 +433,6 @@ bigLRdim,smaLRdim,dummyHsmadim,dummysmadim)
     do i=orbstart,orbend,1
         if(myid==orbid1(i,1)) then
             do j=1,3,1
-                if(logic_PPP==0 .and. j==3) exit
                 operaindex=orbid1(i,2)*3-3+j
                 call SpMatRotateBasis(smaLRdim,4*bigLRdim,rotatemat,rotcolindex,rotrowindex, &
                             4*bigLRdim,4*bigLRdim,cap_big(:,operaindex),cap_bigcol(:,operaindex),cap_bigrow(:,operaindex), &

@@ -42,7 +42,7 @@ subroutine LinkOpExpec(expec0,ltrans,rtrans,lproc,rproc,leadproc,&
     integer :: ierr,status(MPI_STATUS_SIZE)
 
     nmid=CEILING(DBLE(16*isubM*isubM)/midratio)
-    
+
     if(myid==leadproc) then
         allocate(midmat1(nmid))
         allocate(midcol1(nmid))
@@ -134,6 +134,7 @@ subroutine LinkOpExpec(expec0,ltrans,rtrans,lproc,rproc,leadproc,&
         call MPI_SEND(expec,1,MPI_REAL8,0,0,MPI_COMM_WORLD,ierr)
 
     else if(myid==0) then
+        expec0=0.0D0
         call MPI_RECV(expec0,1,MPI_REAL8,leadproc,0,MPI_COMM_WORLD,status,ierr)
     end if
 
@@ -200,6 +201,7 @@ subroutine SubSpaceOpExpec(expec0,iproc,domain,&
 
         deallocate(midmat,midcol,midrow)
     else if(myid==0) then
+        expec0=0.0D0
         call MPI_RECV(expec0,1,MPI_REAL8,iproc,0,MPI_COMM_WORLD,status,ierr)
     end if
 
