@@ -67,7 +67,7 @@ program main
         ! do wave function analysis
         call Analysis
 
-        if(logic_Peierls==1 .and. ipeierlsloop==1) then
+        if(myid==0 .and. logic_Peierls==1 .and. ipeierlsloop==1) then
             call SYSTEM("mkdir 1-back")
             call SYSTEM("cp *.out 1-back")
         end if

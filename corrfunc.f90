@@ -94,40 +94,6 @@ subroutine corrfunc_driver(direction,lstate,rstate)
                     loperaindex,roperaindex,operamatbig1,bigcolindex1,bigrowindex1,&
                     coeffIF,coeffIfcolindex,coeffIFrowindex,bigratio1,midratio,.false.,phase)
         
-            if(myid==0) then
-                allocate(transDM0(norbs,norbs,2,nstate,nstate))
-                inquire(file="AO-transOpdm.out",exist=alive)
-                if(alive) then
-                    open(unit=398,file="AO-transOpdm.out",form="unformatted",status="old")
-                    read(398) norbsdummy,nstatedummy
-                    if(norbsdummy/=norbs) then
-                        write(*,*) "norbsdummy/=norbs",norbsdummy,norbs
-                        stop
-                    end if
-                    if(nstatedummy/=nstate) then
-                        write(*,*) "nstatedummy/=nstate",nstatedummy,nstate
-                        stop
-                    end if
-                    do istate=1,nstate,1
-                    do jstate=istate,nstate,1
-                        read(398) transDM0(:,:,:,jstate,istate)
-                    end do
-                    end do
-                    close(398)
-                    ddcorr(ileft,iright)=ddcorr(ileft,iright) + &
-                            nuclQ(ileft) * &
-                            (transDM0(iright,iright,1,lstate,rstate)+transDM0(iright,iright,2,lstate,rstate)) + &
-                            nuclQ(iright) * &
-                            (transDM0(ileft,ileft,1,lstate,rstate)+transDM0(ileft,ileft,2,lstate,rstate)) 
-                    if(lstate==rstate) then
-                        ddcorr(ileft,iright)=ddcorr(ileft,iright) - nuclQ(ileft)*nuclQ(iright)
-                    end if
-                else
-                    write(*,*) "no AO-transOpdm.out exist!"
-                    stop
-                end if
-                deallocate(transDM0)
-            end if
         end if
 
         ! call MPI_BARRIER(MPI_COMM_WORLD,ierr)
@@ -174,6 +140,53 @@ subroutine corrfunc_driver(direction,lstate,rstate)
     end do
     
     if(myid==0) then
+        
+        allocate(transDM0(norbs,norbs,2,nstate,nstate))
+        inquire(file="AO-transOpdm.out",exist=alive)
+        if(alive) then
+            open(unit=398,file="AO-transOpdm.out",form="unformatted",status="old")
+            read(398) norbsdummy,nstatedummy
+            if(norbsdummy/=norbs) then
+                write(*,*) "norbsdummy/=norbs",norbsdummy,norbs
+                stop
+            end if
+            if(nstatedummy/=nstate) then
+                write(*,*) "nstatedummy/=nstate",nstatedummy,nstate
+                stop
+            end if
+            do istate=1,nstate,1
+            do jstate=istate,nstate,1
+                read(398) transDM0(:,:,:,jstate,istate)
+            end do
+            end do
+            close(398)
+            do i=orbstart,orbend,1
+                if(direction=="l") then
+                    ddcorr(orbadd,i)=ddcorr(orbadd,i) + &
+                            nuclQ(orbadd) * &
+                            (transDM0(i,i,1,lstate,rstate)+transDM0(i,i,2,lstate,rstate)) + &
+                            nuclQ(i) * &
+                            (transDM0(orbadd,orbadd,1,lstate,rstate)+transDM0(orbadd,orbadd,2,lstate,rstate)) 
+                    if(lstate==rstate) then
+                        ddcorr(orbadd,i)=ddcorr(orbadd,i) - nuclQ(orbadd)*nuclQ(i)
+                    end if
+                else 
+                    ddcorr(i,orbadd)=ddcorr(i,orbadd) + &
+                            nuclQ(orbadd) * &
+                            (transDM0(i,i,1,lstate,rstate)+transDM0(i,i,2,lstate,rstate)) + &
+                            nuclQ(i) * &
+                            (transDM0(orbadd,orbadd,1,lstate,rstate)+transDM0(orbadd,orbadd,2,lstate,rstate)) 
+                    if(lstate==rstate) then
+                        ddcorr(i,orbadd)=ddcorr(i,orbadd) - nuclQ(orbadd)*nuclQ(i)
+                    end if
+                end if
+            end do
+        else
+            write(*,*) "no AO-transOpdm.out exist!"
+            stop
+        end if
+        deallocate(transDM0)
+
         open(unit=880,file=ddfile,status="replace")
         open(unit=881,file=ssfile,status="replace")
         open(unit=882,file=bbfile,status="replace")
