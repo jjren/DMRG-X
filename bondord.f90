@@ -354,6 +354,7 @@ subroutine Calc_BOmat_subspace(domain)
 
     do iorb=orbstart,orbend,1
     do jorb=iorb,orbend,1
+    if(bondlink(iorb,jorb)/=0 .or. logic_bondorder==2) then
     do ispin=1,2,1
         if(iorb==jorb .and. ispin==1) then
             ! L space <n_{iup}+n_{idown}-nuclQ_i>
@@ -414,6 +415,7 @@ subroutine Calc_BOmat_subspace(domain)
             end if
         end if
     end do
+    end if
     end do
     end do
 
