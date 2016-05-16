@@ -342,7 +342,7 @@ subroutine Calc_BOmat_subspace(domain)
     integer :: lstate,rstate,iorb,jorb,ispin
     real(kind=r8),allocatable :: midtrans(:,:)
 
-    midratio=pppVmidratio
+    midratio=1.0D0
 
     if(domain=="L") then
         orbstart=1
@@ -435,7 +435,7 @@ subroutine Calc_BOmat_link
     integer :: lproc,rproc,loperaindex,roperaindex,leadproc,i
     real(kind=r8) :: midratio
 
-    midratio=LRoutratio
+    midratio=1.0D0
 
     allocate(phase(4*Lrealdim))
     do i=1,4*Lrealdim,1
@@ -497,7 +497,7 @@ subroutine LocalMagMoment(domain)
     real(kind=r8),allocatable ::  localmagmoment0(:,:)
     character(len=50) :: filename
 
-    midratio=pppVmidratio
+    midratio=1.0D0
 
     if(domain=="L") then
         orbstart=1
