@@ -1,7 +1,7 @@
 program Tool_DAdensitydiff
     implicit none
 
-    integer :: nbonds,nsites,nstates
+    integer :: nbonds,nsites,nstates,ncutoff,ncount
     integer :: istate,ibond,isite,idummy
     real(kind=8) :: updensity,downdensity,Ddensity,Adensity,diffdensity
 
@@ -12,6 +12,8 @@ program Tool_DAdensitydiff
     read(*,*) nsites
     write(*,*) "nstates"
     read(*,*) nstates
+    write(*,*) "ncutoff"
+    read(*,*) ncutoff
 
     open(unit=10,file="bondord.out",status="old")
     open(unit=11,file="DAdensityDiff.out",status="replace")
@@ -28,15 +30,19 @@ program Tool_DAdensitydiff
         read(10,*) 
         Ddensity=0.0D0
         Adensity=0.0D0
+        ncount=0
         do isite=1,nsites,1
             read(10,*) idummy,idummy,updensity,downdensity
-            if(mod(isite,2)==1) then
-                Ddensity=Ddensity+updensity+downdensity
-            else
-                Adensity=Adensity+updensity+downdensity
+            if(isite>ncutoff .and. (nsites-isite)>=ncutoff) then
+                if(mod(isite,2)==1) then
+                    Ddensity=Ddensity+updensity+downdensity
+                else
+                    Adensity=Adensity+updensity+downdensity
+                end if
+                ncount=ncount+1
             end if
         end do
-        diffdensity=(Ddensity-Adensity)/nsites*2
+        diffdensity=(Ddensity-Adensity)/ncount*2
         write(11,*) diffdensity 
     end do
 
