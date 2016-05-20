@@ -17,6 +17,7 @@ subroutine Infinit_MPS
     ! treal bondlinkreal store the initial real value
     integer :: error,ierr
     integer :: isystem,i,j
+    integer :: realSz
     
     call master_print_message("enter subroutine infinit_MPS")
     
@@ -171,6 +172,12 @@ subroutine Infinit_MPS
 !============================================================
 
     ! construct the total H(direct method) and davidson diagnalization
+        ! in the infinite process, when Lrealdim < subM, set Sz=0
+        if(Lrealdim<subM) then
+            realSz=totalSz
+            totalSz=0
+        end if
+
         if(4*Lrealdim>subM) then
             logic_C2=0
             call Hamiltonian('i')
@@ -178,6 +185,10 @@ subroutine Infinit_MPS
         end if
     ! Renormalization all the operator matrix
         call Renormalization('i')
+        
+        if(Lrealdim<subM) then
+            totalSz=realSz
+        end if
     end do
 
     ! set t and bondlink to real value
