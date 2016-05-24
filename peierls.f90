@@ -62,6 +62,10 @@ subroutine Peierls_driver(ifconverge)
     implicit none
     logical,intent(out) :: ifconverge
     
+    if(logic_C2/=0) then
+        nstate=nstate*2
+    end if
+
     call Allocate_Peierls
     call PeierlsTD_Read
     call Cal_Peierlsdelta
@@ -70,6 +74,11 @@ subroutine Peierls_driver(ifconverge)
     
     call Peierls_Write
     call Deallocate_Peierls
+    
+    ! recover the input nstate
+    if(logic_C2/=0) then
+        nstate=nstate/2
+    end if
 
     return
 end subroutine Peierls_driver
@@ -102,6 +111,10 @@ subroutine PeierlsTD_Read
         end do
         if(k==peierlsstate) exit
     end do
+    if(k/=peierlsstate) then
+        write(*,*) "nopeierlsstate"
+        stop
+    end if
     close(777)
     
     if(ifpeierlsD==1) then 
