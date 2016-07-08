@@ -1,8 +1,8 @@
 program Tool_DAdistortion
     implicit none
 
-    integer :: nbonds,ibond,idummy,ncutoff,ncount
-    real(kind=8) :: localdelta,totaldelta
+    integer :: nbonds,ibond,idummy,ncutoff,ncountA,ncountD
+    real(kind=8) :: localdelta,totaldelta,totaldeltaA,totaldeltaD
 
     write(*,*) "nbonds"
     read(*,*) nbonds
@@ -11,20 +11,23 @@ program Tool_DAdistortion
 
     open(unit=10,file="peierlsdelta.out",status="old")
     read(10,*)
-    totaldelta=0.0D0
-    ncount=0
+    totaldeltaD=0.0D0
+    totaldeltaA=0.0D0
+    ncountD=0
+    ncountA=0
     do ibond=1,nbonds,1
         read(10,*) idummy,idummy,localdelta
         if(ibond>ncutoff .and. (nbonds-ibond)>=ncutoff) then
             if(mod(ibond,2)==1) then
-                totaldelta=totaldelta+(-1.0D0)*localdelta
+                totaldeltaD=totaldeltaD+localdelta
+                ncountD=ncountD+1
             else
-                totaldelta=totaldelta+localdelta
+                totaldeltaA=totaldeltaA+localdelta
+                ncountA=ncountA+1
             end if
-            ncount=ncount+1
         endif
     end do
-    totaldelta=totaldelta/DBLE(ncount)
+    totaldelta=totaldeltaD/DBLE(ncountD)-totaldeltaA/DBLE(ncountA)
 
     close(10)
 

@@ -1,7 +1,7 @@
 program Tool_DAdensitydiff
     implicit none
 
-    integer :: nbonds,nsites,nstates,ncutoff,ncount
+    integer :: nbonds,nsites,nstates,ncutoff,nDcount,nAcount
     integer :: istate,ibond,isite,idummy
     real(kind=8) :: updensity,downdensity,Ddensity,Adensity,diffdensity
 
@@ -30,19 +30,21 @@ program Tool_DAdensitydiff
         read(10,*) 
         Ddensity=0.0D0
         Adensity=0.0D0
-        ncount=0
+        nDcount=0
+        nAcount=0
         do isite=1,nsites,1
             read(10,*) idummy,idummy,updensity,downdensity
             if(isite>ncutoff .and. (nsites-isite)>=ncutoff) then
                 if(mod(isite,2)==1) then
                     Ddensity=Ddensity+updensity+downdensity
+                    nDcount=nDcount+1
                 else
                     Adensity=Adensity+updensity+downdensity
+                    nAcount=nAcount+1
                 end if
-                ncount=ncount+1
             end if
         end do
-        diffdensity=(Ddensity-Adensity)/ncount*2
+        diffdensity=Ddensity/nDcount-Adensity/nAcount
         write(11,*) diffdensity 
     end do
 
