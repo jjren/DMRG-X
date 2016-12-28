@@ -42,6 +42,8 @@ subroutine Hamiltonian(direction)
         call Davidson_wrapper(direction)
     else if(diagmethod=="JacobiDavidson" .or. diagmethod=="JD") then
         call JacobiDavidson_wrapper(direction)
+    else if(diagmethod == "Lanczos" .or. diagmethod == "La") then
+        call Lanczos_wrapper(direction)
     end if
     
     endtime=MPI_WTIME()
@@ -49,6 +51,150 @@ subroutine Hamiltonian(direction)
 return
 
 end subroutine Hamiltonian
+
+!====================================================================
+!====================================================================
+
+subroutine Lanczos_Wrapper(direction)
+
+    implicit none
+    character(len=1) :: direction  ! i,l,r direction l is L space to R space sweep
+    ! local
+    real(kind=r8) :: ENDL, ENDR, KAPPA, CONDM
+    integer :: LANMAX, worksize, ierr, nlanczos, nconverged, imessage
+    real(kind=r8),allocatable :: workarray(:), eigenvalue(:), errbnd(:), &
+        dummycoeff(:),dummynewcoeff(:), eigenvector(:)
+    integer :: ijob,ierror,i,niv,EV
+
+    call GetDimSym
+    
+    ENDL = -1.0D-30
+    ENDR =  1.0D-30
+    LANMAX = MIN(200,dimN)
+    worksize = 6*dimN+1+4*LANMAX+LANMAX*LANMAX
+    imessage = 3
+    CONDM = 1.0D0
+    EV = 99
+    
+    if(isweep==0 .or. nelecs/=realnelecs) then
+        KAPPA = 1.0D-4
+    else if(isweep==1) then
+        KAPPA = 1.0D-5
+    else 
+        KAPPA = 1.0D-6
+    end if
+    
+    ! allocate workarray
+    if(myid==0) then
+        allocate(workarray(worksize))
+        allocate(eigenvalue(LANMAX))
+        allocate(errbnd(LANMAX))
+        allocate(HDIAG(dimN))
+        allocate(eigenvector(nstate*dimN))
+    end if
+    
+    ! construct the complementary operator matrix
+    if(opmethod=="comple") then
+        call Complement(operamatbig1,bigcolindex1,bigrowindex1,Lrealdim,Rrealdim,subM,0)
+    end if
+
+    if(logic_spinreversal/=0 .or. &
+        (logic_C2/=0 .and. nleft==nright)) then
+        call SymmHDiag(HDIAG)
+    else 
+        call GetHDiag(HDIAG,dimN,&
+        operamatbig1,bigcolindex1,bigrowindex1,&
+        Hbig,Hbigcolindex,Hbigrowindex,&
+        goodbasis,&
+        .false.)
+    end if
+
+    if(myid==0) then
+        ! Get the Initialcoeff Guess
+        niv = nstate
+        call InitialStarter(direction,dimN,niv,workarray(1:dimN*nstate))
+        write(*,*) "isweep=",isweep,"site=",nleft+1,norbs-nright
+        if(niv == 0) workarray(1:dimN*nstate) = 0.0D0
+        
+        !CALL LANDR(N,LANMAX,MAXPRS,CONDM,ENDL,ENDR,EV,KAPPA,
+        !    J,NEIG,RITZ,BND,W,NW,IERR,MSGLVL)
+        ierror = 0
+        call LANDR(dimN, LANMAX, nstate, CONDM, ENDL, ENDR, EV, KAPPA, &
+            nlanczos, nconverged, eigenvalue, errbnd, workarray, worksize, ierror, imessage,eigenvector)
+        IJOB = 0
+        call MPI_BCAST(IJOB,1,MPI_integer,0,MPI_COMM_WORLD,ierr)
+    else
+        do while (.true.)
+            call MPI_BCAST(IJOB,1,MPI_integer,0,MPI_COMM_WORLD,ierr)
+            if(IJOB == 1) then
+                allocate(dummycoeff(1))
+                allocate(dummynewcoeff(1))
+                if(opmethod=="comple") then
+                    call op(1,1,dummycoeff,dummynewcoeff,&
+                            Lrealdim,Rrealdim,subM,ngoodstates,&
+                            operamatbig1,bigcolindex1,bigrowindex1,&
+                            Hbig,Hbigcolindex,Hbigrowindex,&
+                            quantabigL,quantabigR,goodbasis,goodbasiscol)
+                else if(opmethod=="direct") then
+                    call opdirect(1,1,dummycoeff,dummynewcoeff,&
+                            Lrealdim,Rrealdim,subM,ngoodstates,&
+                            operamatbig1,bigcolindex1,bigrowindex1,&
+                            Hbig,Hbigcolindex,Hbigrowindex,&
+                            quantabigL,quantabigR,goodbasis,goodbasiscol)
+                else
+                    stop
+                end if
+
+                deallocate(dummycoeff)
+                deallocate(dummynewcoeff)
+            else
+                exit
+            end if
+        end do
+    end if
+
+    if(opmethod=="comple") then
+        call deallocate_Complement
+    end if
+
+    if(myid==0) then
+        if(ierror/=0) then
+            call master_print_message(ierror,"Lanczos ierror/=0")
+            stop
+        end if
+        call DavidOutput(eigenvalue,eigenvector)
+        write(*,*) "nlanczos = ", nlanczos
+        write(*,*) "nconverged = ", nconverged
+        write(*,*) "index, eigenvalue, errbound"
+        do i =1, nlanczos, 1
+            write(*,*) i, eigenvalue(i), errbnd(i)
+        end do
+        write(*,*) "low state energy"
+        do i=1,nstate,1
+            write(*,*) nleft+1,norbs-nright,i,"th energy=",eigenvalue(i)
+        end do
+    end if
+    
+    if(ifopenperturbation==.true.) then
+        call perturbation(eigenvalue,nstate,direction)
+    end if
+
+    ! deallocate symmetry workarray
+    if(logic_spinreversal/=0 .or. (logic_C2/=0 .and. nleft==nright)) then
+        call DestroySymm
+    end if
+    
+    if(myid==0) then
+        deallocate(workarray)
+        deallocate(eigenvalue)
+        deallocate(errbnd)
+        deallocate(HDIAG)
+        deallocate(eigenvector)
+    end if
+
+    return
+end subroutine Lanczos_Wrapper
+
 
 !====================================================================
 !====================================================================
@@ -86,7 +232,7 @@ subroutine JacobiDavidson_Wrapper(direction)
     ! initial value
     NEIG=nstate
     MADSPACE=20
-    iter=2000
+    iter=4000
     mem=20.0
     droptol=1.0D-3
     ICNTL(1)=0
@@ -140,6 +286,12 @@ subroutine JacobiDavidson_Wrapper(direction)
     else if(isweep==1) then
         Tol=5.0D-3
     else
+        Tol=1.0D-4
+    end if
+
+    ! in the last 3 sweeps
+    if((isweep==sweeps .or. isweep==sweeps-1 .or. &
+    isweep==sweeps-2) .and. nelecs== realnelecs) then
         Tol=1.0D-4
     end if
 !--------------------------------------------------------------------
@@ -293,7 +445,7 @@ Subroutine Davidson_Wrapper(direction)
     lim=nstate+35    ! this number 20 can be changed consider the efficiency
     niv=nstate
     mblock=nstate
-    maxiter=400
+    maxiter=1000
     allocate(iselec(lim),stat=error)
     if(error/=0) stop
     iselec=-1
@@ -312,8 +464,8 @@ Subroutine Davidson_Wrapper(direction)
     end if
 
     ! in the last 3 sweeps
-    if(isweep==sweeps .or. isweep==sweeps-1 .or. &
-    isweep==sweeps-2) then
+    if((isweep==sweeps .or. isweep==sweeps-1 .or. &
+    isweep==sweeps-2) .and. nelecs== realnelecs) then
         crite=1.0D-10
         critc=1.0D-10
         critr=1.0D-10
@@ -477,10 +629,11 @@ subroutine DavidOutput(eigenvalue,eigenvector)
 
     real(kind=r8) :: eigenvalue(nstate),eigenvector(nstate*dimN)
     real(kind=r8),allocatable :: nosymmout(:)
-    integer :: i,k,error
+    integer :: i,k,error,istate
     integer :: nonzero
 
     if(myid==0) then
+        ! write(*,*) "eigenvector",eigenvector
         ! transfer the symmetry state to the non-symmetry state S*fai
         allocate(nosymmout(ngoodstates*nstate),stat=error)
         if(error/=0) stop
@@ -538,9 +691,15 @@ subroutine DavidOutput(eigenvalue,eigenvector)
     ! in the logic_C2 mode; every half-half step do logic_C2=-1*logic_C2real 
     ! and do logic_C2=logic_C2real
     if(myid==0 .and. logic_C2/=logic_C2real) then
-        coeffIF(:,nstate+1:2*nstate)=coeffIF(:,1:nstate)
-        coeffIFcolindex(:,nstate+1:2*nstate)=coeffIFcolindex(:,1:nstate)
-        coeffIFrowindex(:,nstate+1:2*nstate)=coeffIFrowindex(:,1:nstate)
+        do istate = 1, nstate, 1
+            call CopySpAtoB(4*Lrealdim, &
+                coeffIF(:,istate), coeffIFcolindex(:,istate), coeffIFrowindex(:,istate), &
+                coeffIF(:,istate+nstate), coeffIFcolindex(:,istate+nstate), coeffIFrowindex(:,istate+nstate), &
+                coeffIFdim )
+        end do
+        !coeffIF(:,nstate+1:2*nstate)=coeffIF(:,1:nstate)
+        !coeffIFcolindex(:,nstate+1:2*nstate)=coeffIFcolindex(:,1:nstate)
+        !coeffIFrowindex(:,nstate+1:2*nstate)=coeffIFrowindex(:,1:nstate)
         dmrgenergy(nstate+1:2*nstate)=dmrgenergy(1:nstate)
     end if
 
@@ -587,6 +746,5 @@ end subroutine GetDimSym
 
 !====================================================================
 !====================================================================
-
 end Module Hamiltonian_mod
 

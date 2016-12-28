@@ -27,6 +27,8 @@ Module MeanField
     integer :: iscfiter ,&  ! at this step the scf steps index
                ioldestfock
     
+    logical :: Ifmotra
+
     ! MO integral input
     integer,allocatable :: nactmoa(:)
     integer ::  nmoa
@@ -164,7 +166,9 @@ subroutine SCFMain(ifconverged)
     open(unit=150,file="MO.out",status="replace")
     do i=1,norbs,1
         write(150,*) i,energyE(i)
-        write(150,*) coeffC(:,i)
+        do j=1,norbs,1
+            write(150,*) coeffC(j,i)
+        end do
     end do
     ! AO density matrix 
     write(150,*) densD
@@ -189,7 +193,7 @@ subroutine SCFMain(ifconverged)
     call master_print_message(HFenergy,"HFenergy=")
     
     call Mean_BondOrd("mean_bomat.out")
-    ! call Motra
+    If (Ifmotra == .true.) call Motra
     call Mean_LocalMagMoment
     
     call SCF_Deallocate_Space
@@ -533,9 +537,11 @@ subroutine Motra
 
     open(unit=55,file='moint2.out',form='unformatted',status="replace")
     write(55) nmoa, nxa
-    write(*,*) "nmoa=",nmoa,"nxa",nxa
+    !write(*,*) "nmoa=",nmoa,"nxa",nxa
     write(55) (ea(i), i=1,nmoa)
+    !write(*,*) (ea(i), i=1,nmoa)
     write(55) (xa(i), i=1,nxa)
+    !write(*,*) (xa(i), i=1,nxa)
     close(55)
 
     ! calculate the transition dipole
@@ -659,6 +665,22 @@ subroutine transdipol
     end do
     end do
     end do
+    open(unit=63,file="dipint.out",status="replace")
+    do i = 1, norbs, 1
+    do j = 1, i, 1
+        write(63,'(2I5,3E25.10)') j, i, trnsdipmo(j,i,1:3)
+    end do
+    end do
+    close(63)
+    ! fullci.py format
+    !open(unit=61,file="MO-active-dipole.out",status="replace")
+    !write(61,*) norbs
+    !do j=1,nmoa,1
+    !do i=1,j,1
+    !    write(61,*) trnsdipmo(nactmoa(j),nactmoa(i),1:3)
+    !end do
+    !end do
+    !close(61)
 
     ! HF dipole moment
     trnshf=0.0D0

@@ -15,6 +15,7 @@ subroutine Analysis
     use blas95
     use f95_precision
     use corrfunc_mod
+    use dyn_prop
     implicit none
     integer(kind=i4),allocatable :: midrowmat(:),midcolmat(:)
     integer :: i
@@ -67,6 +68,11 @@ subroutine Analysis
     ! recover the input nstate
     if(logic_C2/=0) then
         nstate=nstate/2
+    end if
+    
+    !> dynamic properties
+    if(Ifdyn_prop == .true.) then
+        call dyn_prop_wrapper
     end if
 
     if(myid/=0) then

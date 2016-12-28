@@ -10,6 +10,8 @@ Subroutine ReadInput
     use perturbation_mod,only : Ifperturbation3,IfperturbationDVD
     use basisindex_mod,only : nmaxgoodbasis,nmaxgoodbasisp
     use Peierls_mod,only : peierlsstate,hopalpha,springK,npeierlsloops,peierlsconvergethresh
+    use dyn_prop,only : Ifdyn_prop, maxnlancs, dyn_initstate
+    use meanfield,only : Ifmotra
     implicit none
 
     integer :: i,j,error,ierr 
@@ -68,7 +70,7 @@ Subroutine ReadInput
         read(10,*) peierlsconvergethresh
         allocate(pppw(norbs,norbs))
     end if
-    read(10,*) logic_MeanField , IfMeanFieldPeierls       ! if do meanfield SCF calculation
+    read(10,*) logic_MeanField , IfMeanFieldPeierls, Ifmotra       ! if do meanfield SCF calculation
     read(10,*) logic_spinreversal    ! if do spin reversal logic_spinreversal=+-1 
     read(10,*) logic_C2,C2method     ! if do C2 symmetry or the same mirror reflection and center reflection
     read(10,*) logic_tree            ! if do tree tensor algorithm logic_tree=1
@@ -127,6 +129,8 @@ Subroutine ReadInput
         allocate(noiseweight(0:sweeps))
         read(10,*) noiseweight(0:sweeps)
     end if
+    ! if do dynamic calculation
+    read(10,*) Ifdyn_prop, maxnlancs, dyn_initstate
 
     read(10,*) nmaxgoodbasis,nmaxgoodbasisp
 
@@ -251,6 +255,9 @@ Subroutine ReadInput
         call MPI_PACK(diagmethod,20,MPI_CHARACTER,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
         call MPI_PACK(opmethod,20,MPI_CHARACTER,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
         call MPI_PACK(Ifnoise,1,MPI_LOGICAL,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
+        call MPI_PACK(Ifdyn_prop,1,MPI_LOGICAL,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
+        call MPI_PACK(maxnlancs,1,MPI_INTEGER4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
+        call MPI_PACK(dyn_initstate,1,MPI_INTEGER4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
         call MPI_PACK(nmaxgoodbasis,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
         call MPI_PACK(nmaxgoodbasisp,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
         write(*,*) "packsizedefine=",packsize,"packbufsize=",position1
@@ -330,6 +337,9 @@ Subroutine ReadInput
         call MPI_UNPACK(packbuf,packsize,position1,diagmethod,20,MPI_CHARACTER,MPI_COMM_WORLD,ierr)
         call MPI_UNPACK(packbuf,packsize,position1,opmethod,20,MPI_CHARACTER,MPI_COMM_WORLD,ierr)
         call MPI_UNPACK(packbuf,packsize,position1,Ifnoise,1,MPI_LOGICAL,MPI_COMM_WORLD,ierr)
+        call MPI_UNPACK(packbuf,packsize,position1,Ifdyn_prop,1,MPI_LOGICAL,MPI_COMM_WORLD,ierr)
+        call MPI_UNPACK(packbuf,packsize,position1,maxnlancs,1,MPI_INTEGER4,MPI_COMM_WORLD,ierr)
+        call MPI_UNPACK(packbuf,packsize,position1,dyn_initstate,1,MPI_INTEGER4,MPI_COMM_WORLD,ierr)
         call MPI_UNPACK(packbuf,packsize,position1,nmaxgoodbasis,1,MPI_integer4,MPI_COMM_WORLD,ierr)
         call MPI_UNPACK(packbuf,packsize,position1,nmaxgoodbasisp,1,MPI_integer4,MPI_COMM_WORLD,ierr)
         write(*,*) myid,"getpacksize=",position1
@@ -391,6 +401,7 @@ Subroutine ReadInput
         if(Ifnoise==.true.) then
             write(*,*) "noiseweight:",noiseweight
         end if
+        write(*,*) "If do dynamic property:", Ifdyn_prop, maxnlancs, dyn_initstate
         write(*,*) "nweight=",nweight
         write(*,*) "nmaxgoodbasis=",nmaxgoodbasis
         write(*,*) "nmaxgoodbasisp=",nmaxgoodbasisp
@@ -454,6 +465,8 @@ subroutine centerofmass
     
     integer :: i
     real(kind=r8) :: totalmass
+
+    totalmass = 0.0D0
 
     do i=1,natoms,1
         cntofmass=coord(:,i)*atommass(i)+cntofmass

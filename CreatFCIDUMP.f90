@@ -57,6 +57,21 @@ subroutine CreatFCIDUMP
 
     write(14,*) coreenergy,izero,izero,izero,izero
     
+    ! fullci.py format
+    open(unit=61,file="MO-active-dipole.out",status="replace")
+    write(61,*) norbs
+    do i=1,norbs,1
+    do j=1,i,1
+        if(j==i) then
+            write(61,*) coord(1:3,i)
+        else
+            write(61,*) 0.0D0,0.0D0,0.0D0
+        end if
+    end do
+    end do
+    close(61)
+
+
     deallocate(orbirrep)
         
 end subroutine CreatFCIDUMP
