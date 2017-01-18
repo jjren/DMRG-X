@@ -1,0 +1,197 @@
+LANSO -- simple LANczos with Selective Orthogonalization (version 1.0)
+
+- What is LANSO?
+
+	LANSO is a subroutine package written in FORTRAN 77 designed to find
+	some eigenvalues and eigenvectors of a linear operator Op that is real
+	symmetric with respect to a positive semi-definite real matrix M.
+	M may be the identity matrix.  The subroutine has been used in two
+	different modes:
+	1) shift and and invert, Op := ([K-sigma*M]**-1)*M, where K is
+	   symmetric, K-sigma*M is not actually inverted,
+	2) standard, Op := (M**-1)*K.  Here M must be invertible.
+	
+	LANSO implements the simple Lanczos algorithm with Simon's
+	selective orthogonalization to actively maintain extended semi-
+	orthogonality amongst the computed Lanczos vectors.  The program
+	has abandoned the earlier Parlett/Scott technique.
+
+	LANSO is most efficient when only a modest fraction (< 1/4) of
+	eigenpairs are wanted.  One potentially useful feature of LANSO
+	is its delivery of certain eigenvalues not yet good to full
+	precision.  For some tasks they are often good enough.
+
+	The largest eigenvalues tend to be captured before the small ones
+	but convergence depends on separation ratios and these vary with
+	the application.  For this reason Lanczos is often used with
+	operators in shift and invert form, i.e. mode 1 given above.
+
+        The program will find eigenvalues of multiplicity greater than one
+        (contrary to popular myth) but the copies stabilize one at a time,
+        the interval between copies depends on the problem and wordlength.
+        In our experience the gap is between 4 and 20 steps.
+
+- How to use LANSO
+
+	One invokes LANSO through the top level subroutine named LANDR
+	(short for LANczos DRiver).  The calling sequence for LANDR is
+	.
+	CALL LANDR(N,MAXPRS,LANMAX,CONDM,ENDL,ENDR,EV,KAPPA,
+	   NW,W,J,NEIG,RITZ,BND,IERR)
+	.
+	The user specifies as part of the parameter list:
+	.
+	N		... dimension of the eigenproblem,
+	MAXPRS		... maximum number of eigenpairs wanted
+			    (MAXPRS should be < N/4),
+	LANMAX		... maximum number of Lanczos steps allowed
+			    (MAXPRS <= LANMAX <= N),
+	CONDM		... estimated effective condition number of M
+			    (our code will use MAX(ABS(CONDM),1.0D0)),
+	[ENDL,ENDR]	... 2 end-points of an interval within which all
+			    UNWANTED eigenvalues of Op lie, (ENDL < ENDR)
+	                    (one choice is ENDL=-macheps,ENDR=macheps),
+	EV		... {INTEGER} if EV.LE.0 then only eigenvalues and no
+			    eigenvectors are wanted, otherwise EV is taken
+			    to be the output channel for eigenvectors,
+	KAPPA		... {DOUBLE PRECISION} relative accuracy of Ritz values
+			    acceptable as eigenvalues; specifically, LANDR
+			    will deliver RITZ(K) along with its error bound
+			    BND(K) and optionally its associated Ritz vector
+			    if BND(K).LE.KAPPA*ABS(RITZ(K)), (KAPPA will be
+			    reset to MAX(KAPPA,macheps**(3/4)) if EV.GT.0,
+			    otherwise KAPPA is untouched)
+	********************************************************************
+	********************************************************************
+	**                                                                **
+	** IMPORTANT: Since KAPPA may be modified by LANDR, KAPPA must be **
+	**            passed as a VARIABLE when LANDR gets called.        **
+	**                                                                **
+	********************************************************************
+	********************************************************************
+	NW		... size of the working array,
+			    (NW >= 6*N+1+4*LANMAX if EV.LE.0, otherwise
+			     NW >= 6*N+1+4*LANMAX+LANMAX*LANMAX) and
+	W		... the working array itself.
+	.
+	The first N entries of W must be initialized; if initialized
+	to all zeroes, a randomly chosen starting vector will be used,
+	otherwise it will be taken as a user-specified starting vector
+	for the Lanczos run.
+	.
+	LANDR returns via its parameter list the following items:
+	.
+	J		... number of Lanczos steps actually taken,
+	NEIG		... number of Ritz values stabilized(see KAPPA),
+	RITZ		... array that holds the Ritz values,
+	BND		... array that holds the error bounds and
+	IERR		... an advisory error flag.
+	.
+	If EV.GT.0 then
+		.
+		In addition, LANDR returns via FORTRAN (output) channel EV
+		the eigenpairs with BND(K) <= KAPPA*ABS(RITZ(K)) in the
+		following order: RITZ(K),BND(K),(RITZV(I),I = 1,N).
+		.
+		Note that (output) channel EV is open 'UNFORMATTED' to
+		save disk space and preserve accuracy.  The old (output)
+		channel EV will be over-written.  Under the UN*X operating
+		system with a V7-derived f77 compiler, the default name for
+		channel EV would be "fort.EV".
+
+	Two subroutines named OP and OPM must be supplied by the user.
+	The calling sequences for OP and OPM are
+	.
+	CALL OP(N,P,Q,R)
+	CALL OPM(N,X,Y)
+	.
+	LANDR provides OP with an N-vector Q along with an N-vector
+	P := M*Q and expects to receive in return R := Op*Q where Op
+	is as described at the beginning.  The N-vector P can be useful
+	in shift-and-invert mode to save the cost of forming M*Q.
+	.
+	LANDR provides OPM with an N-vector X and expects to receive in
+	return the N-vector Y := M*X.
+	.
+	OP and OPM will be called with an N always equal to the
+	dimension of the eigenproblem.
+
+	If secondary storage (such as a disk drive) must be used to
+	store the computed Lanczos vectors, the subroutine named STORE
+	must be supplied by the user in place of our trivially
+	implemented STORE which assumes the existence of virtual
+	memory.  The calling sequence for STORE is
+	.
+	CALL STORE(N,ISW,J,S)
+	.
+	where
+	.
+	N	... the dimension of the eigenproblem,
+	ISW	... action type switch, can only be 1, 2, 3 or 4.
+		    ISW = 1 requests STORING of J-th Lanczos vector Q(J),
+		    ISW = 2 requests RETRIEVAL of J-th Lanczos vector Q(J),
+		    ISW = 3 requests STORING of M*Q(J) for J = 1 or 2,
+		    ISW = 4 requests RETRIEVAL of M*Q(J) for J = 1 or 2.
+	J	... index of the J-th Lanczos vector,
+	S	... the N-vector to be stored/retrieved.
+
+	LANDR will end its run if either
+	.
+	1) MAXPRS eigenpairs have been found, or
+	2) LANMAX Lanczos steps have been taken, or
+	3) two Ritz values inside [ENDL,ENDR] have stabilized,
+	.
+	whichever occurs first.  Note that an eigenvalue of multiplicity
+	higher than one may not have all its copies delivered.
+	.
+	The third reason for termination is invoked in shift and invert
+	mode when all eigenvalues in a given interval are wanted.
+        Note that RITZ holds approximations to the eigenvalues of Op
+        which are shifted inverted transformations of the eigenvalues of
+        the pair (K,M).  Thus ENDL and ENDR refer to Op, not to (K,M).
+
+- Some Common Ways of Invoking LANSO
+
+	To find the 15 smallest (leftmost) eigenvalues of the pair (K,M)
+	one must choose sigma.  If the user has no prior knowledge then
+	we recommend sigma := (1/2)*min{K(I,I)/M(I,I)} over M(I,I) != 0.  A
+	last resort choice is sigma := 0 if the K is positive semi-definite.
+	The subroutine OP must solve systems with coefficient matrix
+	K-sigma*M.  Set ENDL := -macheps, ENDR := +macheps.  By the step at
+	which eigenvalue number 10 has been accepted, for any reasonable value
+	of KAPPA, the first 7 eigenvalues will be correct to working precision.
+	Thus KAPPA really controls the accuracy of the last few eigenvalues to
+	be computed.  Upon completion the user must transform our eigenvalues
+	mu via lambda := 1/mu+sigma.  LANSO need not know anything about sigma.
+	.
+	It is our experience that with a reasonable shift p eigenvalues will be
+	found in approximately max(p+8,2p) steps.
+
+	To find all eigenvalues in a given interval [a,b] set sigma := (a+b)/2,
+	ENDL := 2/(a-b), ENDR := 2/(b-a), MAXPRS := N, LANMAX := MAXPRS.
+
+	To find the largest eigenvalue of a symmetric matrix A, set
+	OPM(N,X,Y) to return Y := X, OP(N,P,Q,R) should simply return R := A*Q.
+	Set ENDL := -macheps, ENDR := +macheps, MAXPRS := 1, LANMAX := N.
+	If a crude estimate of the largest eigenvalue of A is wanted then
+	KAPPA should be set accordingly, say KAPPA := 10**-3.
+
+\end{enumerate}
+
+- Acknowledgements
+
+	The authors have received help from many people during the protracted
+	labor that preceded the birth of this program.  We mention David Scott,
+	Horst Simon, Bahram Nour-Omid, John Lewis, and Jeremy Du Croz for their
+	support and encouragement over many years.
+
+- The Future
+
+	There are one or two parameters that may be varied a little but we
+	believe that this code is the way to implement the simple Lanczos
+	algorithm with a nearly orthogonal set of Lanczos vectors that are
+	retained and may be used for various purposes.  When OP is very
+	expensive this way of using Lanczos is attractive.  When OP costs
+	about the same as the rest of a Lanczos step then other implementations
+	may be more efficient.  A careful comparison with block Lanczos codes
+	would be interesting.

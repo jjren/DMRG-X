@@ -6,7 +6,8 @@ JDLIB=./lib
 #MPILIB=/opt/intel/parallel_studio_xe_2016/impi/5.1.1.109/lib64
 MPILIB=
 MPIINC=
-LANCLIB=/home/jjren/Code/planso.jl/external/PLAN/liblanso.a
+#LANCLIB=/home/jjren/Code/planso.jl/external/PLAN/liblanso.a
+LANCLIB=./lanso/liblanso.a
 
 FCCFLAG= -lmkl_blas95_lp64 -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core -lmkl_lapack95_lp64 -liomp5 -lpthread -lm 
 

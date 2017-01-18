@@ -1,0 +1,9 @@
+01/18/2017 1. change the landr driver to return the wanted eigenvectors.
+           2. add a newtql2 subroutine to solve the tridiagonal eigen equation;
+              it is more robust than the original version;
+           3. change the ritvec subroutine to print out the diagonal alpha and
+              off-diagonal beta and eigenvalue and first element of eigenvector to
+              "lanczos.out". It is used in the dynamic correlation calculation.
+           4. change the store subroutine to a larger memory to store
+              eigenvector;
+           5. change the lanso subroutine : the loop strategy

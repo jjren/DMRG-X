@@ -15,7 +15,7 @@ def getdata(dim, f):
     return data
 
 
-def dyn(dim,npoints,omega,e,ev,diag,offdiag, dyn_initstate):
+def dyn(dim,npoints,omega,e,ev,diag,offdiag, e_ref):
     # Lorentzian broaden
     eta = 1.0e-1
 
@@ -24,13 +24,13 @@ def dyn(dim,npoints,omega,e,ev,diag,offdiag, dyn_initstate):
     # calculate the dynamic correlation function
     for ipoint in range(0,npoints):
         for ilanc in range(0,dim):
-            absorb[ipoint] += ev[ilanc]*ev[ilanc]*eta / ((omega[ipoint]+e[dyn_initstate-1]-e[ilanc])**2+eta*eta)
+            absorb[ipoint] += ev[ilanc]*ev[ilanc]*eta / ((omega[ipoint]+e_ref-e[ilanc])**2+eta*eta)
     
     return absorb
     
 
 
-def dyn_corr(dim, norm, figname, omega, dyn_initstate):   
+def dyn_corr(dim, norm, figname, omega, e_ref):   
  
     f = open("lanczos.out")
     # e: energy; ev: eigenvector coeff of initial \psi
@@ -69,7 +69,7 @@ def dyn_corr(dim, norm, figname, omega, dyn_initstate):
     ax.set_xlabel('eV')
     ax.set_ylabel(r'$G(\omega)$')
     ax.set_xlim(omega[0], omega[npoints-1])  # set the xlim to xmin, xmax
-    ax.set_ylim(0.0, 4.5)   
+    ax.set_ylim(0.0, 10.0)   
     ax.xaxis.set_major_formatter(FormatStrFormatter('%.1f'))
     ax.yaxis.set_major_formatter(FormatStrFormatter('%.1f'))
 
@@ -79,7 +79,7 @@ def dyn_corr(dim, norm, figname, omega, dyn_initstate):
     for i in range(0,3):
         # calculate the correlation function
         absorb[i,:] = dyn(dim,npoints,omega,e[i,:],ev[i,:],diag[i,:],offdiag[i,:],
-                dyn_initstate) *  norm[i] / np.pi
+                e_ref) *  norm[i] / np.pi
         ax.plot(omega, absorb[i,:], marker = markers[i], markersize=0,
                 c=colors[i], label=label[i])
     
@@ -95,6 +95,9 @@ if __name__ == "__main__":
     # input 
     # the dimension of lanczos space
     dim = 100
+
+    # set initial state(reference state) energy
+    e_ref = -24.0258670244275
     
     # set the omega range
     omega = np.arange(-0.1, 40, 0.005)
@@ -102,7 +105,5 @@ if __name__ == "__main__":
     # normalization of initial lanczos space (norm = <\psi|\psi>)
     norm = np.array([4.59992887193602, 2.88692686189203, 0.0])
     
-    # set the init state index
-    dyn_initstate = 1
 
-    dyn_corr(dim, norm, "default", omega, dyn_initstate)
+    dyn_corr(dim, norm, "default", omega, e_ref)

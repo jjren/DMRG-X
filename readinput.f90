@@ -10,7 +10,7 @@ Subroutine ReadInput
     use perturbation_mod,only : Ifperturbation3,IfperturbationDVD
     use basisindex_mod,only : nmaxgoodbasis,nmaxgoodbasisp
     use Peierls_mod,only : peierlsstate,hopalpha,springK,npeierlsloops,peierlsconvergethresh
-    use dyn_prop,only : Ifdyn_prop, maxnlancs, dyn_initstate
+    use dyn_prop,only : Ifdyn_prop, dyn_prop_method,  maxnlancs, dyn_initstate
     use meanfield,only : Ifmotra
     implicit none
 
@@ -130,7 +130,7 @@ Subroutine ReadInput
         read(10,*) noiseweight(0:sweeps)
     end if
     ! if do dynamic calculation
-    read(10,*) Ifdyn_prop, maxnlancs, dyn_initstate
+    read(10,*) Ifdyn_prop, dyn_prop_method, maxnlancs, dyn_initstate
 
     read(10,*) nmaxgoodbasis,nmaxgoodbasisp
 
@@ -256,6 +256,7 @@ Subroutine ReadInput
         call MPI_PACK(opmethod,20,MPI_CHARACTER,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
         call MPI_PACK(Ifnoise,1,MPI_LOGICAL,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
         call MPI_PACK(Ifdyn_prop,1,MPI_LOGICAL,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
+        call MPI_PACK(dyn_prop_method,20,MPI_CHARACTER,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
         call MPI_PACK(maxnlancs,1,MPI_INTEGER4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
         call MPI_PACK(dyn_initstate,1,MPI_INTEGER4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
         call MPI_PACK(nmaxgoodbasis,1,MPI_integer4,packbuf,packsize,position1,MPI_COMM_WORLD,ierr)
@@ -338,6 +339,7 @@ Subroutine ReadInput
         call MPI_UNPACK(packbuf,packsize,position1,opmethod,20,MPI_CHARACTER,MPI_COMM_WORLD,ierr)
         call MPI_UNPACK(packbuf,packsize,position1,Ifnoise,1,MPI_LOGICAL,MPI_COMM_WORLD,ierr)
         call MPI_UNPACK(packbuf,packsize,position1,Ifdyn_prop,1,MPI_LOGICAL,MPI_COMM_WORLD,ierr)
+        call MPI_UNPACK(packbuf,packsize,position1,dyn_prop_method,20,MPI_CHARACTER,MPI_COMM_WORLD,ierr)
         call MPI_UNPACK(packbuf,packsize,position1,maxnlancs,1,MPI_INTEGER4,MPI_COMM_WORLD,ierr)
         call MPI_UNPACK(packbuf,packsize,position1,dyn_initstate,1,MPI_INTEGER4,MPI_COMM_WORLD,ierr)
         call MPI_UNPACK(packbuf,packsize,position1,nmaxgoodbasis,1,MPI_integer4,MPI_COMM_WORLD,ierr)
@@ -401,7 +403,7 @@ Subroutine ReadInput
         if(Ifnoise==.true.) then
             write(*,*) "noiseweight:",noiseweight
         end if
-        write(*,*) "If do dynamic property:", Ifdyn_prop, maxnlancs, dyn_initstate
+        write(*,*) "If do dynamic property:", Ifdyn_prop, dyn_prop_method, maxnlancs, dyn_initstate
         write(*,*) "nweight=",nweight
         write(*,*) "nmaxgoodbasis=",nmaxgoodbasis
         write(*,*) "nmaxgoodbasisp=",nmaxgoodbasisp
