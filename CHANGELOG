@@ -1,0 +1,8 @@
+CHANGELOG
+
+01/17/2017    1. add dynamic correlation calculation after the normal DMRG.
+                 3 method : lanczos fraction representation method;
+                 correction vector method; dynamic DMRG method.
+
+                 the iterative optimized dynamic correlation method is not
+                 implemented.
