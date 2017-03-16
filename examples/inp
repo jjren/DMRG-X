@@ -32,5 +32,5 @@ comple/direct ! op method
 nbonds   ! bond number
 F        ! noise
 (0.3 0.2)! noise weight
-T   100  ! Ifdyn_prop maxnlancs   
+T   100  ! Ifdyn_prop, dyn_prop_method, maxnlancs, dyn_initstate
 maxnbasis maxnbasisp  
