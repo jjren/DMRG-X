@@ -1,0 +1,28 @@
+s 0
+0 0 0 0
+10       ! norbs             
+10       ! junk_natoms       
+10       ! nelecs            
+0        ! ncharges          
+0        ! totalsz           
+1 OK     ! logic_PPP  PPPpot 
+0  1  1  ! logic_corrfunc corrfunclstate corrfuncrstate
+0        ! logic_Peierls
+1  F  F  ! logic_MeanField  IfMeanfieldPeierls  Ifmotra/active.inp  
+1        ! logic_spinreversal
+0 independent      ! logic_C2/C2method         
+0        ! logic_tree        
+0 F F   ! logic_perturbation Ifperturbation3 IfperturbationDVD
+2        ! logic_bondorder   
+1        ! logic_localspin   
+64 64    ! subM,subMp        
+5        ! sweeps            
+1        ! nstate            
+1.0D-5   ! energythresh      
+0.0D0    ! hopthresh         
+JD       ! diagmethod   
+comple   ! op method
+11   ! bond number
+F        ! noise
+F Lanczos 100 1 ! Ifdyn_prop, dyn_prop_method, maxnlancs, dyn_initstate
+100000 100000  

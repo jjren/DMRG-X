@@ -1,4 +1,4 @@
-MKLROOT=/opt/intel/intel2016/mkl
+MKLROOT=/opt/intel/mkl
 MKLLIB=$(MKLROOT)/lib/intel64
 mklinc=$(MKLROOT)/include/intel64/lp64 
 mklinc1=$(MKLROOT)/include
